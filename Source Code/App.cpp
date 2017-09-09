@@ -1323,7 +1323,7 @@ void App::loadLevel(int num) {		// Negative levels are tutorial levels
 	player.x = 0;		player.y = 0;
 	if (level == 1) { generateLevel(0, 0); }
 	else {
-		int type = getRand(21);		// Random number between 0 & 20
+		int type = getRand(20);		// Random number between 0 & 20
 		generateLevel(type); }		// Generate a Level of Random type
 
 	for (int i = 0; i < 6; i++) {		// Save a copy of the current map		// For if the player wants to redo this level
@@ -1338,7 +1338,7 @@ void App::generateLevel(int type, int num) {
 	int diff = 0;				// difficulty 0, 1, 2 = easy, normal, hard			// level		easy	normal	hard
 	if (num > bound1 && num <= bound2) { diff = 1; }								// 0			90%		10%		 0%
 	else if (num > bound2) { diff = 2; }											// 10			60%		20%		20%
-	int gain = -4 - diff * 6;	// Gain determines avg "profit" per level			// 20			30%		30%		40%
+	int gain = -6 - diff * 8;	// Gain determines avg "profit" per level			// 20			30%		30%		40%
 	//if (num % 2) { gain += 4; }													// 28+			 6%		38%		56%
 	int extraBoxes, extraItems, floorDmgs;		// Number of things per floor based on level number and difficulty
 
@@ -1535,7 +1535,7 @@ void App::generateLevel(int type, int num) {
 		extraItems = 18 + extraBoxes + gain;
 		floorDmgs = rand() % 4 + 1 + diff * 2;	// 1-4	// 3-6	// 5-8
 	}
-	else { generateLevel(0, num); }
+	else { generateLevel(0, 100); }
 
 	if (extraItems <= 0) {
 		if (diff == 0) { extraItems = 4; }
