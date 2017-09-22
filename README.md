@@ -14,7 +14,11 @@ Paper Swords
 
 		Shift			Turn around without moving
 
+		E			Refreshes current Level (Max 3 times per level)
+
 		R			Reset to the First Level
+		
+		Tab or F		Open Info Menu - close with any button
 -----
 	Goal:
 		Get as far as you can. Your score is the level count.
