@@ -12,13 +12,17 @@ Paper Swords
 		1-7			Attack
 		Keypad 1-7
 
-		Shift			Turn around without moving
+		Space / Shift		Turn around without moving
 
 		E			Refreshes current Level (Max 3 times per level)
 
 		R			Reset to the First Level
 		
 		Tab or F		Open Info Menu - close with any button
+		
+		X			Enter Training Room
+		
+		C			Toggle Music track, or mute Music
 -----
 	Goal:
 		Get as far as you can. Your score is the level count.
