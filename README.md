@@ -14,15 +14,17 @@ Paper Swords
 
 		Space / Shift		Turn around without moving
 
-		E			Refreshes current Level (Max 3 times per level)
-
 		R			Reset to the First Level
 		
 		Tab or F		Open Info Menu - close with any button
 		
 		X			Enter Training Room
 		
-		C			Toggle Music track, or mute Music
+		C			Change Music track
+		
+		V			Toggle Music
+		
+		Esc			Quit
 -----
 	Goal:
 		Get as far as you can. Your score is the level count.
