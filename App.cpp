@@ -14,6 +14,16 @@
 		Shift           Turn around without moving
 
 		R               Reset to the First Level
+
+		Tab or F		Display info Menu
+
+		X				Training Room
+
+        C               Change Music Track
+
+        V               Toggle Music
+
+        Esc             Quit
 ----------------------------------------------------------------------------------
 	Goal:
 		Get as far as you can. Your score is the level count.
@@ -22,22 +32,24 @@
 ----------------------------------------------------------------------------------*/
 
 #include "App.h"
+#pragma comment(linker, "/SUBSYSTEM:WINDOWS")
 using namespace std;
 
 const float fixed_timestep = 0.0166666f;
 const int max_steps = 6;
 const float pi = 3.14159265359f;
 
-const int swordCost = 50;
-const int longCost = 75;
-const int wideCost = 100;
+const int swordCost =  50;
+const int longCost  =  75;
+const int wideCost  = 100;
 const int crossCost = 125;
-const int spinCost = 150;
-const int stepCost = 175;
-const int lifeCost = 300;
+const int spinCost  = 150;
+const int stepCost  = 175;
+const int lifeCost  = 300;
 
-const int energyGainAmt = 100;			// How much Energy the player gains when moving to a Pick-Up
-const int itemWorth = 2;				// Item "Worth" is used to generate Levels
+const int startingEnergy = 300;
+const int energyGainAmt = 100;			    // How much Energy the player gains when moving to a Pick-Up
+const int itemWorth = energyGainAmt / 50;	// Item "Worth" is used to generate Levels
 
 const float iconDisplayTime = 0.45;		// Energy Gain Icon Display time
 const float boxDmgTime = 0.4;			// Box HP damage indicator time
@@ -66,6 +78,7 @@ const float itemScale = 1.1;
 Player::Player() : x(0), y(0), facing(3), moving(false), turning(false), moveDir(-1), energy(0), energy2(0) {}
 Tile::Tile() : state(0), item(-1), boxHP(0), boxType(0), boxAtkInd(0.0), prevDmg(0) {}
 DelayedHpLoss::DelayedHpLoss() : dmg(0), xPos(0), yPos(0), delay(0.0) {}
+DelayedSound::DelayedSound() : soundName(""), delay(0.0) {}
 
 GLuint loadTexture(const char *image_path) {
 	SDL_Surface *surface = IMG_Load(image_path);
@@ -101,7 +114,7 @@ void drawSpriteSheetSprite(GLfloat* place, GLuint& spriteTexture, int index, int
 	GLfloat quadUVs[] = { u, v, u, v + spriteHeight, u + spriteWidth, v + spriteHeight, u + spriteWidth, v };
 	drawTexture(place, quadUVs, spriteTexture);
 }
-void drawText(int fontTexture, string text, float sizeX, float sizeY, float spacing, float r = 1.0, float g = 1.0, float b = 1.0, float a = 1.0) {
+void drawText(GLuint fontTexture, string text, float sizeX, float sizeY, float spacing, float r = 1.0, float g = 1.0, float b = 1.0, float a = 1.0) {
 	glBindTexture(GL_TEXTURE_2D, fontTexture);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_BLEND);
@@ -131,20 +144,20 @@ void drawText(int fontTexture, string text, float sizeX, float sizeY, float spac
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
-float lerp(float v0, float v1, float t) {
+float lerp(float& v0, float& v1, float& t) {
 	return (1.0 - t)*v0 + t*v1;
 }
-float easeIn(float from, float to, float time) {
+float easeIn(float& from, float& to, float& time) {
 	float tVal = time*time*time*time*time;
 	return (1.0f - tVal)*from + tVal*to;
 }
-float easeOut(float from, float to, float time) {
+float easeOut(float& from, float& to, float& time) {
 	float oneMinusT = 1.0f - time;
 	float tVal = 1.0f - (oneMinusT * oneMinusT * oneMinusT *
 		oneMinusT * oneMinusT);
 	return (1.0f - tVal)*from + tVal*to;
 }
-float easeInOut(float from, float to, float time) {
+float easeInOut(float& from, float& to, float& time) {
 	float tVal;
 	if (time > 0.5) {
 		float oneMinusT = 1.0f - ((0.5f - time)*-2.0f);
@@ -157,7 +170,7 @@ float easeInOut(float from, float to, float time) {
 	}
 	return (1.0f - tVal)*from + tVal*to;
 }
-float easeOutElastic(float from, float to, float time) {
+float easeOutElastic(float& from, float& to, float& time) {
 	float p = 0.3f;
 	float s = p / 4.0f;
 	float diff = (to - from);
@@ -170,10 +183,10 @@ long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 player(Player()), menuDisplay(false), level(0), currentRefreshCount(0), refreshCount(0), currentEnergyGain(0),
-			 animationType(0), selSwordAnimation(0),
+			 player(Player()), menuDisplay(false), quitMenuOn(false), quitSel(true), level(0), currentEnergyGain(0),
+			 animationType(0), selSwordAnimation(-1), musicSel(1), musicMuted(true),
 			 animationDisplayAmt(0.0), chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0), currentSwordAtkTime(0.0),
-			 itemAnimationAmt(0.0), bgAnimationAmt(0.0) {
+			 itemAnimationAmt(0.0), bgAnimationAmt(0.0), musicSwitchDisplayAmt(0.0) {
 	Init(); }
 void App::Init() {
 	SDL_Init(SDL_INIT_VIDEO);
@@ -207,12 +220,12 @@ void App::Init() {
 	bgB              = loadTexture("Pics\\Background B.png");
 	bgC              = loadTexture("Pics\\Background C.png");
 	menuPic          = loadTexture("Pics\\Menu.png");
-	refreshPicA      = loadTexture("Pics\\Refresh A.png");
-	refreshPicB      = loadTexture("Pics\\Refresh B.png");
-
-	lvBarPic      = loadTexture("Pics\\Level Bar.png");
-	healthBoxPic = loadTexture("Pics\\Health Box.png");
-	infoBoxPic   = loadTexture("Pics\\InfoPic.png");
+	lvBarPic         = loadTexture("Pics\\Level Bar.png");
+	healthBoxPic     = loadTexture("Pics\\Health Box.png");
+	infoBoxPic       = loadTexture("Pics\\InfoPic.png");
+    musicDisplayPic  = loadTexture("Pics\\MusicDisplay.png");
+    quitPicY         = loadTexture("Pics\\QuitY.png");
+    quitPicN         = loadTexture("Pics\\QuitN.png");
 
 	swordAtkSheet1 = loadTexture("Pics\\Sword Attacks 2\\Sword Sheet 1.png");
 	swordAtkSheet3 = loadTexture("Pics\\Sword Attacks 2\\Sword Sheet 3.png");
@@ -229,11 +242,80 @@ void App::Init() {
 	lifeAtkSheet1  = loadTexture("Pics\\Sword Attacks 2\\Life Sheet 1.png");
 	lifeAtkSheet3  = loadTexture("Pics\\Sword Attacks 2\\Life Sheet 3.png");
 
-	level = 1;
-	player.energy = player.energy2 = 300;
-	loadLevel(level);
+	Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 4, 4096 );
+	Mix_Volume( -1, 32 );
+	Mix_Volume(  0, 48 );
+    Mix_Volume(  3, 12 );
+	
+	swordSound      = Mix_LoadWAV( "Sounds\\SwordSwing.wav" );
+	lifeSwordSound  = Mix_LoadWAV( "Sounds\\LifeSword.wav" );
+	itemSound       = Mix_LoadWAV( "Sounds\\GotItem2.wav" );
+	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit2.wav" );
+	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack2.wav" );
+
+	menuOpenSound   = Mix_LoadWAV( "Sounds\\ChipDesc2.wav" );
+	menuCloseSound  = Mix_LoadWAV( "Sounds\\ChipDescClose2.wav" );
+
+    quitCancelSound = Mix_LoadWAV( "Sounds\\QuitCancel2.wav" );
+    quitChooseSound = Mix_LoadWAV( "Sounds\\QuitChoose2.wav" );
+    quitOpenSound   = Mix_LoadWAV( "Sounds\\QuitOpen2.wav" );
+
+	track01 = Mix_LoadWAV( "Music\\01 Organization.wav" );
+    track02 = Mix_LoadWAV( "Music\\02 An Incident.wav" );
+    track03 = Mix_LoadWAV( "Music\\03 Blast Speed.wav" );
+    track04 = Mix_LoadWAV( "Music\\04 Shark Panic.wav" );
+    track05 = Mix_LoadWAV( "Music\\05 Battle Field.wav" );
+    track06 = Mix_LoadWAV( "Music\\06 Doubt.wav" );
+    track07 = Mix_LoadWAV( "Music\\07 Distortion.wav" );
+    track08 = Mix_LoadWAV( "Music\\08 Surge of Power.wav" );
+    track09 = Mix_LoadWAV( "Music\\09 Digital Strider.wav" );
+    track10 = Mix_LoadWAV( "Music\\10 Break the Storm.wav" );
+    track11 = Mix_LoadWAV( "Music\\11 Evil Spirit.wav" );
+    track12 = Mix_LoadWAV( "Music\\12 Hero.wav" );
+    track13 = Mix_LoadWAV( "Music\\13 Danger Zone.wav" );
+    track14 = Mix_LoadWAV( "Music\\14 Navi Customizer.wav" );
+    track15 = Mix_LoadWAV( "Music\\15 Graveyard.wav" );
+    track16 = Mix_LoadWAV( "Music\\16 The Count.wav" );
+    track17 = Mix_LoadWAV( "Music\\17 Secret Base.wav" );
+    track18 = Mix_LoadWAV( "Music\\18 Cybeasts.wav" );
+
+	reset();
 }
-App::~App() { SDL_Quit(); }
+App::~App() {
+	Mix_FreeChunk( swordSound );
+	Mix_FreeChunk( lifeSwordSound );
+	Mix_FreeChunk( itemSound );
+	Mix_FreeChunk( rockBreakSound );
+	Mix_FreeChunk( panelBreakSound );
+
+	Mix_FreeChunk( menuOpenSound );
+	Mix_FreeChunk( menuCloseSound );
+
+    Mix_FreeChunk( quitCancelSound );
+    Mix_FreeChunk( quitChooseSound );
+    Mix_FreeChunk( quitOpenSound );
+
+	Mix_FreeChunk( track01 );
+    Mix_FreeChunk( track02 );
+    Mix_FreeChunk( track03 );
+    Mix_FreeChunk( track04 );
+    Mix_FreeChunk( track05 );
+    Mix_FreeChunk( track06 );
+    Mix_FreeChunk( track07 );
+    Mix_FreeChunk( track08 );
+    Mix_FreeChunk( track09 );
+	Mix_FreeChunk( track10 );
+    Mix_FreeChunk( track11 );
+    Mix_FreeChunk( track12 );
+    Mix_FreeChunk( track13 );
+    Mix_FreeChunk( track14 );
+    Mix_FreeChunk( track15 );
+    Mix_FreeChunk( track16 );
+    Mix_FreeChunk( track17 );
+    Mix_FreeChunk( track18 );
+
+	SDL_Quit();
+}
 bool App::UpdateAndRender() {
 	float ticks = (float)SDL_GetTicks() / 2000.0f;
 	float elapsed = ticks - lastFrameTicks;
@@ -270,35 +352,32 @@ void App::updateGame(float elapsed) {
 
 	// Display parameter for attack, movement, and level transition animations
 	animationDisplayAmt -= elapsed;
-		// Step sword parameter
+	// Step sword parameter
 	if (animationDisplayAmt < stepAtkTime && selSwordAnimation == 5 && animationType == 1) { player.moving = false; }
-		// Invalid movement when trying to move back onto the Starting Tile
+	// Invalid movement when trying to move back onto the Starting Tile
 	if (player.x == -1 && player.y == 0 && animationDisplayAmt < 0) {
 		animationType = 2;
 		player.facing = 1;
 		player.x = 0;
-		animationDisplayAmt = moveAnimationTime;
-	}
-		// Level Transition parameter
+		animationDisplayAmt = moveAnimationTime; }
+	// Level Transition parameter
 	else if (player.x == 6 && player.y == 5 && animationDisplayAmt < 0) {
 		animationType = 3;
-		animationDisplayAmt = moveAnimationTime * 3;
-	}
-		// Reload default parameters when nothing is happening or being animated
+		animationDisplayAmt = moveAnimationTime * 3; }
+	// Reload default parameters when nothing is happening or being animated
 	else if (animationDisplayAmt < 0) {
 		animationDisplayAmt = 0;
 		player.moving = false;
 		player.turning = false;
 		player.moveDir = -1;
-		animationType = 0;
-	}
+		animationType = 0; }
 
 	// Handles Level Transition
 	if (animationType == 3 && animationDisplayAmt > 0 && animationDisplayAmt <= moveAnimationTime * 2) {
 		next();
 		animationType = 4;
 	}
-
+	
 	// Item Display parameter
 	itemAnimationAmt += elapsed * 10;
 	if (itemAnimationAmt > 8.0) { itemAnimationAmt = 0; }
@@ -319,64 +398,120 @@ void App::updateGame(float elapsed) {
 		if (delayedHpList[i].delay <= 0) {
 			hitBox(delayedHpList[i].xPos, delayedHpList[i].yPos, delayedHpList[i].dmg);
 			delayedHpList.erase(delayedHpList.begin() + i);
-	} }
+	}	}
+
+	// Handles delayed Sounds
+	for ( int i = 0; i < delayedSoundList.size(); i++ ) {
+		delayedSoundList[i].delay -= elapsed;
+		if ( delayedSoundList[i].delay <= 0 ) {
+			if      ( delayedSoundList[i].soundName == "sword" ) { Mix_PlayChannel( 0, swordSound, 0 ); }
+			else if ( delayedSoundList[i].soundName == "life" )  { Mix_PlayChannel( 0, lifeSwordSound, 0 ); }
+			delayedSoundList.erase( delayedSoundList.begin() + i);
+	}	}
+
+    // Handles display time of Music track Number and Name
+    musicSwitchDisplayAmt -= elapsed;
+    if ( musicSwitchDisplayAmt < 0 ) { musicSwitchDisplayAmt = 0; }
 }
 void App::checkKeys() {
 	// Menu Keys and Controls
 	while (SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) { done = true; }
 		else if (event.type == SDL_KEYDOWN) {		// Read Single Button presses
-			if (!menuDisplay && animationDisplayAmt <= 0) {
-				if (event.key.keysym.scancode == SDL_SCANCODE_E) { refresh(); }			// Restart current level
-				else if (event.key.keysym.scancode == SDL_SCANCODE_R) { reset(); }		// Restart to level 1
-				else if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) { done = true; }
+            if (!menuDisplay && !quitMenuOn && animationDisplayAmt <= 0) {
+				if (event.key.keysym.scancode == SDL_SCANCODE_R) { reset(); }		// Restart to level 1
+				else if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                    quitMenuOn = true;
+                    quitSel = true;
+                    Mix_PlayChannel( 1, quitOpenSound, 0 ); }
 				else if (event.key.keysym.scancode == SDL_SCANCODE_X) { test(); }
-				//else if (event.key.keysym.scancode == SDL_SCANCODE_C) { test2(); }
+				else if (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
+                else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
+				//else if (event.key.keysym.scancode == SDL_SCANCODE_Z) { test2(); }
 				// Turn around without moving
 				else if (event.key.keysym.scancode == SDL_SCANCODE_LSHIFT || event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
 					if (player.facing == 1) { face(3); }
 					else if (player.facing == 3) { face(1); } }
 				// Show "Menu"
-				else if (event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F) { menuDisplay = true; }
+				else if (event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F) {
+					menuDisplay = true;
+					Mix_PlayChannel( 1, menuOpenSound, 0 ); }
 			}
-			// While the Menu is displayed, any button will undisplay it
-			else if (menuDisplay) { menuDisplay = false; animationDisplayAmt = 0.1; }
-	}	}
+			// If the Menu is displayed, any button except for Music controls will close the menu
+			else if (menuDisplay && !quitMenuOn) {
+                if      (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
+                else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
+                else {
+				    menuDisplay = false; animationDisplayAmt = 0.15;
+				    Mix_PlayChannel( 1, menuCloseSound, 0 ); } }
+            // Controls for the Quit confirmation UI
+            else if (quitMenuOn) {
+                if      ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
+                    quitMenuOn = false;
+                    animationDisplayAmt = 0.15;
+                    Mix_PlayChannel( 1, quitCancelSound, 0 ); }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT )  {
+                    if ( !quitSel ) Mix_PlayChannel( 1, quitChooseSound, 0 );
+                    quitSel = true;
+                }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
+                    if (quitSel) Mix_PlayChannel( 1, quitChooseSound, 0 );
+                    quitSel = false;
+                }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
+                    if ( quitSel ) { done = true; }
+                    else {
+                        quitMenuOn = false;
+                        animationDisplayAmt = 0.15;
+                        Mix_PlayChannel( 1, quitCancelSound, 0 );
+                    }
+                }
+            }
+	    }
+    }
 
-
-	const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
+    if ( !quitMenuOn ) {
+	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
 	
-	// The player can't Move or Attack until after the previous Action is completed
-	if (animationDisplayAmt <= 0) {
-		animationType = 0;
-		// Move Up
-		if		(keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP]) { move(0); }
-		// Move Left
-		else if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT]) {
-			if (player.facing != 1) {
-				player.turning = true;
-				face(1); }
-			move(1);
-		}
-		// Move Down
-		else if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN]) { move(2); }
-		// Move Right
-		else if (keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT]) {
-			if (player.facing != 3) {
-				player.turning = true;
-				face(3); }
-			move(3);
-		}
+	    // The player can't Move or Attack until after the previous Action is completed
+	    if (animationDisplayAmt <= 0) {
+		    animationType = 0;
+		    // Move Up
+		    if		(keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP]) { move(0); }
+		    // Move Left
+		    else if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT]) {
+			    if (player.facing != 1) {
+				    player.turning = true;
+				    face(1); }
+			    move(1);
+		    }
+		    // Move Down
+		    else if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN]) { move(2); }
+		    // Move Right
+		    else if (keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT]) {
+			    if (player.facing != 3) {
+				    player.turning = true;
+				    face(3); }
+			    move(3);
+		    }
 
-		// Sword Attacks
-		else if (keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1]) { swordAtk(player.facing); }
-		else if (keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2]) { longAtk(player.facing); }
-		else if (keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3]) { wideAtk(player.facing); }
-		else if (keystates[SDL_SCANCODE_4] || keystates[SDL_SCANCODE_KP_4]) { crossAtk(player.facing); }
-		else if (keystates[SDL_SCANCODE_5] || keystates[SDL_SCANCODE_KP_5]) { spinAtk(player.facing); }
-		else if (keystates[SDL_SCANCODE_6] || keystates[SDL_SCANCODE_KP_6]) { stepAtk(player.facing); }
-		else if (keystates[SDL_SCANCODE_7] || keystates[SDL_SCANCODE_KP_7]) { lifeAtk(player.facing); }
-	}
+		    // Sword Attacks
+		    else if (keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1]) { swordAtk(player.facing); }
+		    else if (keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2]) { longAtk(player.facing); }
+		    else if (keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3]) { wideAtk(player.facing); }
+		    else if (keystates[SDL_SCANCODE_4] || keystates[SDL_SCANCODE_KP_4]) { crossAtk(player.facing); }
+		    else if (keystates[SDL_SCANCODE_5] || keystates[SDL_SCANCODE_KP_5]) { spinAtk(player.facing); }
+		    else if (keystates[SDL_SCANCODE_6] || keystates[SDL_SCANCODE_KP_6]) { stepAtk(player.facing); }
+		    else if (keystates[SDL_SCANCODE_7] || keystates[SDL_SCANCODE_KP_7]) { lifeAtk(player.facing); }
+	    }
+    }
 }
 
 // Display Functions
@@ -408,7 +543,10 @@ void App::Render() {
 		else if (selSwordAnimation == 5) { stepDisplay(player.facing); }
 		else if (selSwordAnimation == 6) { lifeDisplay(player.facing); } }
 
-	if (menuDisplay) { drawMenu(); }
+    if ( menuDisplay ) { drawMenu(); }
+    if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
+
+    if ( quitMenuOn ) { drawQuitMenu(); }
 
 	SDL_GL_SwapWindow(displayWindow);
 }
@@ -429,6 +567,12 @@ void App::drawMenu() {
 	float menuSizeY = 1;
 	GLfloat place[] = { -menuSizeX, menuSizeY, -menuSizeX, -menuSizeY,     menuSizeX, -menuSizeY, menuSizeX, menuSizeY };
 	drawSpriteSheetSprite(place, menuPic, 0, 1, 1);
+}
+void App::drawQuitMenu() {
+    glLoadIdentity();
+    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
+    if ( quitSel ) { drawSpriteSheetSprite( place, quitPicY, 0, 1, 1 ); }
+    else           { drawSpriteSheetSprite( place, quitPicN, 0, 1, 1 ); }
 }
 void App::drawPlayer() {
 	glLoadIdentity();
@@ -668,7 +812,7 @@ void App::drawFloor() {
 		else        { drawSpriteSheetSprite(bottomPlace, floorBottomPic1, 0, 1, 1); }
 	}
 }
-void App::drawBoxes(int num) {			// Draw the Rock Obstacles on the Floor
+void App::drawBoxes(int row) {			// Draw the Rock Obstacles on the Floor
 	glLoadIdentity();
 	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
 	//glScalef(0.6, 0.6, 0.0);
@@ -683,57 +827,32 @@ void App::drawBoxes(int num) {			// Draw the Rock Obstacles on the Floor
 	int sheetHeight = 3;
 	int index = 0;
 
-	if (num > 5) { num = -1; }
-	if (num == -1) {
-		for (int i = 0; i < 6; i++) {
-			for (int j = 5; j >= 0; j--) {
-				if (map[i][j].boxHP > 0 || map[i][j].boxAtkInd > 0) {
-					GLfloat place[] = { i * scaleX + sizeX, j * scaleY + sizeY, i * scaleX + sizeX, j * scaleY - sizeY,
-										i * scaleX - sizeX, j * scaleY - sizeY, i * scaleX - sizeX, j * scaleY + sizeY };
+	for (int i = 0; i < 6; i++) {
+		if (map[i][row].boxHP > 0 || map[i][row].boxAtkInd > 0) {
+			if ( map[i][row].boxHP > 0 ) {
+				GLfloat place[] = { i * scaleX + sizeX, row * scaleY + sizeY, i * scaleX + sizeX, row * scaleY - sizeY,
+									i * scaleX - sizeX, row * scaleY - sizeY, i * scaleX - sizeX, row * scaleY + sizeY };
+                bool perlinOn = false;
 
-					if      (map[i][j].boxType <= 0) { sheetHeight = 5; textureSheet = rockSheet; }
-					else if (map[i][j].boxType == 1) { sheetHeight = 5; textureSheet = rockSheet; }
-					else if (map[i][j].boxType == 2) { sheetHeight = 3; textureSheet = rockSheetItem; }
+				if      (map[i][row].boxType <= 0) { sheetHeight = 5; textureSheet = rockSheet; }
+				else if (map[i][row].boxType == 1) { sheetHeight = 5; textureSheet = rockSheet; }
+				else if (map[i][row].boxType == 2) { sheetHeight = 3; textureSheet = rockSheetItem; }
 
-					index = (map[i][j].boxHP - 1) * 3;
-					if      (map[i][j].prevDmg == 1 && map[i][j].boxAtkInd > 0) { index += 4; }
-					else if (map[i][j].prevDmg == 2 && map[i][j].boxAtkInd > 0) { index += 8; }
+				index = (map[i][row].boxHP - 1) * 3;
+				if      (map[i][row].prevDmg == 1 && map[i][row].boxAtkInd > 0) { index += 4; perlinOn = true; }
+				else if (map[i][row].prevDmg == 2 && map[i][row].boxAtkInd > 0) { index += 8; perlinOn = true; }
 
-					if (map[i][j].boxHP > 0) { drawSpriteSheetSprite(place, textureSheet, index, 3, sheetHeight); }
-					else if (map[i][j].boxAtkInd > boxDmgTime * 0.8) { drawSpriteSheetSprite(place, textureSheet, index, 3, sheetHeight); }
-					else {
-						GLfloat place2[] = { i * scaleX + sizeX2, j * scaleY + sizeY2, i * scaleX + sizeX2, j * scaleY - sizeY2,
-											 i * scaleX - sizeX2, j * scaleY - sizeY2, i * scaleX - sizeX2, j * scaleY + sizeY2 };
-						if      (map[i][j].boxAtkInd > boxDmgTime * 0.60) { drawSpriteSheetSprite(place2, rockDeathSheet, 0, 4, 1); }
-						else if (map[i][j].boxAtkInd > boxDmgTime * 0.40) { drawSpriteSheetSprite(place2, rockDeathSheet, 1, 4, 1); }
-						else if (map[i][j].boxAtkInd > boxDmgTime * 0.20) { drawSpriteSheetSprite(place2, rockDeathSheet, 2, 4, 1); }
-						else if (map[i][j].boxAtkInd > boxDmgTime * 0.00) { drawSpriteSheetSprite(place2, rockDeathSheet, 3, 4, 1); }
-	}	}	}	}	}
-	else {
-		for (int i = 0; i < 6; i++) {
-			if (map[i][num].boxHP > 0 || map[i][num].boxAtkInd > 0) {
-					GLfloat place[] = { i * scaleX + sizeX, num * scaleY + sizeY, i * scaleX + sizeX, num * scaleY - sizeY,
-										i * scaleX - sizeX, num * scaleY - sizeY, i * scaleX - sizeX, num * scaleY + sizeY };
-
-					if      (map[i][num].boxType <= 0) { sheetHeight = 5; textureSheet = rockSheet; }
-					else if (map[i][num].boxType == 1) { sheetHeight = 5; textureSheet = rockSheet; }
-					else if (map[i][num].boxType == 2) { sheetHeight = 3; textureSheet = rockSheetItem; }
-
-					index = (map[i][num].boxHP - 1) * 3;
-					if      (map[i][num].prevDmg == 1 && map[i][num].boxAtkInd > 0) { index += 4; }
-					else if (map[i][num].prevDmg == 2 && map[i][num].boxAtkInd > 0) { index += 8; }
-
-					if (map[i][num].boxHP > 0) { drawSpriteSheetSprite(place, textureSheet, index, 3, sheetHeight); }
-					else if (map[i][num].boxAtkInd > boxDmgTime * 0.8) { drawSpriteSheetSprite(place, textureSheet, index, 3, sheetHeight); }
-					else {
-						GLfloat place2[] = { i * scaleX + sizeX2, num * scaleY + sizeY2, i * scaleX + sizeX2, num * scaleY - sizeY2,
-											 i * scaleX - sizeX2, num * scaleY - sizeY2, i * scaleX - sizeX2, num * scaleY + sizeY2 };
-						if      (map[i][num].boxAtkInd > boxDmgTime * 0.60) { drawSpriteSheetSprite(place2, rockDeathSheet, 0, 4, 1); }
-						else if (map[i][num].boxAtkInd > boxDmgTime * 0.40) { drawSpriteSheetSprite(place2, rockDeathSheet, 1, 4, 1); }
-						else if (map[i][num].boxAtkInd > boxDmgTime * 0.20) { drawSpriteSheetSprite(place2, rockDeathSheet, 2, 4, 1); }
-						else if (map[i][num].boxAtkInd > boxDmgTime * 0.00) { drawSpriteSheetSprite(place2, rockDeathSheet, 3, 4, 1); }
-}	}	}	}	}
-void App::drawItems(int num) {		// Draw the Collectable Resources on the Map
+                drawSpriteSheetSprite(place, textureSheet, index, 3, sheetHeight);
+            }
+			else {
+				GLfloat place[] = { i * scaleX + sizeX2, row * scaleY + sizeY2, i * scaleX + sizeX2, row * scaleY - sizeY2,
+									i * scaleX - sizeX2, row * scaleY - sizeY2, i * scaleX - sizeX2, row * scaleY + sizeY2 };
+				if      (map[i][row].boxAtkInd > boxDmgTime * 0.60) { drawSpriteSheetSprite(place, rockDeathSheet, 0, 4, 1); }
+				else if (map[i][row].boxAtkInd > boxDmgTime * 0.40) { drawSpriteSheetSprite(place, rockDeathSheet, 1, 4, 1); }
+				else if (map[i][row].boxAtkInd > boxDmgTime * 0.20) { drawSpriteSheetSprite(place, rockDeathSheet, 2, 4, 1); }
+				else if (map[i][row].boxAtkInd > boxDmgTime * 0.00) { drawSpriteSheetSprite(place, rockDeathSheet, 3, 4, 1); }
+}	}	}	}
+void App::drawItems(int row) {		// Draw the Collectable Resources on the Map
 	glLoadIdentity();
 	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
 	//glScalef(0.6, 0.6, 0.0);
@@ -742,40 +861,23 @@ void App::drawItems(int num) {		// Draw the Collectable Resources on the Map
 	float itemSizeX = 0.23 * itemScale / 1.5;
 	float itemSizeY = 0.61 * itemScale / 1.5;
 
-	if (num > 5) { num = -1; }
-	if (num == -1) {
-		for (int i = 0; i < 6; i++) {
-			for (int j = 5; j >= 0; j--) {
-				GLfloat place[] = { i + itemSizeX * scaleX, j * scaleY + itemSizeY, i + itemSizeX * scaleX, j * scaleY - itemSizeY,
-									i - itemSizeX * scaleX, j * scaleY - itemSizeY, i - itemSizeX * scaleX, j * scaleY + itemSizeY };
-				if (map[i][j].item > 0 && map[i][j].boxHP <= 0) {
-					if      (itemAnimationAmt >= 0 && itemAnimationAmt < 1) { drawSpriteSheetSprite(place, energySheet, 0, 8, 1); }
-					else if (itemAnimationAmt >= 1 && itemAnimationAmt < 2) { drawSpriteSheetSprite(place, energySheet, 1, 8, 1); }
-					else if (itemAnimationAmt >= 2 && itemAnimationAmt < 3) { drawSpriteSheetSprite(place, energySheet, 2, 8, 1); }
-					else if (itemAnimationAmt >= 3 && itemAnimationAmt < 4) { drawSpriteSheetSprite(place, energySheet, 3, 8, 1); }
-					else if (itemAnimationAmt >= 4 && itemAnimationAmt < 5) { drawSpriteSheetSprite(place, energySheet, 4, 8, 1); }
-					else if (itemAnimationAmt >= 5 && itemAnimationAmt < 6) { drawSpriteSheetSprite(place, energySheet, 5, 8, 1); }
-					else if (itemAnimationAmt >= 6 && itemAnimationAmt < 7) { drawSpriteSheetSprite(place, energySheet, 6, 8, 1); }
-					else if (itemAnimationAmt >= 7 && itemAnimationAmt < 8) { drawSpriteSheetSprite(place, energySheet, 7, 8, 1); }
-	}	}	}	}
-	else {
-		for (int i = 0; i < 6; i++) {
-			GLfloat place[] = { i + itemSizeX * scaleX, num * scaleY + itemSizeY, i + itemSizeX * scaleX, num * scaleY - itemSizeY,
-								i - itemSizeX * scaleX, num * scaleY - itemSizeY, i - itemSizeX * scaleX, num * scaleY + itemSizeY };
-			if (map[i][num].item > 0 && map[i][num].boxHP <= 0) {
-				if      (itemAnimationAmt >= 0 && itemAnimationAmt < 1) { drawSpriteSheetSprite(place, energySheet, 0, 8, 1); }
-				else if (itemAnimationAmt >= 1 && itemAnimationAmt < 2) { drawSpriteSheetSprite(place, energySheet, 1, 8, 1); }
-				else if (itemAnimationAmt >= 2 && itemAnimationAmt < 3) { drawSpriteSheetSprite(place, energySheet, 2, 8, 1); }
-				else if (itemAnimationAmt >= 3 && itemAnimationAmt < 4) { drawSpriteSheetSprite(place, energySheet, 3, 8, 1); }
-				else if (itemAnimationAmt >= 4 && itemAnimationAmt < 5) { drawSpriteSheetSprite(place, energySheet, 4, 8, 1); }
-				else if (itemAnimationAmt >= 5 && itemAnimationAmt < 6) { drawSpriteSheetSprite(place, energySheet, 5, 8, 1); }
-				else if (itemAnimationAmt >= 6 && itemAnimationAmt < 7) { drawSpriteSheetSprite(place, energySheet, 6, 8, 1); }
-				else if (itemAnimationAmt >= 7 && itemAnimationAmt < 8) { drawSpriteSheetSprite(place, energySheet, 7, 8, 1); }
-}	}	}	}
+	for (int i = 0; i < 6; i++) {
+		GLfloat place[] = { i + itemSizeX * scaleX, row * scaleY + itemSizeY, i + itemSizeX * scaleX, row * scaleY - itemSizeY,
+							i - itemSizeX * scaleX, row * scaleY - itemSizeY, i - itemSizeX * scaleX, row * scaleY + itemSizeY };
+		if (map[i][row].item > 0 && map[i][row].boxHP <= 0) {
+			if      (itemAnimationAmt >= 0 && itemAnimationAmt < 1) { drawSpriteSheetSprite(place, energySheet, 0, 8, 1); }
+			else if (itemAnimationAmt >= 1 && itemAnimationAmt < 2) { drawSpriteSheetSprite(place, energySheet, 1, 8, 1); }
+			else if (itemAnimationAmt >= 2 && itemAnimationAmt < 3) { drawSpriteSheetSprite(place, energySheet, 2, 8, 1); }
+			else if (itemAnimationAmt >= 3 && itemAnimationAmt < 4) { drawSpriteSheetSprite(place, energySheet, 3, 8, 1); }
+			else if (itemAnimationAmt >= 4 && itemAnimationAmt < 5) { drawSpriteSheetSprite(place, energySheet, 4, 8, 1); }
+			else if (itemAnimationAmt >= 5 && itemAnimationAmt < 6) { drawSpriteSheetSprite(place, energySheet, 5, 8, 1); }
+			else if (itemAnimationAmt >= 6 && itemAnimationAmt < 7) { drawSpriteSheetSprite(place, energySheet, 6, 8, 1); }
+			else if (itemAnimationAmt >= 7 && itemAnimationAmt < 8) { drawSpriteSheetSprite(place, energySheet, 7, 8, 1); }
+}	}	}
 void App::drawTextUI() {
 	// Display current Level number
 	glLoadIdentity();
-	glTranslatef(0.895, 0.93, 0.0);
+	glTranslatef(0.895, 0.95, 0.0);
 	if (level >= 10) { glTranslatef(-0.04, 0.0, 0.0); }
 	if (level >= 100) { glTranslatef(-0.04, 0.0, 0.0); }
 	if (level >= 1000) { glTranslatef(-0.04, 0.0, 0.0); }
@@ -788,30 +890,6 @@ void App::drawTextUI() {
 	drawSpriteSheetSprite(barPlace, lvBarPic, 0, 1, 1);
 	glTranslatef(0, -0.005, 0);
 	drawText(textSheet1A, "Lv" + to_string(level), 0.08 * 2 / 4, 0.16 * 2 / 2.7, -0.00);
-
-	// Display number of refreshes left this level
-	glLoadIdentity();
-	glTranslatef(0.96, -0.85, 0.0);
-	float iconSizeX = 0.15 / 2 / 4;
-	float iconSizeY = 0.15 / 2 / 2.7;
-	GLfloat iconPlace[] = { -iconSizeX, iconSizeY, -iconSizeX, -iconSizeY,      iconSizeX, -iconSizeY, iconSizeX, iconSizeY };
-	if (currentRefreshCount <= 2) { drawSpriteSheetSprite(iconPlace, refreshPicA, 0, 1, 1); }
-	                         else { drawSpriteSheetSprite(iconPlace, refreshPicB, 0, 1, 1); }
-	glTranslatef(-0.16 / 4, 0, 0);
-	if (currentRefreshCount <= 1) { drawSpriteSheetSprite(iconPlace, refreshPicA, 0, 1, 1); }
-	                         else { drawSpriteSheetSprite(iconPlace, refreshPicB, 0, 1, 1); }
-	glTranslatef(-0.16 / 4, 0, 0);
-	if (currentRefreshCount <= 0) { drawSpriteSheetSprite(iconPlace, refreshPicA, 0, 1, 1); }
-	                         else { drawSpriteSheetSprite(iconPlace, refreshPicB, 0, 1, 1); }
-	// Display number of times Refreshed
-	if (refreshCount > 0 || menuDisplay) {
-		glLoadIdentity();
-		glTranslatef(0.957, -0.93, 0.0);
-		if (refreshCount >= 10) { glTranslatef(-0.04, 0.0, 0.0); }
-		if (refreshCount >= 100) { glTranslatef(-0.04, 0.0, 0.0); }
-		if (refreshCount >= 1000) { glTranslatef(-0.04, 0.0, 0.0); }
-		drawText(textSheet1A, to_string(refreshCount), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0);
-	}
 
 	// Draw Energy Amount
 	glLoadIdentity();
@@ -831,7 +909,8 @@ void App::drawTextUI() {
 	if (displayedEnergy < 1) { displayedEnergy = 1; }
 	if (displayedEnergy > 9999) { displayedEnergy = 9999; }
 	if      (chargeDisplayPlusAmt  > 0) { drawText(textSheet2B, to_string(displayedEnergy), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
-	else if (chargeDisplayMinusAmt > 0) { drawText(textSheet2C, to_string(displayedEnergy), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+	else if (chargeDisplayMinusAmt > 0 || displayedEnergy == 1) {
+	                                      drawText(textSheet2C, to_string(displayedEnergy), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
 	else                                { drawText(textSheet2A, to_string(displayedEnergy), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
 	// Draw Current Energy gain for this level
 	glLoadIdentity();
@@ -839,9 +918,11 @@ void App::drawTextUI() {
 	if (abs(currentEnergyGain) >= 10) { glTranslatef(-0.04, 0, 0); }
 	if (abs(currentEnergyGain) >= 100) { glTranslatef(-0.04, 0, 0); }
 	if (abs(currentEnergyGain) >= 1000) { glTranslatef(-0.04, 0, 0); }
-	if      (currentEnergyGain > 0) { drawText(textSheet1B, to_string(abs(currentEnergyGain)), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
-	else if (currentEnergyGain < 0) { drawText(textSheet1C, to_string(abs(currentEnergyGain)), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
-	else if (menuDisplay)           { drawText(textSheet1A, to_string(abs(currentEnergyGain)), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+	if (level > 0) {
+		if      (currentEnergyGain > 0) { drawText(textSheet1B, to_string(abs(currentEnergyGain)), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+		else if (currentEnergyGain < 0) { drawText(textSheet1C, to_string(abs(currentEnergyGain)), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+		else if (menuDisplay)           { drawText(textSheet1A, to_string(abs(currentEnergyGain)), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+	}
 
 	// Draw Info Box
 	glLoadIdentity();
@@ -854,19 +935,22 @@ void App::drawTextUI() {
 	glTranslatef(-0.97, -0.93, 0);
 	string text = "";
 	GLuint texture;
-	bool draw = false;
-	if (chargeDisplayPlusAmt > 0) { draw = true; texture = textSheet1B; text = "Energy100"; }
-	else if (chargeDisplayMinusAmt > 0) {
-		draw = true;
-		texture = textSheet1C;
-		if      (selSwordAnimation == 0) { text = "Sword50"; }
-		else if (selSwordAnimation == 1) { text = "LongSwrd75"; }
-		else if (selSwordAnimation == 2) { text = "WideSwrd100"; }
-		else if (selSwordAnimation == 3) { text = "CrossSwd125"; }
-		else if (selSwordAnimation == 4) { text = "SpinSwrd150"; }
-		else if (selSwordAnimation == 5) { text = "StepSwrd175"; }
-		else if (selSwordAnimation == 6) { text = "LifeSwrd300"; } }
-	if (draw) { drawText(texture, text, 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+
+    if ( selSwordAnimation != -1 ) {
+        if ( selSwordAnimation == -2 ) {
+            texture = textSheet1B;
+            text = "Energy" + to_string( energyGainAmt ); }
+        else {
+            texture = textSheet1C;
+            if      ( selSwordAnimation == 0 ) { text = "Sword"    + to_string( swordCost ); }
+            else if ( selSwordAnimation == 1 ) { text = "LongSwrd" + to_string( longCost ); }
+            else if ( selSwordAnimation == 2 ) { text = "WideSwrd" + to_string( wideCost ); }
+            else if ( selSwordAnimation == 3 ) { text = "CrossSwd" + to_string( crossCost ); }
+            else if ( selSwordAnimation == 4 ) { text = "SpinSwrd" + to_string( spinCost ); }
+            else if ( selSwordAnimation == 5 ) { text = "StepSwrd" + to_string( stepCost ); }
+            else if ( selSwordAnimation == 6 ) { text = "LifeSwrd" + to_string( lifeCost ); } }
+        drawText( texture, text, 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 );
+    }
 }
 
 // Sword Attack Animations
@@ -1063,7 +1147,9 @@ void App::face(int dir) {
 void App::move(int dir) {
 	if (dir == 0) {			// Move Up			// Can't move out of map, onto a box, or onto a hole in the floor
 		if (isTileValid(player.x, player.y + 1)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if (map[player.x][player.y].state == 1) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.y++;
 			player.moving = true;
 			player.moveDir = 0;
@@ -1073,11 +1159,16 @@ void App::move(int dir) {
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 	else if (dir == 1) {	// Move Left
 		if (isTileValid(player.x - 1, player.y)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if (map[player.x][player.y].state == 1 && !(player.x == 0 && player.y == 0)) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.x--;
 			player.moving = true;
 			player.moveDir = 1;
@@ -1087,11 +1178,16 @@ void App::move(int dir) {
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 	else if (dir == 2) {	// Move Down
 		if (isTileValid(player.x, player.y - 1)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if (map[player.x][player.y].state == 1) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.y--;
 			player.moving = true;
 			player.moveDir = 2;
@@ -1101,11 +1197,16 @@ void App::move(int dir) {
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 	else if (dir == 3) {	// Move Right
 		if (isTileValid(player.x + 1, player.y)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if ( map[player.x][player.y].state == 1 ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.x++;
 			player.moving = true;
 			player.moveDir = 3;
@@ -1115,13 +1216,18 @@ void App::move(int dir) {
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 }
 void App::move2(int dir) {		// Move Two Tiles
 	if (dir == 0) {			// Move Up			// Can't move out of map, onto a box, or onto a hole in the floor
 		if (isTileValid(player.x, player.y + 2)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if ( map[player.x][player.y].state == 1 ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.y += 2;
 			player.moving = true;
 			player.moveDir = 0;
@@ -1131,11 +1237,16 @@ void App::move2(int dir) {		// Move Two Tiles
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 	else if (dir == 1) {	// Move Left
 		if (isTileValid(player.x - 2, player.y)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if ( map[player.x][player.y].state == 1 ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.x -= 2;
 			player.moving = true;
 			player.moveDir = 1;
@@ -1145,11 +1256,16 @@ void App::move2(int dir) {		// Move Two Tiles
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 	else if (dir == 2) {	// Move Down
 		if (isTileValid(player.x, player.y - 2)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if ( map[player.x][player.y].state == 1 ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.y -= 2;
 			player.moving = true;
 			player.moveDir = 2;
@@ -1159,11 +1275,16 @@ void App::move2(int dir) {		// Move Two Tiles
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 	else if (dir == 3) {	// Move Right
 		if (isTileValid(player.x + 2, player.y)) {
-			if (map[player.x][player.y].state == 1) { map[player.x][player.y].state = 2; }		// Walk off Cracked tile -> Cracked tile becomes a Hole
+			if ( map[player.x][player.y].state == 1 ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
+				map[player.x][player.y].state = 2;
+				Mix_PlayChannel( 2, panelBreakSound, 0 ); }
 			player.x += 2;
 			player.moving = true;
 			player.moveDir = 3;
@@ -1173,8 +1294,11 @@ void App::move2(int dir) {		// Move Two Tiles
 				player.energy += energyGainAmt;
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += 100;
-				map[player.x][player.y].item = 0; } } }
+				currentEnergyGain += energyGainAmt;
+				map[player.x][player.y].item = 0;
+				Mix_PlayChannel( 1, itemSound, 0 );
+                selSwordAnimation = -2;
+	} } }
 }
 void App::swordAtk(int dir) {			// Does One Dmg to one square in front of the player
 	if (player.energy >= swordCost) {
@@ -1188,7 +1312,8 @@ void App::swordAtk(int dir) {			// Does One Dmg to one square in front of the pl
 		selSwordAnimation = 0;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= 50;
+		currentEnergyGain -= swordCost;
+		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::longAtk(int dir) {		// Does One Dmg to a 2x1 area in front of the player
@@ -1209,7 +1334,8 @@ void App::longAtk(int dir) {		// Does One Dmg to a 2x1 area in front of the play
 		selSwordAnimation = 1;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= 75;
+		currentEnergyGain -= longCost;
+		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::wideAtk(int dir) {			// Does One Dmg to a sweep of 3x1 area in front of the player
@@ -1232,7 +1358,8 @@ void App::wideAtk(int dir) {			// Does One Dmg to a sweep of 3x1 area in front o
 		selSwordAnimation = 2;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= 100;
+		currentEnergyGain -= wideCost;
+		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::crossAtk(int dir) {			// Does One Dmg in an X pattern in front of the player		// The Middle of the X cross takes Two Dmg total
@@ -1259,7 +1386,8 @@ void App::crossAtk(int dir) {			// Does One Dmg in an X pattern in front of the 
 		selSwordAnimation = 3;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= 125;
+		currentEnergyGain -= crossCost;
+		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::spinAtk(int dir) {		// Does One Dmg to all squares adjacent to the player (including diagonal adjacents)
@@ -1281,7 +1409,8 @@ void App::spinAtk(int dir) {		// Does One Dmg to all squares adjacent to the pla
 		selSwordAnimation = 4;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= 150;
+		currentEnergyGain -= spinCost;
+		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::stepAtk(int dir) {			// Moves the player two squares in the facing Direction, then uses WideSword
@@ -1299,7 +1428,11 @@ void App::stepAtk(int dir) {			// Moves the player two squares in the facing Dir
 			selSwordAnimation = 5;
 			chargeDisplayMinusAmt = iconDisplayTime;
 			chargeDisplayPlusAmt = 0;
-			currentEnergyGain -= 175;
+			currentEnergyGain -= stepCost;
+			DelayedSound sound;
+			sound.delay = moveAnimationTime;
+			sound.soundName = "sword";
+			delayedSoundList.push_back( sound );
 		}
 		else if (dir == 3 && isTileValid(player.x + 2, player.y)) {
 			player.energy -= stepCost;
@@ -1314,7 +1447,11 @@ void App::stepAtk(int dir) {			// Moves the player two squares in the facing Dir
 			selSwordAnimation = 5;
 			chargeDisplayMinusAmt = iconDisplayTime;
 			chargeDisplayPlusAmt = 0;
-			currentEnergyGain -= 175;
+			currentEnergyGain -= stepCost;
+			DelayedSound sound;
+			sound.delay = moveAnimationTime;
+			sound.soundName = "sword";
+			delayedSoundList.push_back( sound );
 		}
 	}
 }
@@ -1344,7 +1481,8 @@ void App::lifeAtk(int dir) {		// Does Two Dmg to a 2x3 area in front the player
 		selSwordAnimation = 6;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= 300;
+		currentEnergyGain -= lifeCost;
+		Mix_PlayChannel( 0, lifeSwordSound, 0 );
 	}
 }
 void App::hitBox(int xPos, int yPos, int dmg) {
@@ -1354,6 +1492,7 @@ void App::hitBox(int xPos, int yPos, int dmg) {
 			else { map[xPos][yPos].prevDmg = dmg; }
 			map[xPos][yPos].boxHP -= dmg;
 			map[xPos][yPos].boxAtkInd = boxDmgTime;
+			if ( map[xPos][yPos].boxHP <= 0 ) { Mix_PlayChannel( 2, rockBreakSound, 0 ); }
 		}
 }	}
 void App::hitBoxDelay(int xPos, int yPos, float delay, int dmg) {
@@ -1396,7 +1535,7 @@ void Player::reset() {
 void App::reset() {
 	clearFloor();
 	player.reset();
-	player.energy = player.energy2 = 400;
+	player.energy = player.energy2 = startingEnergy;
 	menuDisplay = false;
 	chargeDisplayPlusAmt = 0;
 	chargeDisplayMinusAmt = 0;
@@ -1404,27 +1543,10 @@ void App::reset() {
 	delayedHpList.clear();
 	level = 1;
 	loadLevel(level);
-	currentRefreshCount = 0;
-	refreshCount = 0;
 	currentEnergyGain = 0;
-}
-void App::refresh() {
-	if (currentRefreshCount <= 2) {
-		player.x = 0;	player.y = 0;
-		for (int i = 0; i < 6; i++) {
-			for (int j = 0; j < 6; j++) {
-				map[i][j] = map2[i][j]; } }
-		player.facing = 3;
-		player.energy = player.energy2;
-		chargeDisplayPlusAmt = 0;
-		chargeDisplayMinusAmt = 0;
-		animationDisplayAmt = 0;
-		delayedHpList.clear();
-		menuDisplay = false;
-		currentRefreshCount++;
-		refreshCount++;
-		currentEnergyGain = 0;
-	}
+    selSwordAnimation = -1;
+    quitMenuOn = false;
+    quitSel = true;
 }
 void App::next() {
 	level++;
@@ -1432,15 +1554,17 @@ void App::next() {
 	player.facing = 3;
 	player.energy2 = player.energy;
 	menuDisplay = false;
-	currentRefreshCount = 0;
 	currentEnergyGain = 0;
+    selSwordAnimation = -1;
+    quitMenuOn = false;
+    quitSel = true;
 }
 void App::loadLevel(int num) {
 	clearFloor();
 	player.x = 0;		player.y = 0;
 	if (level == 1) { generateLevel(0, 0); }
 	else {
-		int type = getRand(22);
+		int type = getRand(32);
 		generateLevel(type); }		// Generate a Level of Random type
 
 	for (int i = 0; i < 6; i++) {		// Save a copy of the current map		// For if the player wants to redo this level
@@ -1451,92 +1575,145 @@ void App::generateLevel(int type, int num) {
 	if (num <= -1) { num = rand() % 100; }				// Random number between 0 and 99, inclusive - used to determine difficulty
 	int x = level;		if (x > 50) { x = 50; }
 	int bound2 = 120 - x * 3 / 2;						// Bounds used in determining difficulty - based on current level number
+	if (level >=  75) { bound2 = 40; }
+	if (level >= 100) { bound2 = 35; }
 	int bound1 = bound2 - 30;
-	if (level >= 100) { bound1 = 10;	bound2 = 30; }
 	int diff = 0;				// difficulty 0, 1, 2 = easy, medium, hard			// level		easy	medium	hard
-	if (num > bound1 && num <= bound2) { diff = 1; }								// 0			90%		10%		0%
-	else if (num > bound2) { diff = 2; }											// 10			75%		25%		0%
-	difficulty = diff;																// 20			60%		30%		10%
-																					// 30			45%		30%		25%
-																					// 40			30%		30%		40%
-																					// 50			15%		30%		55%
-																					//100			10%		30%		60%
-	int gain = - diff * 10;	// Gain determines avg "profit" per level
+	if (num > bound1 && num <= bound2) { diff = 1; }								//   0			90%		10%		0%
+	else if (num > bound2) { diff = 2; }											//  10			75%		25%		0%
+	difficulty = diff;																//  20			60%		30%		10%
+																					//  30			45%		30%		25%
+																					//  40			30%		30%		40%
+																					//  50			15%		30%		55%
+																					//  75			10%		30%		60%
+																					// 100			 5%		30%		65%
+																					// 150			 1%		30%		69%
+	int gain = 0 - diff * 9;	// Gain determines avg "profit" per level
 	int extraBoxes = 0, extraItems = 0, floorDmgs = 0;		// Number of things per floor based on level number and difficulty
 
-	// Map type
+	// Map types
+	// Rooms
 	if (type == 0) {			// Rooms A
-		map[2][2].boxHP = 1;	map[2][5].boxHP = 1;	map[4][2].boxHP = 1;							//	]==O=O=[
-		map[2][3].boxHP = 1;	map[4][0].boxHP = 1;	map[4][3].boxHP = 1;							//	]==O=  [
-		map[2][4].boxHP = 1;	map[4][1].boxHP = 1;	map[4][5].boxHP = 1;							//	]==O=O=[
-		map[0][1].state = 3;	map[1][1].state = 3;	map[2][1].state = 3;							//	]==O=O=[
+		map[2][2].boxHP = 1;	map[2][5].boxHP = 1;	map[4][2].boxHP = 1;							//	] =O=O=[
+		map[2][3].boxHP = 1;	map[4][0].boxHP = 1;	map[4][3].boxHP = 1;							//	] =O=  [
+		map[2][4].boxHP = 1;	map[4][1].boxHP = 1;	map[4][5].boxHP = 1;							//	] =O=O=[
+		map[0][1].state = 3;	map[1][1].state = 3;	map[2][1].state = 3;							//	] =O=O=[
 		map[4][4].state = 3;	map[5][4].state = 3;													//	]   =O=[
-		extraBoxes = 3 + x / 5 + diff * 2;		// Number of Boxes based on Level number				//	]====O=[
-		extraItems = 8 + extraBoxes + gain;		// Number of Items based on "gain"
-		floorDmgs = rand() % 3 + diff * 2;		// 0-2	// 2-4	// 4-6
-												// Number of Damaged Floors based on difficulty
+		map[0][2].state = 3;	map[0][3].state = 3;	map[0][4].state = 3;	map[0][5].state = 3;	//	]====O=[
+		extraBoxes = 3 + x / 5 + diff * 2;			// Number of Rocks based on Level number
+		extraItems = 9 + extraBoxes + gain;			// Number of Items based on "gain"
+		floorDmgs = rand() % 2 + 1 + diff * 2;		// 1-2	// 3-4	// 5-6
+													// Number of Damaged Tiles based on difficulty
 	}
-	else if (type == 1) {		// Rooms B
-		map[0][4].state = 3;	map[1][0].state = 3;	map[1][1].state = 3;							//	]==== =[
-		map[4][0].state = 3;	map[4][1].state = 3;	map[4][2].state = 3;	map[4][5].state = 3;	//	] OOO==[
-		map[1][2].boxHP = 1;	map[1][4].boxHP = 1;	map[2][2].boxHP = 1;							//	]==OOO=[
-		map[2][3].boxHP = 1;	map[2][4].boxHP = 1;	map[3][2].boxHP = 1;							//	]=OOO =[
-		map[3][3].boxHP = 1;	map[3][4].boxHP = 1;	map[4][3].boxHP = 1;							//	]= == =[
-		extraBoxes = 3 + x / 5 + diff * 2;																//	]= == =[
+	else if (type == 1) {			// Rooms B
+		for ( int i = 0; i < 3; i++ ) {										//	]OO==O=[
+			map[0][i + 3].boxHP = 1;	map[1][i + 3].boxHP = 1;			//	]OO==  [
+			map[4][i].boxHP = 1;		map[5][i].boxHP = 1; }				//	]OO==  [
+		for ( int i = 0; i < 2; i++ ) {										//	]  ==OO[
+			map[0][i + 1].state = 3;	map[1][i + 1].state = 3;			//	]  ==OO[
+			map[4][i + 3].state = 3;	map[5][i + 3].state = 3; }			//	]====OO[
+		map[4][5].boxHP = 1;
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 13 + extraBoxes + gain;
+		floorDmgs = rand() % 2 + 1 + diff * 2;		// 1-2	// 3-4	// 5-6
+	}
+	else if (type == 2) {		// Rooms C
+		map[0][2].state = 3;	map[2][0].state = 3;
+		map[3][5].state = 3;	map[5][3].state = 3;							//	]=== ==[
+		map[4][4].boxHP = 1;													//	]=OO=O=[
+		for (int i = 0; i < 2; i++) {											//	]=OO== [
+			map[1][i + 3].boxHP = 1;		map[2][i + 3].boxHP = 1;			//	] ==OO=[
+			map[3][i + 1].boxHP = 1;		map[4][i + 1].boxHP = 1; }			//	]===OO=[
+		extraBoxes = 3 + x / 5 + diff * 2;										//	]== ===[
 		extraItems = 9 + extraBoxes + gain;
-		floorDmgs = rand() % 2 + diff * 2;		// 0-1	// 2-3	// 4-5
-	}
-	else if (type == 2) {		// Rooms C - Change rock spawns
-		map[0][2].state = 3;	map[2][0].state = 3;	map[3][0].state = 3;	map[5][2].state = 3;	//	]==  ==[
-		map[0][3].state = 3;	map[2][5].state = 3;	map[3][5].state = 3;	map[5][3].state = 3;	//	]==OO==[
-		map[1][2].boxHP = 1;	map[2][1].boxHP = 1;	map[3][1].boxHP = 1;	map[4][2].boxHP = 1;	//	] O==O [
-		map[1][3].boxHP = 1;	map[2][4].boxHP = 1;	map[3][4].boxHP = 1;	map[4][3].boxHP = 1;	//	] O==O [
-		extraBoxes = 3 + x / 5 + diff * 2;																//	]==OO==[
-		extraItems = 8 + extraBoxes + gain;																//	]==  ==[
-		floorDmgs = rand() % 5 + diff * 4;		// 0-4	// 4-8	// 8-12
+		floorDmgs = rand() % 2 + 1 + diff * 2;		// 1-2	// 3-4	// 5-6
 	}
 	else if (type == 3) {		// Rooms D
-		map[0][2].boxHP = 1;	map[1][4].boxHP = 1;	map[3][2].boxHP = 1;	map[4][4].boxHP = 1;	//	]=O==O=[
-		map[0][3].boxHP = 1;	map[1][5].boxHP = 1;	map[3][3].boxHP = 1;	map[4][5].boxHP = 1;	//	]=O==O=[
-		map[1][0].boxHP = 1;	map[2][2].boxHP = 1;	map[4][0].boxHP = 1;	map[5][2].boxHP = 1;	//	]O=OO=O[
-		map[1][1].boxHP = 1;	map[2][3].boxHP = 1;	map[4][1].boxHP = 1;	map[5][3].boxHP = 1;	//	]O=OO=O[
-		extraBoxes = 5 + x / 5 + diff * 2;																//	]=O==O=[
-		extraItems = 16 + extraBoxes + gain;															//	]=O==O=[
-		floorDmgs = rand() % 3 + diff * 3;		// 0-2	// 3-5	// 6-8
+		for (int i = 0; i < 2; i++) {																	//	]=    =[
+			map[0][2 + i].boxHP = 1;		map[2][2 + i].boxHP = 1;									//	]=O==O=[
+			map[3][2 + i].boxHP = 1;		map[5][2 + i].boxHP = 1; }									//	]O=OO=O[
+		for (int i = 0; i < 4; i++) {																	//	]O=OO=O[
+			map[i + 1][0].state = 3;		map[i + 1][5].state = 3; }									//	]=O==O=[
+		map[1][1].boxHP = 1;	map[1][4].boxHP = 1;	map[4][1].boxHP = 1;	map[4][4].boxHP = 1;	//	]=    =[
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 3 + diff * 3;			// 0-2	// 3-5	// 6-8
 	}
-	else if (type == 4) {		// Paths A
-		map[0][3].state = 1;	map[5][3].state = 1;													//	]===OO=[
+	else if (type == 4) {		// Rooms E
+		map[0][3].boxHP = 1;	map[1][2].boxHP = 1;	map[1][3].boxHP = 1;	map[2][1].boxHP = 1;	//	]==OO==[
+		map[2][2].boxHP = 1;	map[2][4].boxHP = 1;	map[2][5].boxHP = 1;	map[3][0].boxHP = 1;	//	]==O=O=[
+		map[3][1].boxHP = 1;	map[3][5].boxHP = 1;	map[4][2].boxHP = 1;	map[4][4].boxHP = 1;	//	]OO===O[
+		map[5][2].boxHP = 1;	map[5][3].boxHP = 1;													//	]=OO=OO[
+		extraBoxes = 5 + x / 5 + diff * 2;																//	]==OO==[
+		extraItems = 14 + extraBoxes + gain;															//	]===O==[
+		floorDmgs = rand() % 4 + 2 + diff * 3;		// 2-5	// 5-8	// 8-11
+	}
+	// Plus
+	else if (type == 5) {		// Plus A
+		for (int i = 0; i < 3; i++) {											// ] ==O==[
+			map[0][i + 3].state = 3;		map[i + 3][0].state = 3;			// ] =OOO=[
+			map[i + 2][2].boxHP = 1;		map[2][i + 2].boxHP = 1;			// ]=OO=OO[
+			map[i + 2][4].boxHP = 1;		map[4][i + 2].boxHP = 1; }			// ]==OOO=[
+		map[1][3].boxHP = 1;		map[3][5].boxHP = 1;						// ]===O==[
+		map[3][1].boxHP = 1;		map[5][3].boxHP = 1;						// ]====  [
+		map[0][3].state = 0;		map[3][0].state = 0;
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 4 + diff * 3;			// 0-3	// 3-6	// 6-9
+	}
+	else if (type == 6) {		// Plus B
+		for (int i = 0; i < 3; i++) {											// ] ===O=[
+			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] =OOOO[
+			map[i + 2][2].boxHP = 1;	map[2][i + 2].boxHP = 1;				// ] =O=O=[
+			map[i + 2][4].boxHP = 1;	map[4][i + 2].boxHP = 1; }				// ]=OOOO=[
+		map[1][2].boxHP = 1;	map[4][5].boxHP = 1;							// ]==O===[
+		map[2][1].boxHP = 1;	map[5][4].boxHP = 1;							// ]===   [
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 4 + 1 + diff * 3;		// 1-4	// 4-7	// 7-10
+	}
+	else if (type == 7) {		// Plus C
+		map[4][4].state = 3;
+		for (int i = 0; i < 3; i++) {											// ] O=O==[
+			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] O=O =[
+			map[i + 3][1].boxHP = 1;	map[1][i + 3].boxHP = 1;				// ] O=OOO[
+			map[i + 3][3].boxHP = 1;	map[3][i + 3].boxHP = 1; }				// ]======[
+		extraBoxes = 4 + x / 5 + diff * 2;										// ]===OOO[
+		extraItems = 11 + extraBoxes + gain;									// ]===   [
+		floorDmgs = rand() % 3 + 1 + diff * 2;		// 1-3	// 3-5	// 5-7
+	}
+	else if (type == 8) {		// Plus D
+		for (int i = 0; i < 3; i++) {											// ] OOO==[
+			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] O=O==[
+			map[i + 3][1].boxHP = 1;	map[1][i + 3].boxHP = 1;				// ] O=OOO[
+			map[i + 3][3].boxHP = 1;	map[3][i + 3].boxHP = 1; }				// ]==O==O[
+		map[2][2].boxHP = 1;	map[2][5].boxHP = 1;	map[5][2].boxHP = 1;	// ]===OOO[
+		extraBoxes = 5 + x / 5 + diff * 2;										// ]===   [
+		extraItems = 14 + extraBoxes + gain;
+		floorDmgs = rand() % 4 + diff * 2;			// 0-3	// 2-5	// 4-7
+	}
+	else if (type == 9) {		// Plus E
+		for ( int i = 0; i < 2; i++ ) {											// ]O== ==[
+			map[0][i + 4].boxHP = 1;	map[i + 1][3].boxHP = 1;				// ]O==O==[
+			map[3][i + 1].boxHP = 1;	map[i + 4][0].boxHP = 1; }				// ]=OO=O [
+		map[3][4].boxHP = 1;	map[3][5].state = 3;							// ]===O==[
+		map[4][3].boxHP = 1;	map[5][3].state = 3;							// ]===O==[
+		extraBoxes = 3 + x / 5 + diff * 2;										// ]====OO[
+		extraItems = 10 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + 2 + diff * 2;		// 2-6	// 4-8	// 6-10
+	}
+	// Paths
+	else if (type == 10) {		// Paths A
+		map[5][3].state = 1;																			//	]===OO=[
 		map[1][3].state = 3;	map[2][3].state = 3;	map[3][3].state = 3;	map[4][3].state = 3;	//	]===OO=[
-		map[3][4].boxHP = 1;	map[3][5].boxHP = 1;	map[4][4].boxHP = 1;	map[4][5].boxHP = 1;	//	]X    X[
+		map[3][4].boxHP = 1;	map[3][5].boxHP = 1;	map[4][4].boxHP = 1;	map[4][5].boxHP = 1;	//	]=    X[
 		map[3][0].boxHP = 1;	map[3][1].boxHP = 1;	map[3][2].boxHP = 1;							//	]===OO=[
 		map[4][0].boxHP = 1;	map[4][1].boxHP = 1;	map[4][2].boxHP = 1;							//	]===OO=[
 		extraBoxes = 3 + x / 5 + diff * 2;																//	]===OO=[
 		extraItems = 10 + extraBoxes + gain;
-		floorDmgs = rand() % 2 + diff;			// 0-1	// 1-2	// 2-3
+		floorDmgs = rand() % 3 + 2 + diff;			// 2-4	// 3-5	// 4-6
 	}
-	else if (type == 5) {		// Plus A
-		for (int i = 0; i < 3; i++) {											// ] ==O==[
-			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] =OOO=[
-			map[i + 2][2].boxHP = 1;	map[2][i + 2].boxHP = 1;				// ] OO=OO[
-			map[i + 2][4].boxHP = 1;	map[4][i + 2].boxHP = 1; }				// ]==OOO=[
-		map[1][3].boxHP = 1;	map[3][5].boxHP = 1;							// ]===O==[
-		map[3][1].boxHP = 1;	map[5][3].boxHP = 1;							// ]===   [
-		extraBoxes = 4 + x / 5 + diff * 2;
-		extraItems = 12 + extraBoxes + gain;
-		floorDmgs = rand() % 4 + diff * 3;		// 0-3	// 3-6	// 6-9
-	}
-	else if (type == 21) {		// Plus B
-		for (int i = 0; i < 3; i++) {											// ] ===O=[
-			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] OOOOO[
-			map[i + 2][2].boxHP = 1;	map[2][i + 2].boxHP = 1;				// ] =O=O=[
-			map[i + 2][4].boxHP = 1;	map[4][i + 2].boxHP = 1; }				// ]==OOO=[
-		map[1][4].boxHP = 1;	map[4][5].boxHP = 1;							// ]====O=[
-		map[4][1].boxHP = 1;	map[5][4].boxHP = 1;							// ]===   [
-		extraBoxes = 4 + x / 5 + diff * 2;
-		extraItems = 12 + extraBoxes + gain;
-		floorDmgs = rand() % 4 + diff * 3;		// 0-3	// 3-6	// 6-9
-	}
-	else if (type == 6) {		// Paths C
+	else if (type == 11) {		// Paths B
 		map[5][3].state = 1;
 		map[2][2].state = 3;	map[3][2].state = 3;	map[3][3].state = 3;	map[4][3].state = 3;	//	]==OOO=[
 		map[2][3].boxHP = 1;	map[2][5].boxHP = 1;	map[3][4].boxHP = 1;	map[4][4].boxHP = 1;	//	]==OOO=[
@@ -1548,28 +1725,28 @@ void App::generateLevel(int type, int num) {
 		if (diff == 0) { floorDmgs = 0; }
 		floorDmgs = rand() % 3 + 1 + diff;		// 1-3	// 2-4	// 3-5
 	}
-	else if (type == 7) {		// Paths D
-		for (int xPos = 1; xPos < 5; xPos++) {									//	]==== =[
-			map[xPos][1].state = 3;												//	]=    X[
-			map[xPos][4].state = 3; }											//	]=O=OO=[
-		map[4][5].state = 3;	map[5][4].state = 1;							//	]=O=OO=[
-		map[1][2].boxHP = 1;	map[3][2].boxHP = 1;	map[4][2].boxHP = 1;	//	]=    =[
-		map[1][3].boxHP = 1;	map[3][3].boxHP = 1;	map[4][3].boxHP = 1;	//	]==OOO=[
-		map[2][0].boxHP = 1;	map[3][0].boxHP = 1;	map[4][0].boxHP = 1;
-		extraBoxes = 3 + x / 5 + diff * 2;
-		extraItems = 9 + extraBoxes + gain;
-		floorDmgs = diff;						// 0	// 1	// 2
+	else if (type == 12) {		// Paths C
+        for ( int i = 0; i < 2; i++ ) {                                                     //	] =OO==[
+            map[i][1].state = 3;    map[i + 2][4].boxHP = 1;    map[i + 4][1].state = 3;    //	]==OO==[
+            map[i][2].boxHP = 1;    map[i + 2][5].boxHP = 1;    map[i + 4][2].boxHP = 1;    //	]OO==OO[
+            map[i][3].boxHP = 1;    map[i + 4][0].state = 3;    map[i + 4][3].boxHP = 1; }  //	]OO==OO[
+        map[0][5].state = 3;                                                                //	]  ==  [
+		extraBoxes = 4 + x / 5 + diff * 2;                                                  //	]====  [
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 3;		// 0-4	// 3-7	// 6-10
 	}
-	else if (type == 8) {		// Cross A
-		map[0][2].state = 3;	map[2][0].state = 3;	map[3][0].state = 3;	map[5][2].state = 3;
-		map[0][3].state = 3;	map[2][5].state = 3;	map[3][5].state = 3;	map[5][3].state = 3;	//	]==  ==[
-		map[1][1].boxHP = 1;	map[2][2].boxHP = 1;	map[3][2].boxHP = 1;	map[4][1].boxHP = 1;	//	]=O==O=[
-		map[1][4].boxHP = 1;	map[2][3].boxHP = 1;	map[3][3].boxHP = 1;	map[4][4].boxHP = 1;	//	] =OO= [
-		extraBoxes = 3 + x / 5 + diff * 2;																//	] =OO= [
-		extraItems = 8 + extraBoxes + gain;																//	]=O==O=[
-		floorDmgs = rand() % 3 + diff * 2;		// 0-2	// 2-4	// 4-6									//	]==  ==[
+	else if (type == 13) {		// Paths D
+		for ( int i = 0; i < 2; i++ ) {														//	]    ==[
+			map[i][3].boxHP = 1;	map[i + 2][1].boxHP = 1;	map[5][i].state = 3;		//	]OO==OO[
+			map[i][4].boxHP = 1;	map[i + 2][2].boxHP = 1;	map[i + 4][3].boxHP = 1;	//	]OO==OO[
+			map[i][5].state = 3;	map[i + 2][5].state = 3;	map[i + 4][4].boxHP = 1; }	//	]==OO==[
+		map[0][1].state = 3;																//	] =OO= [
+		extraBoxes = 4 + x / 5 + diff * 2;													//	]===== [
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
-	else if (type == 9) {		// Cross B
+	// Cross
+	else if (type == 14) {		// Cross A
 		for (int i = 0; i < 4; i++ ) {											//	] O===O[
 			map[0][i + 2].state = 3;	map[i + 2][0].state = 3;	}			//	] =O=O=[
 		map[1][1].boxHP = 1;	map[2][4].boxHP = 1;	map[4][4].boxHP = 1;	//	] ==O==[
@@ -1579,26 +1756,44 @@ void App::generateLevel(int type, int num) {
 		extraItems = 9 + extraBoxes + gain;
 		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8
 	}
-	else if (type == 10) {		// Cross C
-		map[0][3].boxHP = 1;	map[1][2].boxHP = 1;	map[1][3].boxHP = 1;	map[2][1].boxHP = 1;	//	]==OO==[
-		map[2][2].boxHP = 1;	map[2][4].boxHP = 1;	map[2][5].boxHP = 1;	map[3][0].boxHP = 1;	//	]==O=O=[
-		map[3][1].boxHP = 1;	map[3][5].boxHP = 1;	map[4][2].boxHP = 1;	map[4][4].boxHP = 1;	//	]OO===O[
-		map[5][2].boxHP = 1;	map[5][3].boxHP = 1;													//	]=OO=OO[
-		extraBoxes = 5 + x / 5 + diff * 2;																//	]==OO==[
-		extraItems = 14 + extraBoxes + gain;															//	]===O==[
-		floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
+	else if (type == 15) {		// Cross B
+        for ( int i = 0; i < 5; i++ ) {                                                             //	]     =[
+            map[i][5].state = 3;    map[i + 1][i].boxHP = 1;    map[i + 1][4 - i].boxHP = 1; }      //	]=O===O[
+        map[0][2].state = 3;                                                                        //	]==O=O=[
+		extraBoxes = 3 + x / 5 + diff * 2;															//	] ==O==[
+		extraItems = 9 + extraBoxes + gain;														    //	]==O=O=[
+		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8							    //	]=O===O[
 	}
-	else if (type == 11) {		// Cross D
-		map[2][2].state = 3;	map[2][3].state = 3;	map[3][2].state = 3;	map[3][3].state = 3;	//	]O=O=O=[
-		map[0][3].boxHP = 1;	map[1][2].boxHP = 1;	map[2][1].boxHP = 1;	map[3][0].boxHP = 1;	//	]=O=O=O[
-		map[0][5].boxHP = 1;	map[1][4].boxHP = 1;	map[2][5].boxHP = 1;	map[3][4].boxHP = 1;	//	]O=  O=[
-		map[4][1].boxHP = 1;	map[4][3].boxHP = 1;	map[4][5].boxHP = 1;							//	]=O  =O[
-		map[5][0].boxHP = 1;	map[5][2].boxHP = 1;	map[5][4].boxHP = 1;							//	]==O=O=[
-		extraBoxes = 5 + x / 5 + diff * 2;																//	]===O=O[
-		extraItems = 14 + extraBoxes + gain;
-		floorDmgs = rand() % 4 + diff * 2;		// 0-3	// 2-5	// 4-7
+	else if (type == 16) {		// Cross C
+        for ( int i = 0; i < 5; i++ ) {                                                         //	]O===O=[
+            map[i][i + 1].boxHP = 1;    map[i][5 - i].boxHP = 1;    map[5][i].state = 3; }      //	]=O=O= [
+        map[2][0].state = 3;    map[3][0].state = 3;    map[4][0].state = 3;                    //	]==O== [
+		extraBoxes = 3 + x / 5 + diff * 2;                                                      //	]=O=O= [
+		extraItems = 9 + extraBoxes + gain;                                                     //	]O===O [
+		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8                          //	]==    [
 	}
-	else if (type == 12) {		// Gallery A
+	else if (type == 17) {		// Cross D
+        for ( int i = 0; i < 2; i++ ) {                                                         // ]== ===[
+            map[i][1].boxHP = 1;    map[2][i + 2].boxHP = 1;    map[i + 3][1].boxHP = 1;        // ]OO=OO [
+            map[i][4].boxHP = 1;                                map[i + 3][4].boxHP = 1; }      // ]==O== [
+        for ( int i = 0; i < 5; i++ ) { map[5][i].state = 3; }                                  // ]==O== [
+        map[2][5].state = 3;                                                                    // ]OO=OO [
+		extraBoxes = 3 + x / 5 + diff * 2;                                                      // ]===== [
+		extraItems = 10 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
+	}
+    else if (type == 18) {		// Cross E
+        for ( int i = 0; i < 2; i++ ) {                                                         // ]  == =[
+            map[1][i].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[1][i + 3].boxHP = 1;        // ]=O==O=[
+            map[4][i].boxHP = 1;                                map[4][i + 3].boxHP = 1; }      // ]=O==O=[
+        map[0][5].state = 3;    map[1][5].state = 3;    map[4][5].state = 3;                    // ]==OO= [
+        map[5][2].state = 3;                                                                    // ]=O==O=[
+		extraBoxes = 3 + x / 5 + diff * 2;                                                      // ]=O==O=[
+		extraItems = 10 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
+	}
+	// Gallery
+	else if (type == 19) {		// Gallery A
 		for (int i = 1; i < 5; i++) {											//	]======[
 			map[i][1].boxHP = 1;	map[i][2].boxHP = 1;						//	]=OOOO=[
 			map[i][3].boxHP = 1;	map[i][4].boxHP = 1; }						//	]=OOOO=[
@@ -1606,7 +1801,7 @@ void App::generateLevel(int type, int num) {
 		extraItems = 16 + extraBoxes + gain;									//	]=OOOO=[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			//	]======[
 	}
-	else if (type == 13) {		// Gallery B									// ]======[
+	else if (type == 20) {		// Gallery B									// ]======[
 		for (int i = 1; i < 5; i++) {											// ]OO==OO[
 			map[0][i].boxHP = 1;	map[1][i].boxHP = 1;						// ]OO==OO[
 			map[4][i].boxHP = 1;	map[5][i].boxHP = 1; }						// ]OO==OO[
@@ -1614,15 +1809,24 @@ void App::generateLevel(int type, int num) {
 		extraItems = 16 + extraBoxes + gain;									// ]======[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 20) {		// Gallery C
+	else if (type == 21) {		// Gallery C
 		for (int i = 1; i < 5; i++) {											// ]=OOOO=[
-			map[i][0].boxHP = 1;	map[i][1].boxHP = 1;						// ]=OOOO=[
-			map[i][4].boxHP = 1;	map[i][5].boxHP = 1; }						// ]======[
-		extraBoxes = 5 + x / 5 + diff * 2;										// ]======[
-		extraItems = 16 + extraBoxes + gain;									// ]=OOOO=[
+			map[i][0].boxHP = 1;	map[i][3].boxHP = 1;						// ]======[
+			map[i][2].boxHP = 1;	map[i][5].boxHP = 1; }						// ]=OOOO=[
+		extraBoxes = 5 + x / 5 + diff * 2;										// ]=OOOO=[
+		extraItems = 16 + extraBoxes + gain;									// ]======[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			// ]=OOOO=[
 	}
-	else if (type == 14) {		// Scattered A
+	else if (type == 22) {		// Gallery D
+        for (int i = 1; i < 5; i++) {                                           // ]======[
+			map[0][i].boxHP = 1;	map[3][i].boxHP = 1;                        // ]O=OO=O[
+			map[2][i].boxHP = 1;	map[5][i].boxHP = 1; }                      // ]O=OO=O[
+		extraBoxes = 5 + x / 5 + diff * 2;                                      // ]O=OO=O[
+		extraItems = 16 + extraBoxes + gain;                                    // ]O=OO=O[
+		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8          // ]======[
+	}
+	// Scattered
+	else if (type == 23) {		// Scattered A
 		for (int i = 0; i < 6; i += 2) {										//	]==O=O=[
 			map[2][i + 1].boxHP = 1;											//	]===O=O[
 			map[3][i].boxHP = 1;												//	]==O=O=[
@@ -1632,7 +1836,7 @@ void App::generateLevel(int type, int num) {
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 9 + diff * 4;		// 2-6	// 6-10	// 8-12
 	}
-	else if (type == 15) {		// Scattered B
+	else if (type == 24) {		// Scattered B
 		for (int i = 0; i < 4; i++) {
 			map[    i % 2][2 + i].boxHP = 1;									//	]=O=O=O[
 			map[2 + i % 2][2 + i].boxHP = 1;									//	]O=O=O=[
@@ -1641,69 +1845,99 @@ void App::generateLevel(int type, int num) {
 		extraItems = 12 + extraBoxes + gain;									//	]======[
 		floorDmgs = rand() % 5 + 2 + diff * 3;	// 2-6	// 5-9	// 8-12			//	]======[
 	}
-	else if (type == 16) {		// Layers A
-		map[1][4].state = 3;	map[1][5].state = 3;
-		map[4][0].state = 3;	map[4][1].state = 3;							//	]= OO==[
-		for (int yPos = 0; yPos < 6; yPos++) {									//	]= OO==[
+	else if (type == 25) {		// Scattered C
+        for ( int i = 0; i < 3; i++ ) {                                         // ]   =O=[
+            map[i][5].state = 3;    map[5][i].state = 3; }                      // ]=O=O=O[
+        for ( int i = 0; i < 4; i++ ) {                                         // ]O=O=O=[
+            map[i    ][3 - i].boxHP = 1;    map[i + 1][4 - i].boxHP = 1;        // ]=O=O= [
+            map[i + 1][i + 2].boxHP = 1;    map[i + 2][i + 1].boxHP = 1; }      // ]==O=O [		
+		extraBoxes = 4 + x / 5 + diff * 2;										// ]===O= [			
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
+	}
+	else if (type == 26) {		// Scattered D
+        for ( int i = 1; i <= 5; i += 2 ) {
+            map[i][2].boxHP = 1;    map[i][4].boxHP = 1;                    // ] =O=O=[
+            map[2][i].boxHP = 1;    map[4][i].boxHP = 1; }                  // ] O=O=O[
+        map[0][4].state = 3;    map[0][5].state = 3;                        // ]==O=O=[
+        map[4][0].state = 3;    map[5][0].state = 3;                        // ]=O=O=O[
+		extraBoxes = 4 + x / 5 + diff * 2;                                  // ]==O=O=[
+		extraItems = 12 + extraBoxes + gain;                                // ]====  [
+        floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
+	}
+	// Layers
+	else if (type == 27) {		// Layers A
+        map[1][0].state = 3;    map[2][0].state = 3;    map[4][0].state = 3;
+        map[1][5].state = 3;    map[3][0].state = 3;    map[4][1].state = 3;    //	]= OO==[
+		for (int yPos = 1; yPos < 6; yPos++) {									//	]==OO==[
 			map[2][yPos].boxHP = 1;		map[3][yPos].boxHP = 1; }				//	]==OO==[
-		extraBoxes = 4 + x / 5 + diff * 2;										//	]==OO==[
-		extraItems = 12 + extraBoxes + gain;									//	]==OO =[
-		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			//	]==OO =[
+		extraBoxes = 3 + x / 5 + diff * 2;										//	]==OO==[
+		extraItems = 10 + extraBoxes + gain;									//	]==OO =[
+		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			//	]=    =[
 	}
-	else if (type == 17) {		// Layers B
-		for (int i = 1; i < 5; i++) {
-			map[i][1].state = 3;		map[i][2].boxHP = 1;
-			map[i][3].boxHP = 1;		map[i][4].boxHP = 1;					//	]     =[
-			map[i][5].state = 3;	}											//	]=OOOO=[
-		map[0][5].state = 3;		map[1][0].state = 3;						//	]=OOOO=[
-		extraBoxes = 4 + x / 5 + diff * 2;										//	]=OOOO=[
-		extraItems = 12 + extraBoxes + gain;									//	]=    =[
-		floorDmgs = rand() % 4 + diff * 3;		// 0-3	// 3-6	// 6-9			//	]= ====[
-	}
-	else if (type == 18) {		// Layers C
+	else if (type == 28) {		// Layers B
 		map[5][0].state = 3;													//	]    ==[
-		for (int i = 0; i < 4; i++) {											//	]==O=OO[
-			map[2][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]==O=OO[
-			map[5][i + 1].boxHP = 1;											//	]==O=OO[
-			map[i][5].state = 3;	map[i+1][0].state = 3;	}					//	]==O=OO[
-		extraBoxes = 5 + x / 5 + diff * 2;										//	]=     [
-		extraItems = 14 + extraBoxes + gain;
+		for (int i = 0; i < 4; i++) {											//	]=OO=O=[
+			map[1][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]=OO=O=[
+			map[2][i + 1].boxHP = 1;											//	]=OO=O=[
+			map[i][5].state = 3;	map[i + 1][0].state = 3;	}				//	]=OO=O=[
+		extraBoxes = 4 + x / 5 + diff * 2;										//	]=     [
+		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 19) {		// Layers D
-		for (int i = 0; i < 5; i++) {											//	]     =[
-			map[i][5].state = 3;	map[i + 1][0].state = 3; }					//	]==OOO=[
-		map[2][1].boxHP = 1;	map[3][1].boxHP = 1;	map[4][1].boxHP = 1;	//	]==OOO=[
-		map[2][2].boxHP = 1;	map[3][2].boxHP = 1;	map[4][2].boxHP = 1;	//	]==OOO=[
-		map[2][3].boxHP = 1;	map[3][3].boxHP = 1;	map[4][3].boxHP = 1;	//	]==OOO=[
-		map[2][4].boxHP = 1;	map[3][4].boxHP = 1;	map[4][4].boxHP = 1;	//	]=     [
-		extraBoxes = 4 + x / 5 + diff * 2;
+	else if (type == 29) {		// Layers C
+		map[5][0].state = 3;													//	]    ==[
+		for (int i = 0; i < 4; i++) {											//	]=O=OO=[
+			map[1][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]=O=OO=[
+			map[3][i + 1].boxHP = 1;											//	]=O=OO=[
+			map[i][5].state = 3;	map[i + 1][0].state = 3;	}				//	]=O=OO=[
+		extraBoxes = 4 + x / 5 + diff * 2;										//	]=     [
 		extraItems = 12 + extraBoxes + gain;
-		floorDmgs = rand() % 5 + 2 + diff * 3;	// 2-6	// 5-9	// 8-12
+		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
+	}
+	else if (type == 30) {		// Layers D
+        for ( int i = 0; i < 2; i++ ) {                                                         //	]=OO===[
+            map[i + 1][5].boxHP = 1;    map[i + 2][3].boxHP = 1;    map[i + 4][2].boxHP = 1;    //	]=OO===[
+            map[i + 1][4].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[i + 4][1].boxHP = 1; }  //	]==OO==[
+        map[0][2].state = 3;    map[2][0].state = 3;                                            //	] =OOOO[
+		extraBoxes = 4 + x / 5 + diff * 2;                                                      //	]====OO[
+		extraItems = 12 + extraBoxes + gain;                                                    //	]== ===[
+        floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
+	}
+	else if (type == 31) {		// Layers E
+        for ( int i = 0; i < 2; i++ ) {                                                         // ]=== ==[
+            map[i][3].boxHP = 1;    map[i + 2][3].boxHP = 1;    map[i + 3][1].boxHP = 1;        // ]OO====[
+            map[i][4].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[i + 3][0].boxHP = 1; }      // ]OOOO= [
+        map[3][5].state = 3;    map[5][3].state = 3;                                            // ]==OO==[
+		extraBoxes = 4 + x / 5 + diff * 2;										                // ]===OO=[
+		extraItems = 12 + extraBoxes + gain;                                                    // ]===OO=[
+        floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
 	else { generateLevel(0, 100); return; }
 
-	if (extraItems <= 0) {
-		if (diff == 0) { extraItems = 4; }
-		else if (diff == 1) { extraItems = 2; } }
+    if      ( diff == 0 && extraItems < 6 ) { extraItems = 6; }
+    else if ( diff == 1 && extraItems < 4 ) { extraItems = 4; }
+    else if ( diff == 2 && extraItems < 4 ) { extraItems = 4; }
 	generateItems(extraItems, type);
 	generateBoxes(extraBoxes, type);
-	generateFloor(floorDmgs, type);
+	generateFloor(floorDmgs,  type);
 }
 void App::generateItems(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
+	// Rooms
 	if (type == 0) {			// Rooms A
-		vector<int> place = { 0,1,2,3,4,5,6 };
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 3; }	//	]+=====[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]+===  [
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 5; }	//	]+====+[
-			else if (place[randPlace] == 3) { xPos = 5; yPos = 0; }	//	]+====+[
-			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]   ==+[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]=====+[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
+			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	] +====[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	] +==  [
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	] +===+[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	] +===+[
+			else if (place[randPlace] == 4) { xPos = 5; yPos = 0; }	//	]   ==+[
+			else if (place[randPlace] == 5) { xPos = 5; yPos = 1; }	//	]=====+[
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
@@ -1711,16 +1945,21 @@ void App::generateItems(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
 	else if (type == 1) {		// Rooms B
-		vector<int> place = { 0,1,2,3,4,5,6 };
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 5; }	//	]++++ =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =====[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 0; }	//	]======[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }	//	]==== =[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 0; }	//	]= =+ =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]= ++ =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 5; }
+			if      ( place[randPlace] == 0 ) { xPos = 0; yPos = 3; }	//	]++====[
+			else if ( place[randPlace] == 1 ) { xPos = 0; yPos = 4; }	//	]++==  [
+			else if ( place[randPlace] == 2 ) { xPos = 0; yPos = 5; }	//	]++==  [
+			else if ( place[randPlace] == 3 ) { xPos = 1; yPos = 3; }	//	]  ==++[
+			else if ( place[randPlace] == 4 ) { xPos = 1; yPos = 4; }	//	]  ==++[
+			else if ( place[randPlace] == 5 ) { xPos = 1; yPos = 5; }	//	]====++[
+			else if ( place[randPlace] == 6 ) { xPos = 4; yPos = 0; }
+			else if ( place[randPlace] == 7 ) { xPos = 4; yPos = 1; }
+			else if ( place[randPlace] == 8 ) { xPos = 4; yPos = 2; }
+			else if ( place[randPlace] == 9 ) { xPos = 5; yPos = 0; }
+			else if ( place[randPlace] == 10 ) { xPos = 5; yPos = 1; }
+			else if ( place[randPlace] == 11 ) { xPos = 5; yPos = 2; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
@@ -1728,16 +1967,17 @@ void App::generateItems(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
 	else if (type == 2) {		// Rooms C
-		vector<int> place = { 0,1,2,3,4,5,6 };
+		vector<int> place = { 0,1,2,3,4,5,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]++  ==[
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]++= ==[
 			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]++====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	] ==== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	] ==== [
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]=====+[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 0; }	//	]==  ++[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]===== [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	] =====[
+			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]====++[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]== =++[
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
@@ -1748,12 +1988,12 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)		{ xPos = 0; yPos = 4; }	//	]+=====[
+			if (place[randPlace] == 0)		{ xPos = 0; yPos = 4; }	//	]+    =[
 			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]+=====[
 			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==++==[
 			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]==++==[
 			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]=====+[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]=====+[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]=    +[
 			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
 			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
@@ -1762,7 +2002,125 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 4) {		// Paths A
+	else if (type == 4) {		// Rooms E
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]++====[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]++====[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]======[
+			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]====++[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]====++[
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]);
+	}	}	}
+	// Plus
+	else if (type == 5) {		// Plus A
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 2; }	//	] =====[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =+++=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]==+=+=[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==+++=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]====  [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 6) {		// Plus B
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 2; }	//	] =====[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =+++=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	] =+=+=[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==+++=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]===   [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 7) {		// Plus C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] +=+==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] +=+ =[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	] +=+++[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===+++[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===   [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 8) {		// Plus D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] +++==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] +=+==[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	] +=+++[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }	//	]=====+[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===+++[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]===   [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 12) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 9) {		// Plus E
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	// ]+== ==[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	// ]+=====[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	// ]=++== [
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	// ]===+==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	// ]===+==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	// ]====++[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	// Paths
+	else if (type == 10) {		// Paths A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -1782,43 +2140,7 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 5) {		// Plus A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 3; }	//	] =====[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 4; }	//	] =+++=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	] =+=++[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===++=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 21) {		// Plus B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 2; }	//	] =====[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =+++=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	] =+=+=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==+++=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 6) {		// Paths C
+	else if (type == 11) {		// Paths C
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -1838,92 +2160,135 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 7) {		// Paths D
-		vector<int> place = { 0,1,2,3,4,5,6 };
+	else if (type == 12) {		// Paths C
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 0; }	//	]==== =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==++==[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]==++==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]==+++=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 8) {		// Cross A
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)		{ xPos = 0; yPos = 4; }	//	]++  ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]++====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	] ==== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	] ==== [
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]=====+[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 0; }	//	]==  ++[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 9) {		// Cross B
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)		{ xPos = 1; yPos = 5; }	//	] +====[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	] =+=+=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	] ==+==[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 3; }	//	] =+=+=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 2; }	//	]=====+[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 4; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 10) {		// Cross C
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	//	]++====[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]++====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]=====+[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 0; }	//	]====++[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 11) {		// Cross D
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 5; }	//	]+=+===[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 5; }	//	]===++=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 4; }	//	]==  +=[
-			else if (place[randPlace] == 3) { xPos = 4; yPos = 3; }	//	]==  =+[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 0; }	//	]=====+[
+			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 2; }	//	] =+===[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]==+===[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]++===+[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]++===+[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]  ==  [
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]====  [
 			else if (place[randPlace] == 6) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 12) {		// Gallery A
+	else if (type == 13) {		// Paths D
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 3; }	//	]    ==[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]++===+[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]++===+[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	] =++= [
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]===== [
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	// Cross
+	else if (type == 14) {		// Cross A
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if (place[randPlace] == 0)      { xPos = 1; yPos = 1; }	//	] +====[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =+=+=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==+==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =+=+=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=+===+[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]==    [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 15) {		// Cross B
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if (place[randPlace] == 0)      { xPos = 1; yPos = 0; }	//	]     =[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=+====[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==+=+=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] ==+==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]==+=+=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]=+===+[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 16) {		// Cross C
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if (place[randPlace] == 0)      { xPos = 0; yPos = 1; }	//	]+=====[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=+=+= [
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==+== [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=+=+= [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]+===+ [
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]==    [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 17) {		// Cross D
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if (place[randPlace] == 0)      { xPos = 0; yPos = 1; }	//	]++ ===[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]++=== [
+			else if (place[randPlace] == 2) { xPos = 0; yPos = 5; }	//	]===== [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 1; }	//	]===== [
+			else if (place[randPlace] == 4) { xPos = 1; yPos = 4; }	//	]++=++ [
+			else if (place[randPlace] == 5) { xPos = 1; yPos = 5; }	//	]===== [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+    else if (type == 18) {		// Cross E
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if (place[randPlace] == 0)      { xPos = 1; yPos = 0; }	//	]======[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]=+====[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=+====[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]===== [
+			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]=+==++[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]=+==++[
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	// Gallery
+	else if (type == 19) {		// Gallery A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -1949,7 +2314,7 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 13) {		// Gallery B
+	else if (type == 20) {		// Gallery B
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -1975,25 +2340,25 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 20) {		// Gallery C
+	else if (type == 21) {		// Gallery C
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
 			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]=++++=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]=++++=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 0; }	//	]=++++=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 1; }	//	]=++++=[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 4; }
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]======[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=++++=[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]=++++=[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 0; }	//	]======[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]=++++=[
+			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
 			else if (place[randPlace] == 7) { xPos = 2; yPos = 5; }
 			else if (place[randPlace] == 8) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
 			else if (place[randPlace] == 11) { xPos = 3; yPos = 5; }
 			else if (place[randPlace] == 12) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 14) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 13) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 14) { xPos = 4; yPos = 3; }
 			else if (place[randPlace] == 15) { xPos = 4; yPos = 5; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
@@ -2001,7 +2366,34 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 14) {		// Scattered A
+	else if (type == 22) {		// Gallery C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]+=++=+[
+			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]+=++=+[
+			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]+=++=+[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]+=++=+[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]======[
+			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 2; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 11) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 12) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 13) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 14) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 15) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+    // Scattered
+	else if (type == 23) {		// Scattered A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2021,7 +2413,7 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 15) {		// Scattered B
+	else if (type == 24) {		// Scattered B
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2041,70 +2433,90 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 16) {		// Layers A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+	else if (type == 25) {		// Scattered C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 0; }	//	]= ++==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]= ++==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==++==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]==++==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==++ =[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]==++ =[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 5; }
+			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 3; }	//	]   ===[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=+=+==[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]+=+=+=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 1; }	//	]=+=+= [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]==+=+ [
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]===+= [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 17) {		// Layers B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
+	else if (type == 26) {		// Scattered D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 2; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	]==+++=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]==+++=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==+++=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=    =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]= ====[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
+			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	] =+===[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] +=+==[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==+=+=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=+=+=+[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==+=+=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====  [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+            else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 18) {		// Layers C
+	// Layers
+	else if (type == 27) {		// Layers A
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 1; }	//	]= ++==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==++==[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==++==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==++==[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==++ =[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]=    =[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 5; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 28) {		// Layers B
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 4; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 4; yPos = 2; }	//	]====++[
-			else if (place[randPlace] == 2) { xPos = 4; yPos = 3; }	//	]====++[
-			else if (place[randPlace] == 3) { xPos = 4; yPos = 4; }	//	]====++[
-			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]====++[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
+			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 1; }	//	]    ==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==+=+=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==+=+=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==+=+=[
+			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]==+=+=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]=     [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
-	else if (type == 19) {		// Layers D
+	else if (type == 29) {		// Layers C
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 1; }	//	]     =[
+			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 1; }	//	]    ==[
 			else if (place[randPlace] == 1) { xPos = 3; yPos = 2; }	//	]===++=[
 			else if (place[randPlace] == 2) { xPos = 3; yPos = 3; }	//	]===++=[
 			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===++=[
@@ -2118,19 +2530,54 @@ void App::generateItems(int amt, int type) {
 				amt -= itemWorth;
 				remove(place.begin(), place.end(), place[randPlace]); }
 	}	}
+	else if (type == 30) {		// Layers D
+		vector<int> place = { 0,1,2,3,4,5,6 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 4; }	//	]=+====[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	]=+====[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==+===[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] =++==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]====++[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]== ===[
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
+	else if (type == 31) {		// Layers E
+		vector<int> place = { 0,1,2,3,4,5,6 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	//	]=== ==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]++====[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==++= [
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]===+==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]====+=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 0; }	//	]====+=[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
+			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
+				map[xPos][yPos].item = 1;
+				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
+				amt -= itemWorth;
+				remove(place.begin(), place.end(), place[randPlace]); }
+	}	}
 	else { generateItems(amt, 0); }
 }
 void App::generateBoxes(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
+	// Rooms
 	if (type == 0 ) {			// Rooms A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 2; }	//	]==O=O=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	]==O=  [
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]==O=O=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }	//	]==O=O=[
+			if      (place[randPlace] == 0) { xPos = 2; yPos = 2; }	//	] =O=O=[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =O=  [
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	] =O=O=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }	//	] =O=O=[
 			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]   =O=[
 			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]====O=[
 			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
@@ -2152,18 +2599,22 @@ void App::generateBoxes(int amt, int type) {
 						amt--;
 	}	}	}	}	}
 	else if (type == 1) {		// Rooms B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]==== =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] OOO==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==OOO=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=OOO =[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]= == =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]= == =[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
+			if      ( place[randPlace] == 0 ) { xPos = 0; yPos = 3; }	//	]OO==O=[
+			else if ( place[randPlace] == 1 ) { xPos = 0; yPos = 4; }	//	]OO==  [
+			else if ( place[randPlace] == 2 ) { xPos = 0; yPos = 5; }	//	]OO==  [
+			else if ( place[randPlace] == 3 ) { xPos = 1; yPos = 3; }	//	]  ==OO[
+			else if ( place[randPlace] == 4 ) { xPos = 1; yPos = 4; }	//	]  ==OO[
+			else if ( place[randPlace] == 5 ) { xPos = 1; yPos = 5; }	//	]====OO[
+			else if ( place[randPlace] == 6 ) { xPos = 4; yPos = 0; }
+			else if ( place[randPlace] == 7 ) { xPos = 4; yPos = 1; }
+			else if ( place[randPlace] == 8 ) { xPos = 4; yPos = 2; }
+			else if ( place[randPlace] == 9 ) { xPos = 4; yPos = 5; }
+			else if ( place[randPlace] == 10 ) { xPos = 5; yPos = 0; }
+			else if ( place[randPlace] == 11 ) { xPos = 5; yPos = 1; }
+			else if ( place[randPlace] == 12 ) { xPos = 5; yPos = 2; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
 					map[xPos][yPos].boxType = 2;
@@ -2180,17 +2631,18 @@ void App::generateBoxes(int amt, int type) {
 						amt--;
 	}	}	}	}	}
 	else if (type == 2) {		// Rooms C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	]==  ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==OO==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	] O==O [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] O==O [
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==OO==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]==  ==[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
+			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	]=== ==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=OO=O=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]=OO== [
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] ==OO=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===OO=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]== ===[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
 					map[xPos][yPos].boxType = 2;
@@ -2207,84 +2659,20 @@ void App::generateBoxes(int amt, int type) {
 						amt--;
 	}	}	}	}	}
 	else if (type == 3) {		// Rooms D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]=O==O=[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]=O==O=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 0; }	//	]O=OO=O[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 1; }	//	]O=OO=O[
-			else if (place[randPlace] == 4) { xPos = 1; yPos = 4; }	//	]=O==O=[
-			else if (place[randPlace] == 5) { xPos = 1; yPos = 5; }	//	]=O==O=[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 14) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 15) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 4) {		// Paths A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 0; }	//	]===OO=[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	]===OO=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===OO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 5; }	//	]===OO=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 0; }	//	]===OO=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 5) {		// Plus A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] ==O==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	] =OOO=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	] OO=OO[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OOO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===O==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 4; }
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]=    =[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]=O==O=[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 1; }	//	]O=OO=O[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]O=OO=O[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	//	]=O==O=[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 3; }	//	]=    =[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
 			else if (place[randPlace] == 11) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
@@ -2301,154 +2689,7 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 21) {		// Plus B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 4; }	//	] ===O=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	] OOOOO[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	] =O=O=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OOO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]====O=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 6) {		// Paths C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 2; yPos = 0; }	//	]==OOO=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]==OOO=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==O  =[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==  O=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==OOO=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]==OOO=[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 7) {		// Paths D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	]==== =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]=    =[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 0; }	//	]=O=OO=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]=O=OO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]==OOO=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 8) {		// Cross A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]==  ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=O==O=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] =OO= [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] =OO= [
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]=O==O=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]==  ==[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 9) {		// Cross B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	] O===O[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =O=O=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==O==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =O=O=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=O===O[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 10) {		// Cross C
+	else if (type == 4) {		// Rooms E
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2481,24 +2722,23 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 11) {		// Cross D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
+	// Plus
+	else if (type == 5) {		// Plus A
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]O=O=O=[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=O=O=O[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]O=  O=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=O  =O[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]==O=O=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]===O=O[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
+			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] ==O==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	] =OOO=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]=OO=OO[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OOO=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===O==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====  [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
 			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 4; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
 					map[xPos][yPos].boxType = 2;
@@ -2514,7 +2754,399 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 12) {		// Gallery A
+	else if (type == 6) {		// Plus B
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	] ===O=[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	] =OOOO[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] =O=O=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=OOOO=[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==O===[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]===   [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 5; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 7) {		// Plus C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] O=O==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] O=O =[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	] O=OOO[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===OOO[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===   [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 8) {		// Plus D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 3; }	// ] OOO==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	// ] O=O==[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	// ] O=OOO[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	// ]==O==O[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	// ]===OOO[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	// ]===   [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 12) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 13) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 9) {		// Plus E
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if		(place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	//	]O== ==[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]O==O==[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=OO=O [
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]===O==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===O==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====OO[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 0; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	// Paths
+	else if (type == 10) {		// Paths A
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 0; }	//	]===OO=[
+			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	]===OO=[
+			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	]=    =[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===OO=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 5; }	//	]===OO=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 0; }	//	]===OO=[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 11) {		// Paths C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if		(place[randPlace] == 0)	{ xPos = 2; yPos = 0; }	//	]==OOO=[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]==OOO=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==O  =[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==  O=[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==OOO=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]==OOO=[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 11) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 12) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 13) { xPos = 4; yPos = 5; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 12) {		// Paths D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if		(place[randPlace] == 0)	{ xPos = 0; yPos = 2; }	//	] =OO==[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]==OO==[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]OO==OO[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]OO==OO[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]  ==  [
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]====  [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 13) {		// Paths D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]    ==[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]OO==OO[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]OO==OO[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]==OO==[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	] =OO= [
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]===== [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	// Cross
+	else if (type == 14) {		// Cross A
+		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	] O===O[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =O=O=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==O==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =O=O=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=O===O[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]==    [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 5; yPos = 5; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 15) {		// Cross B
+		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]     =[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=O===O[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==O=O=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] ==O==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]==O=O=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]=O===O[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
+			else if (place[randPlace] == 8) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 16) {		// Cross C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]O===O=[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=O=O= [
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==O== [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=O=O= [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]O===O [
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]==    [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 5; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 17) {		// Cross D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	// ]== ===[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	// ]OO=OO [
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 1; }	// ]==O== [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	// ]==O== [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	// ]OO=OO [
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 3; }	// ]===== [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+    else if (type == 18) {		// Cross E
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	// ]  == =[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	// ]=O==O=[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	// ]=O==O=[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	// ]==OO= [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	// ]=O==O=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	// ]=O==O=[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	// Gallery
+	else if (type == 19) {		// Gallery A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2549,7 +3181,7 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 13) {		// Gallery B
+	else if (type == 20) {		// Gallery B
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2584,25 +3216,25 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 20) {		// Gallery C
+	else if (type == 21) {		// Gallery C
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
 			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]=OOOO=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]=OOOO=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 0; }	//	]=OOOO=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 1; }	//	]=OOOO=[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 4; }
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]======[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=OOOO=[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]=OOOO=[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 0; }	//	]======[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]=OOOO=[
+			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
 			else if (place[randPlace] == 7) { xPos = 2; yPos = 5; }
 			else if (place[randPlace] == 8) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
 			else if (place[randPlace] == 11) { xPos = 3; yPos = 5; }
 			else if (place[randPlace] == 12) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 14) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 13) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 14) { xPos = 4; yPos = 3; }
 			else if (place[randPlace] == 15) { xPos = 4; yPos = 5; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
@@ -2619,7 +3251,43 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 14) {		// Scattered A
+	else if (type == 22) {		// Gallery D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]O=OO=O[
+			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]O=OO=O[
+			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]O=OO=O[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]O=OO=O[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]======[
+			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 2; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 11) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 12) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 13) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 14) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 15) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	// Scattered
+	else if (type == 23) {		// Scattered A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2650,7 +3318,7 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 15) {		// Scattered B
+	else if (type == 24) {		// Scattered B
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2681,83 +3349,21 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 16) {		// Layers A
+	else if (type == 25) {		// Scattered C
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 0; }	//	]= OO==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]= OO==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==OO==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]==OO==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==OO =[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]==OO =[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 17) {		// Layers B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]=OOOO=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]=OOOO=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	//	]=OOOO=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]=    =[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]= ====[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 18) {		// Layers C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==O=OO[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==O=OO[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==O=OO[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]==O=OO[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
+			if      (place[randPlace] == 0)  { xPos = 0; yPos = 3; }	//	]   =O=[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 2; }	//	]=O=O=O[
+			else if (place[randPlace] == 2)  { xPos = 1; yPos = 4; }	//	]O=O=O=[
+			else if (place[randPlace] == 3)  { xPos = 2; yPos = 1; }	//	]=O=O= [
+			else if (place[randPlace] == 4)  { xPos = 2; yPos = 3; }	//	]==O=O [
+			else if (place[randPlace] == 5)  { xPos = 3; yPos = 0; }	//	]===O= [
+			else if (place[randPlace] == 6)  { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7)  { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9)  { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 5; }
 			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
@@ -2774,22 +3380,176 @@ void App::generateBoxes(int amt, int type) {
 						map[xPos][yPos].boxHP++;
 						amt--;
 	}	}	}	}	}
-	else if (type == 19) {		// Layers D
+	else if (type == 26) {		// Scattered D
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==OOO=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==OOO=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OOO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==OOO=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
+			if      (place[randPlace] == 0)  { xPos = 1; yPos = 2; } //	] =O=O=[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 4; } //	] O=O=O[
+			else if (place[randPlace] == 2)  { xPos = 2; yPos = 1; } //	]==O=O=[
+			else if (place[randPlace] == 3)  { xPos = 2; yPos = 3; } //	]=O=O=O[
+			else if (place[randPlace] == 4)  { xPos = 2; yPos = 5; } //	]==O=O=[
+			else if (place[randPlace] == 5)  { xPos = 3; yPos = 2; } //	]====  [
+			else if (place[randPlace] == 6)  { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7)  { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9)  { xPos = 4; yPos = 5; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
+            else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	// Layers
+	else if (type == 27) {		// Layers A
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]= OO==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==OO==[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==OO==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OO==[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==OO =[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]=    =[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 5; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 28) {		// Layers B
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)  { xPos = 1; yPos = 1; } //	]    ==[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 2; } //	]=OO=O=[
+			else if (place[randPlace] == 2)  { xPos = 1; yPos = 3; } //	]=OO=O=[
+			else if (place[randPlace] == 3)  { xPos = 1; yPos = 4; } //	]=OO=O=[
+			else if (place[randPlace] == 4)  { xPos = 2; yPos = 1; } //	]=OO=O=[
+			else if (place[randPlace] == 5)  { xPos = 2; yPos = 2; } //	]=     [
+			else if (place[randPlace] == 6)  { xPos = 2; yPos = 3; }
+			else if (place[randPlace] == 7)  { xPos = 2; yPos = 4; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9)  { xPos = 4; yPos = 2; }
 			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
 			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 29) {		// Layers C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)  { xPos = 1; yPos = 1; } //	]    ==[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 2; } //	]=O=OO=[
+			else if (place[randPlace] == 2)  { xPos = 1; yPos = 3; } //	]=O=OO=[
+			else if (place[randPlace] == 3)  { xPos = 1; yPos = 4; } //	]=O=OO=[
+			else if (place[randPlace] == 4)  { xPos = 3; yPos = 1; } //	]=O=OO=[
+			else if (place[randPlace] == 5)  { xPos = 3; yPos = 2; } //	]=     [
+			else if (place[randPlace] == 6)  { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 7)  { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9)  { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 30) {		// Layers D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)  { xPos = 1; yPos = 4; } //	]=OO===[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 5; } //	]=OO===[
+			else if (place[randPlace] == 2)  { xPos = 2; yPos = 2; } //	]==OO==[
+			else if (place[randPlace] == 3)  { xPos = 2; yPos = 3; } //	] =OOOO[
+			else if (place[randPlace] == 4)  { xPos = 2; yPos = 4; } //	]====OO[
+			else if (place[randPlace] == 5)  { xPos = 2; yPos = 5; } //	]== ===[
+			else if (place[randPlace] == 6)  { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7)  { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9)  { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 1; }
+			else if (place[randPlace] == 11) { xPos = 5; yPos = 2; }
+			if (xPos != -1 && yPos != -1) {
+				if (map[xPos][yPos].item > 0) {
+					map[xPos][yPos].boxType = 2;
+					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+				}	}
+				else {
+					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
+					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
+					else {
+						map[xPos][yPos].boxHP++;
+						amt--;
+	}	}	}	}	}
+	else if (type == 31) {		// Layers E
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; } //	]=== ==[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; } //	]OO====[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; } //	]OOOO= [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; } //	]==OO==[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; } //	]===OO=[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 3; } //	]===OO=[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 9) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 10) { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 11) { xPos = 4; yPos = 1; }
 			if (xPos != -1 && yPos != -1) {
 				if (map[xPos][yPos].item > 0) {
 					map[xPos][yPos].boxType = 2;
@@ -2810,14 +3570,15 @@ void App::generateBoxes(int amt, int type) {
 void App::generateFloor(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
-	if (type == 0) {			// Rooms A
+	// Rooms
+	if (type == 0) {				// Rooms A
 		vector<int> place = { 0,1,2,3,4,5 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 3; yPos = 0; }	//	]===X==[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	]===X  [
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	]===X==[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 3; }	//	]===X==[
+			if      (place[randPlace] == 0) { xPos = 3; yPos = 0; }	//	] ==X==[
+			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	] ==X  [
+			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	] ==X==[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 3; }	//	] ==X==[
 			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]   X==[
 			else if (place[randPlace] == 5) { xPos = 3; yPos = 5; }	//	]===X==[
 			if (xPos != -1 && yPos != -1) {
@@ -2825,36 +3586,31 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 1) {		// Rooms B
-		vector<int> place = { 0,1,2,3,4 };
+	else if (type == 1) {			// Rooms B
+		vector<int> place = { 0,1,2,3,4,5 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]==== =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	] X==X=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]=X==X=[
-			else if (place[randPlace] == 3) { xPos = 4; yPos = 3; }	//	]=X== =[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 4; }	//	]= == =[
-			if (xPos != -1 && yPos != -1) {							//	]= == =[
+			if      (place[randPlace] == 0) { xPos = 2; yPos = 3; }	//	]==X===[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 4; }	//	]==X=  [
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 5; }	//	]==X=  [
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]  =X==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]  =X==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]===X==[
+			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
 	else if (type == 2) {			// Rooms C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		vector<int> place = { 0,1,2,3,4,5 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]=XXXX=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	//	]=XXXX=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 3; }
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]=== ==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]===X==[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]===XX [
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 3; }	//	] XX===[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]==X===[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]== ===[
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
@@ -2864,12 +3620,12 @@ void App::generateFloor(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]======[
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]=    =[
 			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==XX==[
 			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]=X==X=[
 			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]=X==X=[
 			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]=    =[
 			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
 			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
@@ -2877,55 +3633,132 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 4) {			// Paths A
-		vector<int> place = { 0,1,2 };
+	else if (type == 4) {			// Rooms E
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 0; }		//	]======[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }		//	]======[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }		//	]=    =[
-			if (xPos != -1 && yPos != -1) {								//	]==X===[
-				map[xPos][yPos].state = 1;								//	]==X===[
-				remove(place.begin(), place.end(), place[randPlace]);	//	]==X===[
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]====X=[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=X=X=X[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 0; }	//	]==XXX=[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]X==X==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]====X=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]==X===[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
+	// Plus
 	else if (type == 5) {			// Plus A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 3; }		//	] ==X==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }		//	] ==X==[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 1; }		//	] XXXXX[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }		//	]===X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }		//	]===X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }		//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 3; }
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }		//	] =X=X=[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }		//	] X===X[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }		//	]===X==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }		//	]=X===X[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }		//	]==X=X=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }		//	]====  [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 5; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 8) { xPos = 5; yPos = 4; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 21) {			// Plus B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
+	else if (type == 6) {			// Plus B
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 3; }		//	] ==X==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }		//	] ==X==[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 1; }		//	] XXXXX[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }		//	]===X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }		//	]===X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }		//	]===   [
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }		//	] =XX==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }		//	] X====[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }		//	] X=X=X[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }		//	]=====X[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }		//	]=X=XX=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }		//	]===   [
 			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 8) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 6) {			// Paths C
+	else if (type == 7) {			// Plus C
+		vector<int> place = { 0,1,2,3,4,5,6 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 2; yPos = 2; }		//	] =X===[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }		//	] =X===[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }		//	] =X===[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }		//	]==XXXX[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }		//	]======[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }		//	]===   [
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 2; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 8) {			// Plus D
+		vector<int> place = { 0,1,2,3,4,5,6 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	// ] =====[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	// ] =X=X=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	// ] =X===[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	// ]=X=XX=[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	// ]==X===[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; } // ]===   [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 9) {			// Plus E
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }		//	]=== ==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }		//	]=XX===[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }		//	]X==X= [
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 1; }		//	]=XX=X=[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }		//	]==X=X=[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }		//	]===X==[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	// Paths
+	else if (type == 10) {			// Paths A
+		vector<int> place = { 0,1,2,3,4,5 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }		//	]==X===[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 0; }		//	]==X===[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }		//	]X    =[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }		//	]==X===[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }		//	]==X===[
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }		//	]==X===[
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 11) {			// Paths B
 		vector<int> place = { 0,1,2,3,4 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -2939,90 +3772,136 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 7) {			// Paths D
-		vector<int> place = { 0,1,2,3 };
+	else if (type == 12) {			// Paths C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]==== =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==X===[
-			else if (place[randPlace] == 3) { xPos = 5; yPos = 1; }	//	]==X===[
-			if (xPos != -1 && yPos != -1) {							//	]X    X[
-				map[xPos][yPos].state = 1;							//	]======[
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	] X==X=[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]XX==XX[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	]==XX==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	//	]==XX==[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]  ==  [
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====  [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 8) { xPos = 4; yPos = 5; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 8) {			// Cross A
+	else if (type == 13) {			// Paths D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]    ==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]==XX==[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==XX==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]XX==XX[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	] X==X [
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]===== [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
+            else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
+            else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
+            else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	// Cross
+	else if (type == 14) {			// Cross A
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]==  ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	] X==X [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] X==X [
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]==  ==[
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 3; }	//	] ==X==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] ==X==[
+			else if (place[randPlace] == 2) { xPos = 3; yPos = 1; }	//	] XX=XX[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	] ==X==[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]===X==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 5; }	//	]==    [
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 15) {			// Cross B
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]     =[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]===X==[
+			else if (place[randPlace] == 2) { xPos = 3; yPos = 0; }	//	]===X==[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	] XX=XX[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===X==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===X==[
 			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 2; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 16) {			// Cross C
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]==X===[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==X== [
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]XX=XX [
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	//	]==X== [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==X== [
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]==    [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
 			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 9) {			// Cross B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
+	else if (type == 17) {			// Cross D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	] X====[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =X=X=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==X==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =X=X=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=X===X[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 10) {			// Cross C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]===X==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]===X==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]XXXXXX[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]===X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]===X==[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 5; }
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]== ===[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]==X== [
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]XX=XX [
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]XX=XX [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]==X== [
+			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]===== [
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
+            else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
 			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 11) {			// Cross D
-		vector<int> place = { 0,1,2,3,4,5,6 };
+    else if (type == 18) {			// Cross E
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 5; }	//	]=X=X==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 4; }	//	]==X=X=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 5; }	//	]==  =X[
-			else if (place[randPlace] == 3) { xPos = 4; yPos = 2; }	//	]==  X=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 4; }	//	]=====X[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]  == =[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 0; }	//	]==XX==[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==XX==[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=X==X [
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==XX==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]==XX==[
+			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
+            else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
+			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 12) {			// Gallery A
+	// Gallery
+	else if (type == 19) {			// Gallery A
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -3039,7 +3918,7 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 13) {			// Gallery B
+	else if (type == 20) {			// Gallery B
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -3056,24 +3935,42 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 20) {			// Gallery C
+	else if (type == 21) {			// Gallery C
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]======[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]=XXXX=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=XXXX=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=XXXX=[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]=XXXX=[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]======[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 14) {			// Scattered A
+	else if (type == 22) {			// Gallery D
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]======[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=X==X=[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=X==X=[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=X==X=[
+			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]=X==X=[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]======[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	// Scattered
+	else if (type == 23) {			// Scattered A
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -3093,7 +3990,7 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 15) {			// Scattered B
+	else if (type == 24) {			// Scattered B
 		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
@@ -3114,16 +4011,57 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 16) {			// Layers A
+	else if (type == 25) {			// Scattered C
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)  { xPos = 0; yPos = 4; }	//	]   X==[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 1; }	//	]X=X=X=[
+			else if (place[randPlace] == 2)  { xPos = 2; yPos = 2; }	//	]=X=X=X[
+			else if (place[randPlace] == 3)  { xPos = 2; yPos = 4; }	//	]==X=X [
+			else if (place[randPlace] == 4)  { xPos = 3; yPos = 1; }	//	]===X= [
+			else if (place[randPlace] == 5)  { xPos = 3; yPos = 3; }	//	]====X [
+			else if (place[randPlace] == 6)  { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 7)  { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 9)  { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 26) {			// Scattered D
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0)  { xPos = 1; yPos = 3; } //	] X=X==[
+			else if (place[randPlace] == 1)  { xPos = 1; yPos = 5; } //	] =X=X=[
+			else if (place[randPlace] == 2)  { xPos = 2; yPos = 2; } //	]=X=X=X[
+			else if (place[randPlace] == 3)  { xPos = 2; yPos = 4; } //	]==X=X=[
+			else if (place[randPlace] == 4)  { xPos = 3; yPos = 1; } //	]===X=X[
+			else if (place[randPlace] == 5)  { xPos = 3; yPos = 3; } //	]====  [
+			else if (place[randPlace] == 6)  { xPos = 3; yPos = 5; }
+			else if (place[randPlace] == 7)  { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 9)  { xPos = 5; yPos = 1; }
+            else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	// Layers
+	else if (type == 27) {			// Layers A
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]= ==X=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]= ==X=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]=X==X=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]=X==X=[
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]= ==X=[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=X==X=[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=X==X=[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=X==X=[
 			else if (place[randPlace] == 4) { xPos = 4; yPos = 2; }	//	]=X== =[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]=X== =[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]=    =[
 			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
 			else if (place[randPlace] == 7) { xPos = 4; yPos = 5; }
 			if (xPos != -1 && yPos != -1) {
@@ -3131,57 +4069,69 @@ void App::generateFloor(int amt, int type) {
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 17) {			// Layers B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 2; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	]==XXX=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]==XXX=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==XXX=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=    =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]= ====[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 18) {			// Layers C
+	else if (type == 28) {			// Layers B
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
 			if      (place[randPlace] == 0) { xPos = 3; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 2; }	//	]===XX=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 3; }	//	]===XX=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===XX=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]===XX=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 1) { xPos = 3; yPos = 2; }	//	]===X=X[
+			else if (place[randPlace] == 2) { xPos = 3; yPos = 3; }	//	]===X=X[
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===X=X[
+			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]===X=X[
+			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]=     [
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
 				amt--; }
 	}	}
-	else if (type == 19) {			// Layers D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+	else if (type == 29) {			// Layers C
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==XXX=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==XXX=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==XXX=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==XXX=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
+			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]    ==[
+			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==X==X[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==X==X[
+			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==X==X[
+			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]==X==X[
+			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]=     [
+			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 30) {			// Layers D
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]X=====[
+			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]X=====[
+			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]=X====[
+			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	] X====[
+			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]==XX==[
+			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]== =XX[
+			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
+			if (xPos != -1 && yPos != -1) {
+				map[xPos][yPos].state = 1;
+				remove(place.begin(), place.end(), place[randPlace]);
+				amt--; }
+	}	}
+	else if (type == 31) {			// Layers E
+		vector<int> place = { 0,1,2,3,4,5,6,7 };
+		while (amt > 0 && !place.empty()) {
+			int randPlace = rand() % place.size();
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 5; }	//	]XX= ==[
+			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	]==XX==[
+			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]====X [
+			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]====X=[
+			else if (place[randPlace] == 4) { xPos = 4; yPos = 2; }	//	]=====X[
+			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]=====X[
+            else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
+            else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
 				remove(place.begin(), place.end(), place[randPlace]);
@@ -3189,15 +4139,133 @@ void App::generateFloor(int amt, int type) {
 	}	}
 	else { generateFloor(amt, 0); }
 }
+
+void App::changeMusic( int track ) {
+    musicSwitchDisplayAmt = 1.5;
+
+    if (track == -1 ) {
+        if ( !musicMuted ) { musicSel++; }
+	    if ( musicSel > 18 ) { musicSel = 1; } }
+    else { musicSel == track; }
+
+    musicMuted = false;
+
+    switch ( musicSel ) {
+    case 0:
+        Mix_Pause( 3 );
+        break;
+    case 1:
+        Mix_PlayChannel( 3, track01, -1 );
+        break;
+    case 2:
+        Mix_PlayChannel( 3, track02, -1 );
+        break;
+    case 3:
+        Mix_PlayChannel( 3, track03, -1 );
+        break;
+    case 4:
+        Mix_PlayChannel( 3, track04, -1 );
+        break;
+    case 5:
+        Mix_PlayChannel( 3, track05, -1 );
+        break;
+    case 6:
+        Mix_PlayChannel( 3, track06, -1 );
+        break;
+    case 7:
+        Mix_PlayChannel( 3, track07, -1 );
+        break;
+    case 8:
+        Mix_PlayChannel( 3, track08, -1 );
+        break;
+    case 9:
+        Mix_PlayChannel( 3, track09, -1 );
+        break;
+    case 10:
+        Mix_PlayChannel( 3, track10, -1 );
+        break;
+    case 11:
+        Mix_PlayChannel( 3, track11, -1 );
+        break;
+    case 12:
+        Mix_PlayChannel( 3, track12, -1 );
+        break;
+    case 13:
+        Mix_PlayChannel( 3, track13, -1 );
+        break;
+    case 14:
+        Mix_PlayChannel( 3, track14, -1 );
+        break;
+    case 15:
+        Mix_PlayChannel( 3, track15, -1 );
+        break;
+    case 16:
+        Mix_PlayChannel( 3, track16, -1 );
+        break;
+    case 17:
+        Mix_PlayChannel( 3, track17, -1 );
+        break;
+    case 18:
+        Mix_PlayChannel( 3, track18, -1 );
+        break;
+    }
+}
+void App::toggleMusic() {
+    musicSwitchDisplayAmt = 1.5;
+
+    if ( musicMuted ) {
+        changeMusic();
+    }
+    else {
+        musicMuted = true;
+        Mix_Pause( 3 );
+    }
+}
+void App::displayMusic() {
+    string text;
+    if ( musicMuted ) { text = "Music Paused"; }
+    else {
+        switch ( musicSel ) {
+        case 1:  text = "01 Organization";      break;
+        case 2:  text = "02 An Incident";       break;
+        case 3:  text = "03 Blast Speed";       break;
+        case 4:  text = "04 Shark Panic";       break;
+        case 5:  text = "05 Battle Field";      break;
+        case 6:  text = "06 Doubt";             break;
+        case 7:  text = "07 Distortion";        break;
+        case 8:  text = "08 Surge of Power";    break;
+        case 9:  text = "09 Digital Strider";   break;
+        case 10: text = "10 Break the Storm";   break;
+        case 11: text = "11 Evil Spirit";       break;
+        case 12: text = "12 Hero";              break;
+        case 13: text = "13 Danger Zone";       break;
+        case 14: text = "14 Navi Customizer";   break;
+        case 15: text = "15 Graveyard";         break;
+        case 16: text = "16 The Count";         break;
+        case 17: text = "17 Secret Base";       break;
+        case 18: text = "18 Cybeasts";          break;
+        }
+    }
+    glLoadIdentity();
+    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
+    drawSpriteSheetSprite( place, musicDisplayPic, 0, 1, 1 );
+
+    glLoadIdentity();
+    glTranslatef( 0.30, -0.95, 0 );
+    drawText( textSheet1A, text, 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 );
+}
+
 void App::test() {
 	reset();
 	clearFloor();
 	level = -1;
 	player.energy = player.energy2 = 10000;
 	for (int i = 0; i < 6; i++) {
-		map[i][5].state = 3;
-		map[i][4].item = 1; }
+		map[i][5].state = 3;    map2[i][5] = map[i][5];
+		map[i][4].item = 1;     map2[i][4] = map[i][4]; }
+
 	for (int i = 1; i < 5; i++) {
+        map[5][i].state = 1;    map2[5][i] = map[5][i];
 		for (int j = 1; j < 4; j++) {
 			map[i][j].boxHP = 5;
 			map[i][j].boxType = 1;
@@ -3205,7 +4273,7 @@ void App::test() {
 }
 void App::test2() {
 	int x = -1, y = -1, z = -1;
-	while (x < 0 || x > 21 || y < 0) {
+	while (x < 0 || x > 31 || y < 0) {
 		cout << "Level Type: ";
 		cin >> x;
 		cout << "Level: ";
