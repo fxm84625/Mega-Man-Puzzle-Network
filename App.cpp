@@ -75,7 +75,7 @@ const float scaleY = 0.48 * overallScale;
 const float playerScale = 1.2;
 const float itemScale = 1.1;
 
-Player::Player() : x(0), y(0), facing(3), moving(false), turning(false), moveDir(-1), energy(0), energy2(0) {}
+Player::Player() : x(0), y(0), facing(3), moving(false), turning(false), moveDir(-1), energy(0) {}
 Tile::Tile() : state(0), item(-1), boxHP(0), boxType(0), boxAtkInd(0.0), prevDmg(0) {}
 DelayedHpLoss::DelayedHpLoss() : dmg(0), xPos(0), yPos(0), delay(0.0) {}
 DelayedSound::DelayedSound() : soundName(""), delay(0.0) {}
@@ -183,7 +183,8 @@ long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 player(Player()), menuDisplay(false), quitMenuOn(false), quitSel(true), level(0), currentEnergyGain(0),
+			 menuDisplay(false), quitMenuOn(false), quitSel(true), resetMenuOn(false), resetSel(true),
+             player(Player()), level(0), currentEnergyGain(0),
 			 animationType(0), selSwordAnimation(-1), musicSel(1), musicMuted(true),
 			 animationDisplayAmt(0.0), chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0), currentSwordAtkTime(0.0),
 			 itemAnimationAmt(0.0), bgAnimationAmt(0.0), musicSwitchDisplayAmt(0.0) {
@@ -226,6 +227,8 @@ void App::Init() {
     musicDisplayPic  = loadTexture("Pics\\MusicDisplay.png");
     quitPicY         = loadTexture("Pics\\QuitY.png");
     quitPicN         = loadTexture("Pics\\QuitN.png");
+    resetPicY        = loadTexture("Pics\\ResetY.png");
+    resetPicN        = loadTexture("Pics\\ResetN.png");
 
 	swordAtkSheet1 = loadTexture("Pics\\Sword Attacks 2\\Sword Sheet 1.png");
 	swordAtkSheet3 = loadTexture("Pics\\Sword Attacks 2\\Sword Sheet 3.png");
@@ -260,24 +263,24 @@ void App::Init() {
     quitChooseSound = Mix_LoadWAV( "Sounds\\QuitChoose2.wav" );
     quitOpenSound   = Mix_LoadWAV( "Sounds\\QuitOpen2.wav" );
 
-	track01 = Mix_LoadWAV( "Music\\01 Organization.wav" );
-    track02 = Mix_LoadWAV( "Music\\02 An Incident.wav" );
-    track03 = Mix_LoadWAV( "Music\\03 Blast Speed.wav" );
-    track04 = Mix_LoadWAV( "Music\\04 Shark Panic.wav" );
-    track05 = Mix_LoadWAV( "Music\\05 Battle Field.wav" );
-    track06 = Mix_LoadWAV( "Music\\06 Doubt.wav" );
-    track07 = Mix_LoadWAV( "Music\\07 Distortion.wav" );
-    track08 = Mix_LoadWAV( "Music\\08 Surge of Power.wav" );
-    track09 = Mix_LoadWAV( "Music\\09 Digital Strider.wav" );
-    track10 = Mix_LoadWAV( "Music\\10 Break the Storm.wav" );
-    track11 = Mix_LoadWAV( "Music\\11 Evil Spirit.wav" );
-    track12 = Mix_LoadWAV( "Music\\12 Hero.wav" );
-    track13 = Mix_LoadWAV( "Music\\13 Danger Zone.wav" );
-    track14 = Mix_LoadWAV( "Music\\14 Navi Customizer.wav" );
-    track15 = Mix_LoadWAV( "Music\\15 Graveyard.wav" );
-    track16 = Mix_LoadWAV( "Music\\16 The Count.wav" );
-    track17 = Mix_LoadWAV( "Music\\17 Secret Base.wav" );
-    track18 = Mix_LoadWAV( "Music\\18 Cybeasts.wav" );
+	track01 = Mix_LoadWAV( "Music\\01 Organization.ogg" );
+    track02 = Mix_LoadWAV( "Music\\02 An Incident.ogg" );
+    track03 = Mix_LoadWAV( "Music\\03 Blast Speed.ogg" );
+    track04 = Mix_LoadWAV( "Music\\04 Shark Panic.ogg" );
+    track05 = Mix_LoadWAV( "Music\\05 Battle Field.ogg" );
+    track06 = Mix_LoadWAV( "Music\\06 Doubt.ogg" );
+    track07 = Mix_LoadWAV( "Music\\07 Distortion.ogg" );
+    track08 = Mix_LoadWAV( "Music\\08 Surge of Power.ogg" );
+    track09 = Mix_LoadWAV( "Music\\09 Digital Strider.ogg" );
+    track10 = Mix_LoadWAV( "Music\\10 Break the Storm.ogg" );
+    track11 = Mix_LoadWAV( "Music\\11 Evil Spirit.ogg" );
+    track12 = Mix_LoadWAV( "Music\\12 Hero.ogg" );
+    track13 = Mix_LoadWAV( "Music\\13 Danger Zone.ogg" );
+    track14 = Mix_LoadWAV( "Music\\14 Navi Customizer.ogg" );
+    track15 = Mix_LoadWAV( "Music\\15 Graveyard.ogg" );
+    track16 = Mix_LoadWAV( "Music\\16 The Count.ogg" );
+    track17 = Mix_LoadWAV( "Music\\17 Secret Base.ogg" );
+    track18 = Mix_LoadWAV( "Music\\18 Cybeasts.ogg" );
 
 	reset();
 }
@@ -418,8 +421,12 @@ void App::checkKeys() {
 	while (SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) { done = true; }
 		else if (event.type == SDL_KEYDOWN) {		// Read Single Button presses
-            if (!menuDisplay && !quitMenuOn && animationDisplayAmt <= 0) {
-				if (event.key.keysym.scancode == SDL_SCANCODE_R) { reset(); }		// Restart to level 1
+            if (!menuDisplay && !quitMenuOn && !resetMenuOn && animationDisplayAmt <= 0) {
+                // Show Reset confirmation Menu
+				if (event.key.keysym.scancode == SDL_SCANCODE_R) {
+                    resetMenuOn = true;
+                    resetSel = true;
+                    Mix_PlayChannel( 1, menuOpenSound, 0 ); }
 				else if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
                     quitMenuOn = true;
                     quitSel = true;
@@ -438,15 +445,15 @@ void App::checkKeys() {
 					Mix_PlayChannel( 1, menuOpenSound, 0 ); }
 			}
 			// If the Menu is displayed, any button except for Music controls will close the menu
-			else if (menuDisplay && !quitMenuOn) {
+			else if (menuDisplay && !quitMenuOn && !resetMenuOn) {
                 if      (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
                 else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
                 else {
 				    menuDisplay = false; animationDisplayAmt = 0.15;
 				    Mix_PlayChannel( 1, menuCloseSound, 0 ); } }
-            // Controls for the Quit confirmation UI
-            else if (quitMenuOn) {
-                if      ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
+            // Controls for the Quit confirmation Menu
+            else if ( quitMenuOn && !resetMenuOn) {
+                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
                     quitMenuOn = false;
                     animationDisplayAmt = 0.15;
                     Mix_PlayChannel( 1, quitCancelSound, 0 ); }
@@ -471,13 +478,42 @@ void App::checkKeys() {
                         quitMenuOn = false;
                         animationDisplayAmt = 0.15;
                         Mix_PlayChannel( 1, quitCancelSound, 0 );
-                    }
+            } } }
+            // Controls for the Reset confirmation Menu
+            else if ( resetMenuOn && !quitMenuOn ) {
+                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
+                    resetMenuOn = false;
+                    animationDisplayAmt = 0.15;
+                    Mix_PlayChannel( 1, quitCancelSound, 0 ); }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT )  {
+                    if ( !resetSel ) Mix_PlayChannel( 1, quitChooseSound, 0 );
+                    resetSel = true;
                 }
-            }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
+                    if ( resetSel ) Mix_PlayChannel( 1, quitChooseSound, 0 );
+                    resetSel = false;
+                }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
+                    if ( resetSel ) {
+                        reset();
+                        animationDisplayAmt = 0.15;
+                        Mix_PlayChannel( 1, quitCancelSound, 0 ); }
+                    else {
+                        resetMenuOn = false;
+                        animationDisplayAmt = 0.15;
+                        Mix_PlayChannel( 1, quitCancelSound, 0 );
+            } } }
 	    }
     }
 
-    if ( !quitMenuOn ) {
+    if ( !quitMenuOn && !resetMenuOn) {
 	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
 	
 	    // The player can't Move or Attack until after the previous Action is completed
@@ -547,6 +583,7 @@ void App::Render() {
     if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
 
     if ( quitMenuOn ) { drawQuitMenu(); }
+    else if ( resetMenuOn ) { drawResetMenu(); }
 
 	SDL_GL_SwapWindow(displayWindow);
 }
@@ -573,6 +610,12 @@ void App::drawQuitMenu() {
     GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
     if ( quitSel ) { drawSpriteSheetSprite( place, quitPicY, 0, 1, 1 ); }
     else           { drawSpriteSheetSprite( place, quitPicN, 0, 1, 1 ); }
+}
+void App::drawResetMenu() {
+    glLoadIdentity();
+    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
+    if ( resetSel ) { drawSpriteSheetSprite( place, resetPicY, 0, 1, 1 ); }
+    else            { drawSpriteSheetSprite( place, resetPicN, 0, 1, 1 ); }
 }
 void App::drawPlayer() {
 	glLoadIdentity();
@@ -1522,20 +1565,18 @@ void App::clearFloor() {		// Clears all tiles
 			map[i][j].boxType = 0;
 			map[i][j].prevDmg = 0;
 			map[i][j].boxAtkInd = 0;
-			map2[i][j] = map[i][j];
 }	}	}
 void Player::reset() {
 	x = 0;		y = 0;
 	moving = false;
 	turning = false;
 	energy = 0;
-	energy2 = 0;
 	facing = 3;
 }
 void App::reset() {
 	clearFloor();
 	player.reset();
-	player.energy = player.energy2 = startingEnergy;
+	player.energy = startingEnergy;
 	menuDisplay = false;
 	chargeDisplayPlusAmt = 0;
 	chargeDisplayMinusAmt = 0;
@@ -1545,19 +1586,18 @@ void App::reset() {
 	loadLevel(level);
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
-    quitMenuOn = false;
-    quitSel = true;
+    quitMenuOn = resetMenuOn = false;
+    quitSel = resetSel = true;
 }
 void App::next() {
 	level++;
 	loadLevel(level);
 	player.facing = 3;
-	player.energy2 = player.energy;
 	menuDisplay = false;
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
-    quitMenuOn = false;
-    quitSel = true;
+    quitMenuOn = resetMenuOn = false;
+    quitSel = resetSel = true;
 }
 void App::loadLevel(int num) {
 	clearFloor();
@@ -1566,10 +1606,6 @@ void App::loadLevel(int num) {
 	else {
 		int type = getRand(32);
 		generateLevel(type); }		// Generate a Level of Random type
-
-	for (int i = 0; i < 6; i++) {		// Save a copy of the current map		// For if the player wants to redo this level
-		for (int j = 0; j < 6; j++) {
-			map2[i][j] = map[i][j]; } }
 }
 void App::generateLevel(int type, int num) {
 	if (num <= -1) { num = rand() % 100; }				// Random number between 0 and 99, inclusive - used to determine difficulty
@@ -4259,17 +4295,16 @@ void App::test() {
 	reset();
 	clearFloor();
 	level = -1;
-	player.energy = player.energy2 = 10000;
+	player.energy = 10000;
 	for (int i = 0; i < 6; i++) {
-		map[i][5].state = 3;    map2[i][5] = map[i][5];
-		map[i][4].item = 1;     map2[i][4] = map[i][4]; }
+		map[i][5].state = 3;
+		map[i][4].item = 1;}
 
 	for (int i = 1; i < 5; i++) {
-        map[5][i].state = 1;    map2[5][i] = map[5][i];
+        map[5][i].state = 1;
 		for (int j = 1; j < 4; j++) {
 			map[i][j].boxHP = 5;
-			map[i][j].boxType = 1;
-			map2[i][j] = map[i][j]; } }
+			map[i][j].boxType = 1; } }
 }
 void App::test2() {
 	int x = -1, y = -1, z = -1;
@@ -4285,9 +4320,6 @@ void App::test2() {
 	reset();
 	clearFloor();
 	level = y;
-	player.energy = player.energy2 = 10000;
+	player.energy = 10000;
 	generateLevel(x, z);
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
-			map2[i][j] = map[i][j]; } }
 }
