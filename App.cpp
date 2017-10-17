@@ -184,7 +184,7 @@ long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 menuDisplay(false), quitMenuOn(false), resetMenuOn(false), trainMenuOn(false), menuSel(true),
+			 menuDisplay(true), quitMenuOn(false), resetMenuOn(false), trainMenuOn(false), menuSel(true),
              player(Player()), level(0), currentEnergyGain(0),
 			 animationType(0), selSwordAnimation(-1), musicSel(1), musicMuted(true),
 			 animationDisplayAmt(0.0), chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0), currentSwordAtkTime(0.0),
@@ -286,6 +286,7 @@ void App::Init() {
     track18 = Mix_LoadWAV( "Music\\18 Cybeasts.ogg" );
 
 	reset();
+    menuDisplay = true;
 }
 App::~App() {
 	Mix_FreeChunk( swordSound );
