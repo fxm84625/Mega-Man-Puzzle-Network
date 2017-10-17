@@ -54,6 +54,7 @@ const int itemWorth = energyGainAmt / 50;	// Item "Worth" is used to generate Le
 const float iconDisplayTime = 0.45;		// Energy Gain Icon Display time
 const float boxDmgTime = 0.4;			// Box HP damage indicator time
 const float moveAnimationTime = 0.175;	// Player movement time
+const float menuExitTime = 0.2;         // Delay after coming out of a Menu
 
 const float preAtkTime   = 0.10;
 const float swordAtkTime = 0.42;
@@ -183,7 +184,7 @@ long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 menuDisplay(false), quitMenuOn(false), quitSel(true), resetMenuOn(false), resetSel(true),
+			 menuDisplay(false), quitMenuOn(false), resetMenuOn(false), trainMenuOn(false), menuSel(true),
              player(Player()), level(0), currentEnergyGain(0),
 			 animationType(0), selSwordAnimation(-1), musicSel(1), musicMuted(true),
 			 animationDisplayAmt(0.0), chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0), currentSwordAtkTime(0.0),
@@ -229,6 +230,8 @@ void App::Init() {
     quitPicN         = loadTexture("Pics\\QuitN.png");
     resetPicY        = loadTexture("Pics\\ResetY.png");
     resetPicN        = loadTexture("Pics\\ResetN.png");
+    trainPicY        = loadTexture("Pics\\TrainY.png");
+    trainPicN        = loadTexture("Pics\\TrainN.png");
 
 	swordAtkSheet1 = loadTexture("Pics\\Sword Attacks 2\\Sword Sheet 1.png");
 	swordAtkSheet3 = loadTexture("Pics\\Sword Attacks 2\\Sword Sheet 3.png");
@@ -254,7 +257,7 @@ void App::Init() {
 	lifeSwordSound  = Mix_LoadWAV( "Sounds\\LifeSword.wav" );
 	itemSound       = Mix_LoadWAV( "Sounds\\GotItem2.wav" );
 	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit2.wav" );
-	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack2.wav" );
+	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack3.wav" );
 
 	menuOpenSound   = Mix_LoadWAV( "Sounds\\ChipDesc2.wav" );
 	menuCloseSound  = Mix_LoadWAV( "Sounds\\ChipDescClose2.wav" );
@@ -334,7 +337,9 @@ bool App::UpdateAndRender() {
 
 	Update(elapsed);
 	Render();
-	return done;
+
+    if ( animationDisplayAmt > 0 ) { return false; }
+    return done;
 }
 void App::Update(float &elapsed) {
 	checkKeys();
@@ -421,132 +426,118 @@ void App::checkKeys() {
 	while (SDL_PollEvent(&event)) {
 		if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) { done = true; }
 		else if (event.type == SDL_KEYDOWN) {		// Read Single Button presses
-            if (!menuDisplay && !quitMenuOn && !resetMenuOn && animationDisplayAmt <= 0) {
+
+            if ( !menuDisplay && !quitMenuOn && !resetMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
                 // Show Reset confirmation Menu
 				if (event.key.keysym.scancode == SDL_SCANCODE_R) {
                     resetMenuOn = true;
-                    resetSel = true;
-                    Mix_PlayChannel( 1, menuOpenSound, 0 ); }
+                    menuSel = true;
+                    Mix_PlayChannel( 1, quitOpenSound, 0 ); }
+
+                // Show Quit confirmation Menu
 				else if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
                     quitMenuOn = true;
-                    quitSel = true;
+                    menuSel = true;
                     Mix_PlayChannel( 1, quitOpenSound, 0 ); }
-				else if (event.key.keysym.scancode == SDL_SCANCODE_X) { test(); }
+
+                // Show Training confirmation Menu
+				else if (event.key.keysym.scancode == SDL_SCANCODE_X) {
+                    trainMenuOn = true;
+                    menuSel = true;
+                    Mix_PlayChannel( 1, quitOpenSound, 0 ); }
+
+                // Music Controls
 				else if (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
                 else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
 				//else if (event.key.keysym.scancode == SDL_SCANCODE_Z) { test2(); }
+
 				// Turn around without moving
 				else if (event.key.keysym.scancode == SDL_SCANCODE_LSHIFT || event.key.keysym.scancode == SDL_SCANCODE_SPACE) {
 					if (player.facing == 1) { face(3); }
 					else if (player.facing == 3) { face(1); } }
-				// Show "Menu"
+
+				// Show Help Info Menu
 				else if (event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F) {
 					menuDisplay = true;
 					Mix_PlayChannel( 1, menuOpenSound, 0 ); }
 			}
-			// If the Menu is displayed, any button except for Music controls will close the menu
-			else if (menuDisplay && !quitMenuOn && !resetMenuOn) {
+			// If the Help Menu is displayed, any button except for Music controls will close the menu
+			else if ( menuDisplay ) {
                 if      (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
                 else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
                 else {
-				    menuDisplay = false; animationDisplayAmt = 0.15;
+				    menuDisplay = false; animationDisplayAmt = menuExitTime;
 				    Mix_PlayChannel( 1, menuCloseSound, 0 ); } }
-            // Controls for the Quit confirmation Menu
-            else if ( quitMenuOn && !resetMenuOn) {
-                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
-                    quitMenuOn = false;
-                    animationDisplayAmt = 0.15;
-                    Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT )  {
-                    if ( !quitSel ) Mix_PlayChannel( 1, quitChooseSound, 0 );
-                    quitSel = true;
-                }
-                else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
-                    if (quitSel) Mix_PlayChannel( 1, quitChooseSound, 0 );
-                    quitSel = false;
-                }
-                else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
-                    if ( quitSel ) { done = true; }
-                    else {
-                        quitMenuOn = false;
-                        animationDisplayAmt = 0.15;
-                        Mix_PlayChannel( 1, quitCancelSound, 0 );
-            } } }
-            // Controls for the Reset confirmation Menu
-            else if ( resetMenuOn && !quitMenuOn ) {
-                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
-                    resetMenuOn = false;
-                    animationDisplayAmt = 0.15;
-                    Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT )  {
-                    if ( !resetSel ) Mix_PlayChannel( 1, quitChooseSound, 0 );
-                    resetSel = true;
-                }
-                else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
-                    if ( resetSel ) Mix_PlayChannel( 1, quitChooseSound, 0 );
-                    resetSel = false;
-                }
-                else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
-                          event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
-                    if ( resetSel ) {
-                        reset();
-                        animationDisplayAmt = 0.15;
-                        Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                    else {
-                        resetMenuOn = false;
-                        animationDisplayAmt = 0.15;
-                        Mix_PlayChannel( 1, quitCancelSound, 0 );
-            } } }
-	    }
-    }
 
-    if ( !quitMenuOn && !resetMenuOn) {
+            // Menu Controls
+            else if ( quitMenuOn || resetMenuOn || trainMenuOn ) {
+                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
+                    quitMenuOn = false;     resetMenuOn = false;    trainMenuOn = false;
+                    animationDisplayAmt = menuExitTime;
+                    Mix_PlayChannel( 1, quitCancelSound, 0 ); }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT )  {
+                    if ( !menuSel ) { Mix_PlayChannel( 1, quitChooseSound, 0 ); }
+                    menuSel = true;
+                }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
+                    if (  menuSel ) { Mix_PlayChannel( 1, quitChooseSound, 0 ); }
+                    menuSel = false;
+                }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
+                    if ( menuSel ) {
+                        if ( quitMenuOn ) { done = true; }
+                        else if ( resetMenuOn ) { reset(); }
+                        else if ( trainMenuOn ) { test(); }
+                        animationDisplayAmt = menuExitTime;
+                        Mix_PlayChannel( 1, quitChooseSound, 0 );
+                    }
+                    else {
+                        quitMenuOn = false;     resetMenuOn = false;    trainMenuOn = false;
+                        animationDisplayAmt = menuExitTime;
+                        Mix_PlayChannel( 1, quitCancelSound, 0 );
+            } } }
+	} }
+
+    if ( !quitMenuOn && !resetMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
+        // The player can't Move or Attack until after the previous Action is completed
+
 	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
-	
-	    // The player can't Move or Attack until after the previous Action is completed
-	    if (animationDisplayAmt <= 0) {
-		    animationType = 0;
-		    // Move Up
-		    if		(keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP]) { move(0); }
-		    // Move Left
-		    else if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT]) {
-			    if (player.facing != 1) {
-				    player.turning = true;
-				    face(1); }
-			    move(1);
-		    }
-		    // Move Down
-		    else if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN]) { move(2); }
-		    // Move Right
-		    else if (keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT]) {
-			    if (player.facing != 3) {
-				    player.turning = true;
-				    face(3); }
-			    move(3);
-		    }
 
-		    // Sword Attacks
-		    else if (keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1]) { swordAtk(player.facing); }
-		    else if (keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2]) { longAtk(player.facing); }
-		    else if (keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3]) { wideAtk(player.facing); }
-		    else if (keystates[SDL_SCANCODE_4] || keystates[SDL_SCANCODE_KP_4]) { crossAtk(player.facing); }
-		    else if (keystates[SDL_SCANCODE_5] || keystates[SDL_SCANCODE_KP_5]) { spinAtk(player.facing); }
-		    else if (keystates[SDL_SCANCODE_6] || keystates[SDL_SCANCODE_KP_6]) { stepAtk(player.facing); }
-		    else if (keystates[SDL_SCANCODE_7] || keystates[SDL_SCANCODE_KP_7]) { lifeAtk(player.facing); }
-	    }
+		animationType = 0;
+		// Move Up
+		if		(keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP]) { move(0); }
+		// Move Left
+		else if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT]) {
+			if (player.facing != 1) {
+				player.turning = true;
+				face(1); }
+			move(1);
+		}
+		// Move Down
+		else if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN]) { move(2); }
+		// Move Right
+		else if (keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT]) {
+			if (player.facing != 3) {
+				player.turning = true;
+				face(3); }
+			move(3);
+		}
+
+		// Sword Attacks
+		else if (keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1]) { swordAtk(player.facing); }
+		else if (keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2]) { longAtk(player.facing); }
+		else if (keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3]) { wideAtk(player.facing); }
+		else if (keystates[SDL_SCANCODE_4] || keystates[SDL_SCANCODE_KP_4]) { crossAtk(player.facing); }
+		else if (keystates[SDL_SCANCODE_5] || keystates[SDL_SCANCODE_KP_5]) { spinAtk(player.facing); }
+		else if (keystates[SDL_SCANCODE_6] || keystates[SDL_SCANCODE_KP_6]) { stepAtk(player.facing); }
+		else if (keystates[SDL_SCANCODE_7] || keystates[SDL_SCANCODE_KP_7]) { lifeAtk(player.facing); }
     }
 }
 
@@ -557,13 +548,19 @@ void App::Render() {
 
 	drawBg();
 	drawFloor();
-	drawTextUI();
 
 	// Draw game elements, back row first, so the front row is displayed in front
 	for (int i = 5; i >= 0; i--) {
 		drawItems(i);
 		drawBoxes(i);
-		if (i == player.y) { drawPlayer(); } }
+		
+        if ( i == 0 ) {
+            if ( menuDisplay ) { drawMenu(); }
+            drawTextUI();
+        }
+
+        if ( i == player.y ) { drawPlayer(); }
+    }
 
 	// Render Sword Attacking Animations
 	glLoadIdentity();
@@ -579,11 +576,11 @@ void App::Render() {
 		else if (selSwordAnimation == 5) { stepDisplay(player.facing); }
 		else if (selSwordAnimation == 6) { lifeDisplay(player.facing); } }
 
-    if ( menuDisplay ) { drawMenu(); }
     if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
 
     if ( quitMenuOn ) { drawQuitMenu(); }
     else if ( resetMenuOn ) { drawResetMenu(); }
+    else if ( trainMenuOn ) { drawTrainMenu(); }
 
 	SDL_GL_SwapWindow(displayWindow);
 }
@@ -608,14 +605,20 @@ void App::drawMenu() {
 void App::drawQuitMenu() {
     glLoadIdentity();
     GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if ( quitSel ) { drawSpriteSheetSprite( place, quitPicY, 0, 1, 1 ); }
+    if ( menuSel ) { drawSpriteSheetSprite( place, quitPicY, 0, 1, 1 ); }
     else           { drawSpriteSheetSprite( place, quitPicN, 0, 1, 1 ); }
 }
 void App::drawResetMenu() {
     glLoadIdentity();
     GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if ( resetSel ) { drawSpriteSheetSprite( place, resetPicY, 0, 1, 1 ); }
-    else            { drawSpriteSheetSprite( place, resetPicN, 0, 1, 1 ); }
+    if ( menuSel ) { drawSpriteSheetSprite( place, resetPicY, 0, 1, 1 ); }
+    else           { drawSpriteSheetSprite( place, resetPicN, 0, 1, 1 ); }
+}
+void App::drawTrainMenu() {
+    glLoadIdentity();
+    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
+    if ( menuSel ) { drawSpriteSheetSprite( place, trainPicY, 0, 1, 1 ); }
+    else           { drawSpriteSheetSprite( place, trainPicN, 0, 1, 1 ); }
 }
 void App::drawPlayer() {
 	glLoadIdentity();
@@ -1586,8 +1589,8 @@ void App::reset() {
 	loadLevel(level);
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
-    quitMenuOn = resetMenuOn = false;
-    quitSel = resetSel = true;
+    quitMenuOn = resetMenuOn = trainMenuOn = false;
+    menuSel = true;
 }
 void App::next() {
 	level++;
@@ -1596,8 +1599,8 @@ void App::next() {
 	menuDisplay = false;
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
-    quitMenuOn = resetMenuOn = false;
-    quitSel = resetSel = true;
+    quitMenuOn = resetMenuOn = trainMenuOn = false;
+    menuSel = true;
 }
 void App::loadLevel(int num) {
 	clearFloor();
