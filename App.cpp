@@ -184,8 +184,8 @@ long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 menuDisplay(true), quitMenuOn(false), resetMenuOn(false), trainMenuOn(false), menuSel(true),
-             player(Player()), level(0), currentEnergyGain(0),
+			 menuDisplay(true), quitMenuOn(false), resetMenuOn(false), resetMenuOn2(false), trainMenuOn(false), menuSel(true),
+             player(Player()), level(0), currentEnergyGain(0), gameDiffSel(2), currentGameDiff(2),
 			 animationType(0), selSwordAnimation(-1), musicSel(1), musicMuted(true),
 			 animationDisplayAmt(0.0), chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0), currentSwordAtkTime(0.0),
 			 itemAnimationAmt(0.0), bgAnimationAmt(0.0), musicSwitchDisplayAmt(0.0) {
@@ -224,12 +224,18 @@ void App::Init() {
 	menuPic          = loadTexture("Pics\\Menu.png");
 	lvBarPic         = loadTexture("Pics\\Level Bar.png");
 	healthBoxPic     = loadTexture("Pics\\Health Box.png");
-	infoBoxPic       = loadTexture("Pics\\InfoPic.png");
+	infoBoxPic       = loadTexture("Pics\\InfoPic2.png");
     musicDisplayPic  = loadTexture("Pics\\MusicDisplay.png");
+    tabMenuCtrlSheet = loadTexture("Pics\\TabMenuControlSheet.png");
     quitPicY         = loadTexture("Pics\\QuitY.png");
     quitPicN         = loadTexture("Pics\\QuitN.png");
     resetPicY        = loadTexture("Pics\\ResetY.png");
     resetPicN        = loadTexture("Pics\\ResetN.png");
+    diffPic1         = loadTexture("Pics\\Difficulty1.png");
+    diffPic2         = loadTexture("Pics\\Difficulty2.png");
+    diffPic3         = loadTexture("Pics\\Difficulty3.png");
+    diffPic4         = loadTexture("Pics\\Difficulty4.png");
+    diffPic5         = loadTexture("Pics\\Difficulty5.png");
     trainPicY        = loadTexture("Pics\\TrainY.png");
     trainPicN        = loadTexture("Pics\\TrainN.png");
 
@@ -339,7 +345,6 @@ bool App::UpdateAndRender() {
 	Update(elapsed);
 	Render();
 
-    if ( animationDisplayAmt > 0 ) { return false; }
     return done;
 }
 void App::Update(float &elapsed) {
@@ -428,28 +433,33 @@ void App::checkKeys() {
 		if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE) { done = true; }
 		else if (event.type == SDL_KEYDOWN) {		// Read Single Button presses
 
-            if ( !menuDisplay && !quitMenuOn && !resetMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
-                // Show Reset confirmation Menu
+            // Music Controls
+            if      ( event.key.keysym.scancode == SDL_SCANCODE_C ) { changeMusic(); }
+            else if ( event.key.keysym.scancode == SDL_SCANCODE_V ) { toggleMusic(); }
+
+            else if ( !menuDisplay && !quitMenuOn && !resetMenuOn && !resetMenuOn2 && !trainMenuOn && animationDisplayAmt <= 0 ) {
+
+                // Open Reset confirmation Menu
 				if (event.key.keysym.scancode == SDL_SCANCODE_R) {
+                    animationDisplayAmt = menuExitTime;
                     resetMenuOn = true;
                     menuSel = true;
                     Mix_PlayChannel( 1, quitOpenSound, 0 ); }
 
-                // Show Quit confirmation Menu
+                // Open Quit confirmation Menu
 				else if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                    animationDisplayAmt = menuExitTime;
                     quitMenuOn = true;
                     menuSel = true;
                     Mix_PlayChannel( 1, quitOpenSound, 0 ); }
 
-                // Show Training confirmation Menu
+                // Open Training confirmation Menu
 				else if (event.key.keysym.scancode == SDL_SCANCODE_X) {
+                    animationDisplayAmt = menuExitTime;
                     trainMenuOn = true;
                     menuSel = true;
                     Mix_PlayChannel( 1, quitOpenSound, 0 ); }
 
-                // Music Controls
-				else if (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
-                else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
 				//else if (event.key.keysym.scancode == SDL_SCANCODE_Z) { test2(); }
 
 				// Turn around without moving
@@ -459,20 +469,51 @@ void App::checkKeys() {
 
 				// Show Help Info Menu
 				else if (event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F) {
+                    animationDisplayAmt = menuExitTime;
 					menuDisplay = true;
 					Mix_PlayChannel( 1, menuOpenSound, 0 ); }
 			}
-			// If the Help Menu is displayed, any button except for Music controls will close the menu
-			else if ( menuDisplay ) {
-                if      (event.key.keysym.scancode == SDL_SCANCODE_C) { changeMusic(); }
-                else if (event.key.keysym.scancode == SDL_SCANCODE_V) { toggleMusic(); }
-                else {
-				    menuDisplay = false; animationDisplayAmt = menuExitTime;
-				    Mix_PlayChannel( 1, menuCloseSound, 0 ); } }
 
             // Menu Controls
-            else if ( quitMenuOn || resetMenuOn || trainMenuOn ) {
-                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE || event.key.keysym.scancode == SDL_SCANCODE_TAB )  {
+            else if ( resetMenuOn2 && animationDisplayAmt <= 0 ) {
+                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE ||
+                     event.key.keysym.scancode == SDL_SCANCODE_TAB    ||
+                     event.key.keysym.scancode == SDL_SCANCODE_R      ||
+                     event.key.keysym.scancode == SDL_SCANCODE_X         )
+                {
+                    resetMenuOn2 = false;
+                    animationDisplayAmt = menuExitTime;
+                    Mix_PlayChannel( 1, quitCancelSound, 0 ); }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT )  {
+                    if ( gameDiffSel > 0 ) {
+                        Mix_PlayChannel( 1, quitChooseSound, 0 );
+                        gameDiffSel--;
+                }   }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
+                    if ( gameDiffSel < 4 ) {
+                        Mix_PlayChannel( 1, quitChooseSound, 0 );
+                        gameDiffSel++;
+                }   }
+                else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
+                          event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
+                    currentGameDiff = gameDiffSel;
+                    reset();
+                    animationDisplayAmt = menuExitTime;
+                    Mix_PlayChannel( 1, quitChooseSound, 0 );
+            }   }
+
+            else if ( ( quitMenuOn || resetMenuOn || trainMenuOn ) && animationDisplayAmt <= 0 ) {
+                if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE ||
+                     event.key.keysym.scancode == SDL_SCANCODE_TAB    ||
+                     event.key.keysym.scancode == SDL_SCANCODE_R      ||
+                     event.key.keysym.scancode == SDL_SCANCODE_X         )
+                {
                     quitMenuOn = false;     resetMenuOn = false;    trainMenuOn = false;
                     animationDisplayAmt = menuExitTime;
                     Mix_PlayChannel( 1, quitCancelSound, 0 ); }
@@ -493,8 +534,8 @@ void App::checkKeys() {
                           event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
                           event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
                     if ( menuSel ) {
-                        if ( quitMenuOn ) { done = true; }
-                        else if ( resetMenuOn ) { reset(); }
+                        if      ( quitMenuOn )  { done = true; }
+                        else if ( resetMenuOn ) { resetMenuOn = false; resetMenuOn2 = true; gameDiffSel = currentGameDiff; }
                         else if ( trainMenuOn ) { test(); }
                         animationDisplayAmt = menuExitTime;
                         Mix_PlayChannel( 1, quitChooseSound, 0 );
@@ -504,9 +545,31 @@ void App::checkKeys() {
                         animationDisplayAmt = menuExitTime;
                         Mix_PlayChannel( 1, quitCancelSound, 0 );
             } } }
+
+            else if ( menuDisplay && animationDisplayAmt <= 0 ) {
+                if ( event.key.keysym.scancode == SDL_SCANCODE_C || event.key.keysym.scancode == SDL_SCANCODE_V ) {}
+                else if (event.key.keysym.scancode == SDL_SCANCODE_R) {
+                    animationDisplayAmt = menuExitTime;
+                    resetMenuOn = true;
+                    menuSel = true;
+                    Mix_PlayChannel( 1, quitOpenSound, 0 ); }
+				else if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                    animationDisplayAmt = menuExitTime;
+                    quitMenuOn = true;
+                    menuSel = true;
+                    Mix_PlayChannel( 1, quitOpenSound, 0 ); }
+				else if (event.key.keysym.scancode == SDL_SCANCODE_X) {
+                    animationDisplayAmt = menuExitTime;
+                    trainMenuOn = true;
+                    menuSel = true;
+                    Mix_PlayChannel( 1, quitOpenSound, 0 ); }
+                else {
+				    menuDisplay = false;
+                    animationDisplayAmt = menuExitTime;
+				    Mix_PlayChannel( 1, menuCloseSound, 0 ); } }
 	} }
 
-    if ( !quitMenuOn && !resetMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
+    if ( !menuDisplay && !quitMenuOn && !resetMenuOn && !resetMenuOn2 && !trainMenuOn && animationDisplayAmt <= 0 ) {
         // The player can't Move or Attack until after the previous Action is completed
 
 	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
@@ -554,12 +617,6 @@ void App::Render() {
 	for (int i = 5; i >= 0; i--) {
 		drawItems(i);
 		drawBoxes(i);
-		
-        if ( i == 0 ) {
-            if ( menuDisplay ) { drawMenu(); }
-            drawTextUI();
-        }
-
         if ( i == player.y ) { drawPlayer(); }
     }
 
@@ -577,11 +634,15 @@ void App::Render() {
 		else if (selSwordAnimation == 5) { stepDisplay(player.facing); }
 		else if (selSwordAnimation == 6) { lifeDisplay(player.facing); } }
 
-    if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
+    drawTabMenuCtrl();
+    if ( menuDisplay ) { drawMenu(); }
+    drawTextUI();
 
-    if ( quitMenuOn ) { drawQuitMenu(); }
-    else if ( resetMenuOn ) { drawResetMenu(); }
-    else if ( trainMenuOn ) { drawTrainMenu(); }
+    if      ( quitMenuOn )   { drawQuitMenu(); }
+    else if ( resetMenuOn )  { drawResetMenu(); }
+    else if ( resetMenuOn2 ) { drawResetMenu2(); }
+    else if ( trainMenuOn )  { drawTrainMenu(); }
+    if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
 
 	SDL_GL_SwapWindow(displayWindow);
 }
@@ -589,9 +650,9 @@ void App::drawBg() {
 	GLuint texture;
 	float bgSizeX = 0.768 * 8 / 4;
 	float bgSizeY = 0.768 * 8 / 2.7;
-	if (difficulty == 0) { texture = bgA; }
-	else if (difficulty == 1) { texture = bgB; }
-	else if (difficulty == 2) { texture = bgC; }
+	if      ( lvlDiff == 0 ) { texture = bgA; }
+	else if ( lvlDiff == 1 ) { texture = bgB; }
+	else if ( lvlDiff == 2 ) { texture = bgC; }
 	glTranslatef(0.064 * 2 / 4 * bgAnimationAmt, -0.064 * 2 / 2.7 * bgAnimationAmt, 0);
 	GLfloat place[] = { -bgSizeX, bgSizeY, -bgSizeX, -bgSizeY,     bgSizeX, -bgSizeY, bgSizeX, bgSizeY };
 	drawSpriteSheetSprite(place, texture, 0, 1, 1);
@@ -615,11 +676,32 @@ void App::drawResetMenu() {
     if ( menuSel ) { drawSpriteSheetSprite( place, resetPicY, 0, 1, 1 ); }
     else           { drawSpriteSheetSprite( place, resetPicN, 0, 1, 1 ); }
 }
+void App::drawResetMenu2() {
+    glLoadIdentity();
+    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
+    if      ( gameDiffSel == 0 ) { drawSpriteSheetSprite( place, diffPic1, 0, 1, 1 ); }
+    else if ( gameDiffSel == 1 ) { drawSpriteSheetSprite( place, diffPic2, 0, 1, 1 ); }
+    else if ( gameDiffSel == 2 ) { drawSpriteSheetSprite( place, diffPic3, 0, 1, 1 ); }
+    else if ( gameDiffSel == 3 ) { drawSpriteSheetSprite( place, diffPic4, 0, 1, 1 ); }
+    else if ( gameDiffSel == 4 ) { drawSpriteSheetSprite( place, diffPic5, 0, 1, 1 ); }
+}
 void App::drawTrainMenu() {
     glLoadIdentity();
     GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
     if ( menuSel ) { drawSpriteSheetSprite( place, trainPicY, 0, 1, 1 ); }
     else           { drawSpriteSheetSprite( place, trainPicN, 0, 1, 1 ); }
+}
+void App::drawTabMenuCtrl() {
+    glLoadIdentity();
+    glTranslatef( 0, 0.945, 0 );
+    float sizeX = 1.44 / 4;
+    float sizeY = 0.15 / 2.7;
+    GLfloat place[] = { -sizeX, +sizeY, -sizeX, -sizeY,
+                        +sizeX, -sizeY, +sizeX, +sizeY };
+    if      ( itemAnimationAmt <= 2.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 0, 1, 4 ); }
+    else if ( itemAnimationAmt <= 4.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 1, 1, 4 ); }
+    else if ( itemAnimationAmt <= 6.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 2, 1, 4 ); }
+    else if ( itemAnimationAmt <= 8.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 3, 1, 4 ); }
 }
 void App::drawPlayer() {
 	glLoadIdentity();
@@ -925,8 +1007,8 @@ void App::drawTextUI() {
 	// Display current Level number
 	glLoadIdentity();
 	glTranslatef(0.895, 0.95, 0.0);
-	if (level >= 10) { glTranslatef(-0.04, 0.0, 0.0); }
-	if (level >= 100) { glTranslatef(-0.04, 0.0, 0.0); }
+	if (level >= 10)   { glTranslatef(-0.04, 0.0, 0.0); }
+	if (level >= 100)  { glTranslatef(-0.04, 0.0, 0.0); }
 	if (level >= 1000) { glTranslatef(-0.04, 0.0, 0.0); }
 	float barX = 0.23;
 	float barY = -0.0125;
@@ -974,7 +1056,8 @@ void App::drawTextUI() {
 	// Draw Info Box
 	glLoadIdentity();
 	glTranslatef(0, 0.02, 0);
-	GLfloat UIPlace[] = { -1.0, 0.475, -1.0, -0.595,    -0.75, -0.595, -0.75, 0.475 };
+	GLfloat UIPlace[] = { -1.0,   0.475,  -1.0,  -0.5975,
+                          -0.75, -0.5975, -0.75,  0.475 };
 	drawSpriteSheetSprite(UIPlace, infoBoxPic, 0, 1, 1);
 
 	// Display Sword Name and Cost
@@ -1590,7 +1673,7 @@ void App::reset() {
 	loadLevel(level);
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
-    quitMenuOn = resetMenuOn = trainMenuOn = false;
+    quitMenuOn = resetMenuOn = resetMenuOn2 = trainMenuOn = false;
     menuSel = true;
 }
 void App::next() {
@@ -1621,14 +1704,19 @@ void App::generateLevel(int type, int num) {
 	int diff = 0;				// difficulty 0, 1, 2 = easy, medium, hard			// level		easy	medium	hard
 	if (num > bound1 && num <= bound2) { diff = 1; }								//   0			90%		10%		0%
 	else if (num > bound2) { diff = 2; }											//  10			75%		25%		0%
-	difficulty = diff;																//  20			60%		30%		10%
+    lvlDiff = diff;																    //  20			60%		30%		10%
 																					//  30			45%		30%		25%
 																					//  40			30%		30%		40%
 																					//  50			15%		30%		55%
 																					//  75			10%		30%		60%
 																					// 100			 5%		30%		65%
 																					// 150			 1%		30%		69%
-	int gain = 0 - diff * 9;	// Gain determines avg "profit" per level
+    int gain = 0;       // Gain determines avg "profit" per level
+    if      ( currentGameDiff == 0 ) { gain =  4 - diff * 11; }
+    else if ( currentGameDiff == 1 ) { gain =  2 - diff * 10; }
+    else if ( currentGameDiff == 2 ) { gain =  0 - diff * 9; }
+    else if ( currentGameDiff == 3 ) { gain = -2 - diff * 8; }
+    else if ( currentGameDiff == 4 ) { gain = -4 - diff * 8; }
 	int extraBoxes = 0, extraItems = 0, floorDmgs = 0;		// Number of things per floor based on level number and difficulty
 
 	// Map types
@@ -4186,7 +4274,7 @@ void App::changeMusic( int track ) {
     if (track == -1 ) {
         if ( !musicMuted ) { musicSel++; }
 	    if ( musicSel > 18 ) { musicSel = 1; } }
-    else { musicSel == track; }
+    else { musicSel = track; }
 
     musicMuted = false;
 
@@ -4263,7 +4351,7 @@ void App::toggleMusic() {
 }
 void App::displayMusic() {
     string text;
-    if ( musicMuted ) { text = "Music Paused"; }
+    if ( musicMuted ) { text = "Music Off"; }
     else {
         switch ( musicSel ) {
         case 1:  text = "01 Organization";      break;
