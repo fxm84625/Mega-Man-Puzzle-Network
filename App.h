@@ -55,6 +55,7 @@ public:
 	bool moving, turning;
 	int moveDir;		// Moving Direction		// 0 = Up		// 1 = Left		// 2 = Down		// 3 = Right
 	int energy;			// Player Resource - Used for attacking with swords
+    int type;           // 0 = Megaman      // 1 = Protoman
 	
 	void reset();
 };
@@ -65,7 +66,7 @@ public:
 	int state;		// 0 = Solid Ground		// 1 = Cracked Floor			// 2 = Cracked Hole			// 3 = Hole
 	int item;		// 0 = No Energy (Resource)			// 1 = 100 Energy
 	int boxHP;		// 0 = No Rock
-	int boxType;	// 0 = Rock			// 1 = Rock w/ Item		// 2 = Stronger Rock
+	int boxType;	// 0, 1 = Rock		    // 2 = Ice Rock w/ Item
 	float boxAtkInd;	// Used for Indicating that a Rock got Attacked and damaged
 	int prevDmg;
 };
@@ -100,7 +101,8 @@ public:
 	Player player;
 	bool done;					// If the current game is Over or not
     bool menuDisplay;
-    bool quitMenuOn, resetMenuOn, resetMenuOn2, trainMenuOn, menuSel;
+    bool quitMenuOn, resetMenuOn, diffSelMenuOn, charSelMenuOn, trainMenuOn, menuSel;
+    int energyDisplayed, energyDisplayed2;        // Shown amount of energy
 	int level, levelType;		// Level Types
 	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
 	int currentEnergyGain;		// Current Player Energy gain for this Level
@@ -126,6 +128,8 @@ public:
 	void spinAtk(int dir);			void spinDisplay(int dir);
 	void stepAtk(int dir);			void stepDisplay(int dir);
 	void lifeAtk(int dir);			void lifeDisplay(int dir);
+    void heroAtk(int dir);          void heroDisplay(int dir);
+    void protoAtk(int dir);         void protoDisplay(int dir);
 		// swordAtk:		Damages Rocks based on selected Sword and Direction
 		// swordDisplay:	Animates a Sword Attack Sprite
 	void hitBox(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
@@ -143,27 +147,30 @@ public:
 	void next();		// Goes to next level if completed
 	void updateGame(float elapsed);
 
+    // Music Functions
+    void changeMusic( int track = -1 );
+    void toggleMusic();
+
 	// Display Functions
 	void drawBg();
+    void drawDimScreen();
 	void drawMenu();
     void drawQuitMenu();
     void drawResetMenu();
-    void drawResetMenu2();
+    void drawDiffSelMenu();
+    void drawCharSelMenu();
     void drawTrainMenu();
     void drawTabMenuCtrl();
 	void drawPlayer();
+    void drawSwordAtks();
 	void drawFloor();
 	void drawBoxes(int row);
 	void drawItems(int row);
 	void drawTextUI();
+    void displayMusic();        // Displays music track Number and Name
 
 	vector<DelayedHpLoss> delayedHpList;
 	vector<DelayedSound> delayedSoundList;
-
-    // Music Functions
-	void changeMusic( int track = -1 );
-    void toggleMusic();
-    void displayMusic();    // Displays music track Number and Name
 
 	// Test/Debug functions
 	void test();
@@ -175,15 +182,17 @@ public:
 	float fixedElapsed;
 
 	GLuint textSheet1A, textSheet1B, textSheet1C, textSheet2A, textSheet2B, textSheet2C,
-	       megamanMoveSheet, megamanAtkSheet,
-           lvBarPic, healthBoxPic, infoBoxPic,
+	       megamanMoveSheet, megamanAtkSheet, protoMoveSheet, protoAtkSheet,
+           lvBarPic, healthBoxPic,
            rockSheet, rockSheetItem, rockDeathSheet,
            floorSheet, floorMoveSheet, floorBottomPic1, floorBottomPic2,
            energySheet, energyGetPic,
            bgA, bgB, bgC,
-           menuPic, musicDisplayPic, tabMenuCtrlSheet,
-           diffPic1, diffPic2, diffPic3, diffPic4, diffPic5,
+           dimScreenPic,
+           infoBoxPic1, infoBoxPic2, menuPic1, menuPic2, musicDisplayPic, tabMenuCtrlSheet,
            resetPicY, resetPicN,
+           diffPic1, diffPic2, diffPic3, diffPic4, diffPic5,
+           charSelPic1, charSelPic2,
            quitPicY, quitPicN,
            trainPicY, trainPicN;
 
@@ -193,7 +202,9 @@ public:
 		   crossAtkSheet1, crossAtkSheet3,
 		   spinAtkSheet1,  spinAtkSheet3,
 		   stepAtkSheet1,  stepAtkSheet3,
-		   lifeAtkSheet1,  lifeAtkSheet3;
+		   lifeAtkSheet1,  lifeAtkSheet3,
+           heroAtkSheet1,  heroAtkSheet3,
+           protoAtkSheet1, protoAtkSheet3;
 
 	Mix_Chunk *swordSound,      *lifeSwordSound,
 	          *itemSound,       *rockBreakSound,  *panelBreakSound,
