@@ -102,6 +102,7 @@ public:
 	bool done;					// If the current game is Over or not
     bool menuDisplay;
     bool quitMenuOn, resetMenuOn, diffSelMenuOn, charSelMenuOn, trainMenuOn, menuSel;
+    int charSel;
     int energyDisplayed, energyDisplayed2;        // Shown amount of energy
 	int level, levelType;		// Level Types
 	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
@@ -121,6 +122,9 @@ public:
 	void face(int dir);			// 0 = up		// 1 = left		// 2 = down		// 3 = right
 	void move(int dir);			// 0 = up		// 1 = left		// 2 = down		// 3 = right
 	void move2(int dir);		// Move two Squares in the Facing Direction
+
+    // swordAtk:		Damages Rocks based on selected Sword and Direction
+    // swordDisplay:	Animates a Sword Attack Sprite
 	void swordAtk(int dir);			void swordDisplay(int dir);
 	void longAtk(int dir);			void longDisplay(int dir);
 	void wideAtk(int dir);			void wideDisplay(int dir);
@@ -130,8 +134,12 @@ public:
 	void lifeAtk(int dir);			void lifeDisplay(int dir);
     void heroAtk(int dir);          void heroDisplay(int dir);
     void protoAtk(int dir);         void protoDisplay(int dir);
-		// swordAtk:		Damages Rocks based on selected Sword and Direction
-		// swordDisplay:	Animates a Sword Attack Sprite
+    void vDivideAtk(int dir);       void vDivideDisplay(int dir);
+    void upDivideAtk(int dir);      void upDivideDisplay(int dir);
+    void downDivideAtk(int dir);    void downDivideDisplay(int dir);
+    void xDivideAtk(int dir);       void xDivideDisplay(int dir);
+    void zDivideAtk(int dir);       void zDivideDisplay(int dir);
+
 	void hitBox(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
 	void hitBoxDelay(int xPos, int yPos, float delay, int dmg = 1);		// Damage a Rock with a delayed start-up
 
@@ -182,17 +190,21 @@ public:
 	float fixedElapsed;
 
 	GLuint textSheet1A, textSheet1B, textSheet1C, textSheet2A, textSheet2B, textSheet2C,
-	       megamanMoveSheet, megamanAtkSheet, protoMoveSheet, protoAtkSheet,
+	       megamanMoveSheet, megamanAtkSheet,
+           protoMoveSheet,   protoAtkSheet,
+           colonelMoveSheet, colonelAtkSheet,
            lvBarPic, healthBoxPic,
            rockSheet, rockSheetItem, rockDeathSheet,
            floorSheet, floorMoveSheet, floorBottomPic1, floorBottomPic2,
-           energySheet, energyGetPic,
+           energySheet,
            bgA, bgB, bgC,
            dimScreenPic,
-           infoBoxPic1, infoBoxPic2, menuPic1, menuPic2, musicDisplayPic, tabMenuCtrlSheet,
+           infoBoxPic1, infoBoxPic2, infoBoxPic3,
+           menuPic1, menuPic2, menuPic3,
+           musicDisplayPic, tabMenuCtrlSheet,
            resetPicY, resetPicN,
            diffPic1, diffPic2, diffPic3, diffPic4, diffPic5,
-           charSelPic1, charSelPic2,
+           charSelPic0, charSelPic1, charSelPic2,
            quitPicY, quitPicN,
            trainPicY, trainPicN;
 
@@ -204,9 +216,14 @@ public:
 		   stepAtkSheet1,  stepAtkSheet3,
 		   lifeAtkSheet1,  lifeAtkSheet3,
            heroAtkSheet1,  heroAtkSheet3,
-           protoAtkSheet1, protoAtkSheet3;
+           protoAtkSheet1, protoAtkSheet3,
+           screenDivVSheet1,    screenDivVSheet3,
+           screenDivUpSheet1,   screenDivUpSheet3,
+           screenDivDownSheet1, screenDivDownSheet3,
+           screenDivXSheet1,    screenDivXSheet3,
+           screenDivZSheet;
 
-	Mix_Chunk *swordSound,      *lifeSwordSound,
+	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,
 	          *itemSound,       *rockBreakSound,  *panelBreakSound,
 	          *menuOpenSound,   *menuCloseSound,
               *quitCancelSound, *quitChooseSound, *quitOpenSound,
