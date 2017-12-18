@@ -48,13 +48,21 @@ const int spinCost  = 150;
 const int stepCost  = 175;
 const int stepCost2 = 150;
 const int lifeCost  = 300;
-const int heroCost  = 175;
+
+const int heroCost  = 150;
 const int protoCost = 225;
+
 const int vDivideCost    =  75;
 const int upDivideCost   = 125;
 const int downDivideCost = 125;
 const int xDivideCost    = 175;
 const int zDivideCost    = 250;
+
+const int tomaCostA1     = 75;
+const int tomaCostB1     = 125;
+const int tomaCostA2     = 125;
+const int tomaCostB2     = 200;
+const int eTomaCost      = 300;
 
 const int startingEnergy = 300;
 const int energyGainAmt = 100;			    // How much Energy the player gains when moving to a Pick-Up
@@ -66,6 +74,8 @@ const float moveAnimationTime = 0.175;	// Player movement time
 const float menuExitTime = 0.2;         // Delay after coming out of a Menu
 
 const float preAtkTime   = 0.10;
+const float preAtkTimeToma      = 0.20;
+const float preAtkTimeEagleToma = 0.24;
 const float swordAtkTime = 0.42;
 //const float longAtkTime  = 0.42;
 //const float wideAtkTime  = 0.42;
@@ -75,6 +85,7 @@ const float stepAtkTime  = 0.38;
 const float lifeAtkTime  = 0.52;
 //const float heroAtkTime  = 0.52;
 //const float protoAtkTime = 0.52;
+const float eTomaAtkTime = 0.52;
 
 const float orthoX1 = -1.0;
 const float orthoX2 = 7.0;
@@ -90,7 +101,23 @@ const float itemScale = 1.1;
 Player::Player() : x(0), y(0), facing(3), moving(false), turning(false), moveDir(-1), energy(0), type(0) {}
 Tile::Tile() : state(0), item(-1), boxHP(0), boxType(0), boxAtkInd(0.0), prevDmg(0) {}
 DelayedHpLoss::DelayedHpLoss() : dmg(0), xPos(0), yPos(0), delay(0.0) {}
+DelayedHpLoss::DelayedHpLoss( int dmgAmt, int x, int y, float delayTime ) {
+    dmg = dmgAmt;
+    xPos = x;
+    yPos = y;
+    delay = delayTime;
+}
 DelayedSound::DelayedSound() : soundName(""), delay(0.0) {}
+DelayedSound::DelayedSound( string name, float delayTime ) {
+    soundName = name;
+    delay = delayTime;
+}
+DelayedETomaDisplay::DelayedETomaDisplay() : xPos(0), yPos(0), delay(0.0), animationTimer(0.1) {}
+DelayedETomaDisplay::DelayedETomaDisplay( int x, int y, float delayTime ) : animationTimer( 0.1 ) {
+    xPos = x;
+    yPos = y;
+    delay = delayTime;
+}
 
 GLuint loadTexture(const char *image_path) {
 	SDL_Surface *surface = IMG_Load(image_path);
@@ -195,7 +222,7 @@ long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 menuDisplay(true), quitMenuOn(false), resetMenuOn(false), diffSelMenuOn(false), charSelMenuOn(false), trainMenuOn(false), menuSel(true), charSel(0),
+			 menuDisplay(true), quitMenuOn(false), resetMenuOn(false), diffSelMenuOn(false), trainMenuOn(false), menuSel(true), charSel(0),
              player(Player()), energyDisplayed(0), level(0), currentEnergyGain(0), gameDiffSel(2), currentGameDiff(2),
 			 animationType(0), selSwordAnimation(-1), musicSel(1), musicMuted(true),
 			 animationDisplayAmt(0.0), chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0), currentSwordAtkTime(0.0),
@@ -218,12 +245,17 @@ void App::Init() {
 	textSheet2A = loadTexture("Pics\\Texts 2 A.png");
 	textSheet2B = loadTexture("Pics\\Texts 2 B.png");
 	textSheet2C = loadTexture("Pics\\Texts 2 C.png");
-	megamanMoveSheet = loadTexture("Pics\\Mega Man Move Sheet.png");
-	megamanAtkSheet  = loadTexture("Pics\\Mega Man Atk Sheet.png");
-    protoMoveSheet   = loadTexture("Pics\\Proto Man Move Sheet.png");
-    protoAtkSheet    = loadTexture("Pics\\Proto Man Atk Sheet.png");
-    colonelMoveSheet = loadTexture("Pics\\Colonel Move Sheet.png");
-    colonelAtkSheet  = loadTexture("Pics\\Colonel Atk Sheet.png");
+
+	megamanMoveSheet = loadTexture("Pics\\Characters\\Mega Man Move Sheet.png");
+	megamanAtkSheet  = loadTexture("Pics\\Characters\\Mega Man Atk Sheet.png");
+    protoMoveSheet   = loadTexture("Pics\\Characters\\Proto Man Move Sheet.png");
+    protoAtkSheet    = loadTexture("Pics\\Characters\\Proto Man Atk Sheet.png");
+    colonelMoveSheet = loadTexture("Pics\\Characters\\Colonel Move Sheet.png");
+    colonelAtkSheet  = loadTexture("Pics\\Characters\\Colonel Atk Sheet.png");
+    tmanMoveSheet    = loadTexture("Pics\\Characters\\Toma Move Sheet.png");
+    tmanAtkSheet1    = loadTexture("Pics\\Characters\\Toma Atk Sheet 1.png");
+    tmanAtkSheet2    = loadTexture("Pics\\Characters\\Toma Atk Sheet 2.png");
+
 	rockSheet        = loadTexture("Pics\\Rock Sheet 1.png");
 	rockSheetItem    = loadTexture("Pics\\Rock Sheet 2.png");
 	rockDeathSheet   = loadTexture("Pics\\Death Sheet.png");
@@ -236,30 +268,29 @@ void App::Init() {
 	bgB              = loadTexture("Pics\\Background B.png");
 	bgC              = loadTexture("Pics\\Background C.png");
     dimScreenPic     = loadTexture("Pics\\DimScreen.png");
-	menuPic1         = loadTexture("Pics\\Menu1.png");
-    menuPic2         = loadTexture("Pics\\Menu2.png");
-    menuPic3         = loadTexture("Pics\\Menu3.png");
+    menuPic0         = loadTexture("Pics\\Menu0-B.png");
+	menuPic1         = loadTexture("Pics\\Menu1-B.png");
+    menuPic2         = loadTexture("Pics\\Menu2-B.png");
+    menuPic3         = loadTexture("Pics\\Menu3-B.png");
 	lvBarPic         = loadTexture("Pics\\Level Bar.png");
 	healthBoxPic     = loadTexture("Pics\\Health Box.png");
-	infoBoxPic1      = loadTexture("Pics\\InfoPic1.png");
-    infoBoxPic2      = loadTexture("Pics\\InfoPic2.png");
-    infoBoxPic3      = loadTexture("Pics\\InfoPic3.png");
     musicDisplayPic  = loadTexture("Pics\\MusicDisplay.png");
     tabMenuCtrlSheet = loadTexture("Pics\\TabMenuControlSheet.png");
     quitPicY         = loadTexture("Pics\\QuitY.png");
     quitPicN         = loadTexture("Pics\\QuitN.png");
-    resetPicY        = loadTexture("Pics\\ResetY.png");
-    resetPicN        = loadTexture("Pics\\ResetN.png");
+    resetPic0        = loadTexture("Pics\\Reset 0.png");
+    resetPic1        = loadTexture("Pics\\Reset 1.png");
+    resetPic2        = loadTexture("Pics\\Reset 2.png");
+    resetPic3        = loadTexture("Pics\\Reset 3.png");
     diffPic1         = loadTexture("Pics\\Difficulty1.png");
     diffPic2         = loadTexture("Pics\\Difficulty2.png");
     diffPic3         = loadTexture("Pics\\Difficulty3.png");
     diffPic4         = loadTexture("Pics\\Difficulty4.png");
     diffPic5         = loadTexture("Pics\\Difficulty5.png");
-    charSelPic0      = loadTexture("Pics\\CharSel0.png");
-    charSelPic1      = loadTexture("Pics\\CharSel1.png");
-    charSelPic2      = loadTexture("Pics\\CharSel2.png");
-    trainPicY        = loadTexture("Pics\\TrainY.png");
-    trainPicN        = loadTexture("Pics\\TrainN.png");
+    trainPic0        = loadTexture("Pics\\Training 0.png");
+    trainPic1        = loadTexture("Pics\\Training 1.png");
+    trainPic2        = loadTexture("Pics\\Training 2.png");
+    trainPic3        = loadTexture("Pics\\Training 3.png");
 
 	swordAtkSheet1 = loadTexture("Pics\\Sword Attacks\\Sword Sheet 1.png");
 	swordAtkSheet3 = loadTexture("Pics\\Sword Attacks\\Sword Sheet 3.png");
@@ -275,10 +306,12 @@ void App::Init() {
 	stepAtkSheet3  = loadTexture("Pics\\Sword Attacks\\Wide Sheet 3.png");
 	lifeAtkSheet1  = loadTexture("Pics\\Sword Attacks\\Life Sheet 1.png");
 	lifeAtkSheet3  = loadTexture("Pics\\Sword Attacks\\Life Sheet 3.png");
+
     heroAtkSheet1  = loadTexture("Pics\\Sword Attacks\\Hero Sheet 1.png");
     heroAtkSheet3  = loadTexture("Pics\\Sword Attacks\\Hero Sheet 3.png");
     protoAtkSheet1 = loadTexture("Pics\\Sword Attacks\\Proto Sheet 1.png");
     protoAtkSheet3 = loadTexture("Pics\\Sword Attacks\\Proto Sheet 3.png");
+
     screenDivVSheet1    = loadTexture("Pics\\Sword Attacks\\ScreenDivV Sheet 1.png");
     screenDivVSheet3    = loadTexture("Pics\\Sword Attacks\\ScreenDivV Sheet 3.png");
     screenDivUpSheet1   = loadTexture("Pics\\Sword Attacks\\ScreenDivUp Sheet 1.png");
@@ -289,18 +322,26 @@ void App::Init() {
     screenDivXSheet3    = loadTexture("Pics\\Sword Attacks\\ScreenDivX Sheet 3.png");
     screenDivZSheet     = loadTexture("Pics\\Sword Attacks\\ScreenDivZ Sheet.png");
 
+    tomahawkAtkSheetA1  = loadTexture("Pics\\Sword Attacks\\Toma Sheet A1.png");
+    tomahawkAtkSheetA3  = loadTexture("Pics\\Sword Attacks\\Toma Sheet A3.png");
+    tomahawkAtkSheetB1  = loadTexture("Pics\\Sword Attacks\\Toma Sheet B1.png");
+    tomahawkAtkSheetB3  = loadTexture("Pics\\Sword Attacks\\Toma Sheet B3.png");
+    eagleTomaSheet      = loadTexture("Pics\\Sword Attacks\\Eagle Toma Sheet.png");
+
 	Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 4, 4096 );
 	Mix_Volume( -1, 32 );
 	Mix_Volume(  0, 48 );
-    Mix_Volume(  3, 12 );
+    Mix_Volume(  3,  7 );
 	
 	swordSound      = Mix_LoadWAV( "Sounds\\SwordSwing.ogg" );
 	lifeSwordSound  = Mix_LoadWAV( "Sounds\\LifeSword.ogg" );
     screenDivSound  = Mix_LoadWAV( "Sounds\\ScreenDivide.ogg" );
+    tomahawkSound   = Mix_LoadWAV( "Sounds\\Tomahawk.ogg" );
+    explosionSound  = Mix_LoadWAV( "Sounds\\PanelCrack.ogg" );
 
 	itemSound       = Mix_LoadWAV( "Sounds\\GotItem.ogg" );
 	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit.ogg" );
-	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack.ogg" );
+	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack2.ogg" );
 
 	menuOpenSound   = Mix_LoadWAV( "Sounds\\ChipDesc.ogg" );
 	menuCloseSound  = Mix_LoadWAV( "Sounds\\ChipDescClose.ogg" );
@@ -329,13 +370,15 @@ void App::Init() {
     track18 = Mix_LoadWAV( "Music\\18 Cybeasts.ogg" );
 
 	reset();
-    diffSelMenuOn = true;
+    resetMenuOn = true;
     menuDisplay = true;
 }
 App::~App() {
 	Mix_FreeChunk( swordSound );
 	Mix_FreeChunk( lifeSwordSound );
     Mix_FreeChunk( screenDivSound );
+    Mix_FreeChunk( tomahawkSound );
+    Mix_FreeChunk( explosionSound );
 
 	Mix_FreeChunk( itemSound );
 	Mix_FreeChunk( rockBreakSound );
@@ -469,15 +512,25 @@ void App::updateGame(float elapsed) {
 			if      ( delayedSoundList[i].soundName == "sword" )  { Mix_PlayChannel( 0, swordSound, 0 ); }
 			else if ( delayedSoundList[i].soundName == "life" )   { Mix_PlayChannel( 0, lifeSwordSound, 0 ); }
             else if ( delayedSoundList[i].soundName == "divide" ) { Mix_PlayChannel( 0, screenDivSound, 0 ); }
+            else if ( delayedSoundList[i].soundName == "eToma" )  { Mix_PlayChannel( 0, explosionSound, 0 ); }
 			delayedSoundList.erase( delayedSoundList.begin() + i);
 	}	}
+
+    // Handles delayed Eagle Tomahawk attack Display
+    for ( int i = 0; i < delayedETomaDisplayList.size(); i++ ) {
+        if ( delayedETomaDisplayList[i].delay <= 0 ) { delayedETomaDisplayList[i].animationTimer -= elapsed; }
+        else { delayedETomaDisplayList[i].delay -= elapsed; }
+        if ( delayedETomaDisplayList[i].animationTimer <= -0.2 ) { delayedETomaDisplayList.erase( delayedETomaDisplayList.begin() + i ); }
+        // else { eTomaDisplay( delayedETomaDisplayList[i].xPos, delayedETomaDisplayList[i].yPos, delayedETomaDisplayList[i].animationTimer ); }
+        // Don't Render objects outside of the Render function
+    }
 
     // Handles display time of Music track Number and Name
     musicSwitchDisplayAmt -= elapsed;
     if ( musicSwitchDisplayAmt < 0 ) { musicSwitchDisplayAmt = 0; }
 }
 void App::checkKeys() {
-	// Menu Keys and Controls
+	// Menu Controls
 	while (SDL_PollEvent(&event)) {
 		if      ( event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE ) { done = true; }
 		else if ( event.type == SDL_KEYDOWN ) {		// Read Single Button presses
@@ -487,13 +540,11 @@ void App::checkKeys() {
                 if      ( quitMenuOn )    { quitMenuOn    = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( resetMenuOn )   { resetMenuOn   = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( diffSelMenuOn ) { diffSelMenuOn = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( charSelMenuOn ) { charSelMenuOn = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( trainMenuOn )   { trainMenuOn   = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( menuDisplay )   { quitMenuOn    = true;  Mix_PlayChannel( 1, quitOpenSound, 0 ); menuSel = true; }
                 else                      { quitMenuOn    = true;  Mix_PlayChannel( 1, quitOpenSound, 0 ); menuSel = true; }
                 animationDisplayAmt = menuExitTime;
             }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F ) {
+            else if ( animationDisplayAmt <= 0 && (event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F) ) {
                 if ( menuDisplay ) { menuDisplay = false; Mix_PlayChannel( 1, menuCloseSound, 0 ); }
                 else               { menuDisplay = true;  Mix_PlayChannel( 1, menuOpenSound, 0 ); }
                 animationDisplayAmt = menuExitTime;
@@ -502,9 +553,7 @@ void App::checkKeys() {
                 if      ( resetMenuOn )   { resetMenuOn   = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( quitMenuOn )    { quitMenuOn    = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( diffSelMenuOn ) { diffSelMenuOn = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( charSelMenuOn ) { charSelMenuOn = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( trainMenuOn )   { trainMenuOn   = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( menuDisplay )   { resetMenuOn   = true;  Mix_PlayChannel( 1, quitOpenSound, 0 ); menuSel = true; }
                 else                      { resetMenuOn   = true;  Mix_PlayChannel( 1, quitOpenSound, 0 ); menuSel = true; }
                 animationDisplayAmt = menuExitTime;
             }
@@ -513,26 +562,34 @@ void App::checkKeys() {
                 else if ( quitMenuOn )    { quitMenuOn    = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( resetMenuOn )   { resetMenuOn   = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
                 else if ( diffSelMenuOn ) { diffSelMenuOn = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( charSelMenuOn ) { charSelMenuOn = false; Mix_PlayChannel( 1, quitCancelSound, 0 ); }
-                else if ( menuDisplay )   { trainMenuOn   = true;  Mix_PlayChannel( 1, quitOpenSound, 0 ); menuSel = true; }
                 else                      { trainMenuOn   = true;  Mix_PlayChannel( 1, quitOpenSound, 0 ); menuSel = true; }
                 animationDisplayAmt = menuExitTime;
             }
+            else if ( event.key.keysym.scancode == SDL_SCANCODE_W || event.key.keysym.scancode == SDL_SCANCODE_UP ) {
+                if ( resetMenuOn || trainMenuOn ) {
+                    if ( charSel > 1 ) {       charSel -= 2;      Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
+            }
+            else if ( event.key.keysym.scancode == SDL_SCANCODE_S || event.key.keysym.scancode == SDL_SCANCODE_DOWN ) {
+                if ( resetMenuOn || trainMenuOn ) {
+                    if ( charSel < 2 ) {       charSel += 2;      Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
+            }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT ) {
-                if ( quitMenuOn || resetMenuOn || trainMenuOn ) {
+                if ( quitMenuOn ) {
                     if ( !menuSel ) {          menuSel = true;    Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
+                else if ( resetMenuOn || trainMenuOn ) {
+                    if ( charSel > 0 && charSel % 2 == 1) {
+                                               charSel--;         Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
                 else if ( diffSelMenuOn ) {
                     if ( gameDiffSel > 0 ) {   gameDiffSel--;     Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
-                else if ( charSelMenuOn ) {
-                    if ( charSel > 0 ) {       charSel--;         Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
             }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
-                if ( quitMenuOn || resetMenuOn || trainMenuOn ) {
+                if ( quitMenuOn ) {
                     if ( menuSel ) {           menuSel = false;   Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
+                else if ( resetMenuOn || trainMenuOn ) {
+                    if ( charSel < 3 && charSel % 2 == 0 ) {
+                                               charSel++;         Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
                 else if ( diffSelMenuOn ) {
                     if ( gameDiffSel < 4 ) {   gameDiffSel++;     Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
-                else if ( charSelMenuOn ) {
-                    if ( charSel < 2 ) {       charSel++;         Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
             }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
                       event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
@@ -562,39 +619,31 @@ void App::checkKeys() {
                 }
                 else if ( diffSelMenuOn ) {
                     diffSelMenuOn = false;
-                    charSelMenuOn = true;
-                    Mix_PlayChannel( 1, quitChooseSound, 0 );
-                    animationDisplayAmt = menuExitTime;
-                }
-                else if ( charSelMenuOn ) {
                     player.type = charSel;
-                    charSelMenuOn = false;
                     currentGameDiff = gameDiffSel;
                     reset();
                     Mix_PlayChannel( 1, quitChooseSound, 0 );
                     animationDisplayAmt = menuExitTime;
                 }
                 else if ( trainMenuOn ) {
-                    if ( menuSel ) {
-                        trainMenuOn = false;
-                        test();
-                        Mix_PlayChannel( 1, quitChooseSound, 0 ); }
-                    else {
-                        trainMenuOn = false;
-                        Mix_PlayChannel( 1, quitCancelSound, 0 ); }
+                    trainMenuOn = false;
+                    player.type = charSel;
+                    test();
+                    Mix_PlayChannel( 1, quitChooseSound, 0 );
                     animationDisplayAmt = menuExitTime;
                 }
             }
             else if ( ( event.key.keysym.scancode == SDL_SCANCODE_LSHIFT || event.key.keysym.scancode == SDL_SCANCODE_SPACE ) && 
-                        !menuDisplay && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !charSelMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
+                        !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
                 if      ( player.facing == 1 ) { face( 3 ); }
                 else if ( player.facing == 3 ) { face( 1 ); }
             }
 	    }
     }
 
-    if ( !menuDisplay && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !charSelMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
-        // The player can't Move or Attack until after the previous Action is completed
+    // Player Movement and Attacks
+    if ( !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
+        // The player can't Move or Attack until after the previous Action is completed, or if a Menu is open
 
 	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
 
@@ -620,27 +669,32 @@ void App::checkKeys() {
 
 		// Sword Attacks
 		else if (keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1]) {
-            if ( player.type == 2 ) { vDivideAtk( player.facing ); }
-            else                    { swordAtk( player.facing );   } }
+            if      ( player.type == 0 || player.type == 1 ) { swordAtk( player.facing ); }
+            else if ( player.type == 2 )                     { tomaAtkA1( player.facing ); }
+            else if ( player.type == 3 )                     { vDivideAtk( player.facing ); } }
 		else if (keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2]) {
-            if ( player.type == 2 ) { upDivideAtk( player.facing ); }
-            else                    { longAtk( player.facing );     } }
+            if      ( player.type == 0 || player.type == 1 ) { longAtk( player.facing ); }
+            else if ( player.type == 2 )                     { tomaAtkB1( player.facing); }
+            else if ( player.type == 3 )                     { upDivideAtk( player.facing ); } }
 		else if (keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3]) {
-            if ( player.type == 2 ) { downDivideAtk( player.facing ); }
-            else                    { wideAtk(player.facing);         } }
+            if      ( player.type == 0 || player.type == 1 ) { wideAtk( player.facing ); }
+            else if ( player.type == 2 )                     { tomaAtkA2( player.facing ); }
+            else if ( player.type == 3 )                     { downDivideAtk( player.facing ); } }
 		else if (keystates[SDL_SCANCODE_4] || keystates[SDL_SCANCODE_KP_4]) { 
             if      ( player.type == 0 ) { crossAtk( player.facing );   }
             else if ( player.type == 1 ) { stepAtk( player.facing );    }
-            else if ( player.type == 2 ) { xDivideAtk( player.facing ); } }
+            else if ( player.type == 2 ) { tomaAtkB2( player.facing ); }
+            else if ( player.type == 3 ) { xDivideAtk( player.facing ); } }
 		else if (keystates[SDL_SCANCODE_5] || keystates[SDL_SCANCODE_KP_5]) {
             if      ( player.type == 0 ) { spinAtk( player.facing );    }
             else if ( player.type == 1 ) { heroAtk( player.facing );    }
-            else if ( player.type == 2 ) { zDivideAtk( player.facing ); } }
+            else if ( player.type == 2 ) { eTomaAtk( player.facing ); }
+            else if ( player.type == 3 ) { zDivideAtk( player.facing ); } }
 		else if (keystates[SDL_SCANCODE_6] || keystates[SDL_SCANCODE_KP_6]) {
             if      ( player.type == 0 ) { stepAtk(player.facing); }
             else if ( player.type == 1 ) { protoAtk( player.facing ); } }
 		else if (keystates[SDL_SCANCODE_7] || keystates[SDL_SCANCODE_KP_7]) {
-            if (player.type == 0) lifeAtk(player.facing); }
+            if (player.type == 0) { lifeAtk(player.facing); } }
     }
 }
 void App::changeMusic( int track ) {
@@ -733,6 +787,11 @@ void App::Render() {
 	drawBg();
 	drawFloor();
 
+    drawTabMenuCtrl();
+    if ( menuDisplay ) { drawMenu(); }
+    if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
+    drawTextUI();
+
 	// Draw game elements, back row first, so the front row is displayed in front
 	for (int i = 5; i >= 0; i--) {
 		drawItems(i);
@@ -740,29 +799,20 @@ void App::Render() {
         if ( i == player.y ) { drawPlayer(); }
     }
 
-	// Render Sword Attacking Animations
     drawSwordAtks();
 
-    drawTabMenuCtrl();
-    if ( menuDisplay ) { drawDimScreen(); drawMenu(); }
-    drawTextUI();
-
     if ( quitMenuOn ) {
-        if ( !menuDisplay ) { drawDimScreen(); }
+        drawDimScreen();
         drawQuitMenu(); }
     else if ( resetMenuOn ) {
-        if ( !menuDisplay ) { drawDimScreen(); }
+        drawDimScreen();
         drawResetMenu(); }
     else if ( diffSelMenuOn ) {
-        if ( !menuDisplay ) { drawDimScreen(); }
+        drawDimScreen();
         drawDiffSelMenu(); }
-    else if ( charSelMenuOn ) {
-        if ( !menuDisplay ) { drawDimScreen(); }
-        drawCharSelMenu(); }
     else if ( trainMenuOn ) {
-        if ( !menuDisplay ) { drawDimScreen(); }
+        drawDimScreen();
         drawTrainMenu(); }
-    if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
 
 	SDL_GL_SwapWindow(displayWindow);
 }
@@ -787,9 +837,10 @@ void App::drawMenu() {
 	float menuSizeX = 1;
 	float menuSizeY = 1;
 	GLfloat place[] = { -menuSizeX, menuSizeY, -menuSizeX, -menuSizeY,     menuSizeX, -menuSizeY, menuSizeX, menuSizeY };
-    if      ( player.type == 0 ) { drawSpriteSheetSprite( place, menuPic1, 0, 1, 1 ); }
-    else if ( player.type == 1 ) { drawSpriteSheetSprite( place, menuPic2, 0, 1, 1 ); }
-    else if ( player.type == 2 ) { drawSpriteSheetSprite( place, menuPic3, 0, 1, 1 ); }
+    if      ( player.type == 0 ) { drawSpriteSheetSprite( place, menuPic0, 0, 1, 1 ); }
+    else if ( player.type == 1 ) { drawSpriteSheetSprite( place, menuPic1, 0, 1, 1 ); }
+    else if ( player.type == 2 ) { drawSpriteSheetSprite( place, menuPic2, 0, 1, 1 ); }
+    else if ( player.type == 3 ) { drawSpriteSheetSprite( place, menuPic3, 0, 1, 1 ); }
 }
 void App::drawQuitMenu() {
     glLoadIdentity();
@@ -800,8 +851,10 @@ void App::drawQuitMenu() {
 void App::drawResetMenu() {
     glLoadIdentity();
     GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if ( menuSel ) { drawSpriteSheetSprite( place, resetPicY, 0, 1, 1 ); }
-    else           { drawSpriteSheetSprite( place, resetPicN, 0, 1, 1 ); }
+    if      ( charSel == 0 ) { drawSpriteSheetSprite( place, resetPic0, 0, 1, 1 ); }
+    else if ( charSel == 1 ) { drawSpriteSheetSprite( place, resetPic1, 0, 1, 1 ); }
+    else if ( charSel == 2 ) { drawSpriteSheetSprite( place, resetPic2, 0, 1, 1 ); }
+    else if ( charSel == 3 ) { drawSpriteSheetSprite( place, resetPic3, 0, 1, 1 ); }
 }
 void App::drawDiffSelMenu() {
     glLoadIdentity();
@@ -812,18 +865,13 @@ void App::drawDiffSelMenu() {
     else if ( gameDiffSel == 3 ) { drawSpriteSheetSprite( place, diffPic4, 0, 1, 1 ); }
     else if ( gameDiffSel == 4 ) { drawSpriteSheetSprite( place, diffPic5, 0, 1, 1 ); }
 }
-void App::drawCharSelMenu() {
-    glLoadIdentity();
-    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if      ( charSel == 0 ) { drawSpriteSheetSprite( place, charSelPic0, 0, 1, 1 ); }
-    else if ( charSel == 1 ) { drawSpriteSheetSprite( place, charSelPic1, 0, 1, 1 ); }
-    else if ( charSel == 2 ) { drawSpriteSheetSprite( place, charSelPic2, 0, 1, 1 ); }
-}
 void App::drawTrainMenu() {
     glLoadIdentity();
     GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if ( menuSel ) { drawSpriteSheetSprite( place, trainPicY, 0, 1, 1 ); }
-    else           { drawSpriteSheetSprite( place, trainPicN, 0, 1, 1 ); }
+    if      ( charSel == 0 ) { drawSpriteSheetSprite( place, trainPic0, 0, 1, 1 ); }
+    else if ( charSel == 1 ) { drawSpriteSheetSprite( place, trainPic1, 0, 1, 1 ); }
+    else if ( charSel == 2 ) { drawSpriteSheetSprite( place, trainPic2, 0, 1, 1 ); }
+    else if ( charSel == 3 ) { drawSpriteSheetSprite( place, trainPic3, 0, 1, 1 ); }
 }
 void App::drawTabMenuCtrl() {
     glLoadIdentity();
@@ -837,10 +885,12 @@ void App::drawTabMenuCtrl() {
     else if ( itemAnimationAmt <= 6.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 2, 1, 4 ); }
     else if ( itemAnimationAmt <= 8.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 3, 1, 4 ); }
 }
+
 void App::drawPlayer() {
 	glLoadIdentity();
 	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
 	glTranslatef(0.5, 1.2, 0.0);
+    if ( player.type == 3 ) { glTranslatef( 0, -0.05 * playerScale, 0 ); }
 	
     float playerSizeX, playerSizeY;
 	int picIndex = 0;
@@ -861,7 +911,7 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.08 * playerScale, 0 );
             displace2 -= 0.08;
             texture = protoAtkSheet; }
-        else if ( player.type == 2 ) {
+        else if ( player.type == 3 ) {
             playerSizeX = 1.00 * playerScale;
             playerSizeY = 0.76 * playerScale;
             glTranslatef( 0, 0.2 * playerScale, 0 );
@@ -900,6 +950,7 @@ void App::drawPlayer() {
 	}
 	// Attack Animation
 	else if (animationType == 1 && animationDisplayAmt > 0) {
+        int textureSheetWidth = 8;
 		if ( player.type == 0 ) {
 		    playerSizeX = 0.66 * playerScale;
 		    playerSizeY = 0.56 * playerScale;
@@ -910,16 +961,11 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.08 * playerScale, 0 );
             displace2 -= 0.08;
             texture = protoAtkSheet; }
-        else if ( player.type == 2 ) {
+        else if ( player.type == 3 ) {
             playerSizeX = 1.00 * playerScale;
             playerSizeY = 0.76 * playerScale;
             glTranslatef( 0, 0.2 * playerScale, 0 );
             texture = colonelAtkSheet; }
-
-		GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
-								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
-		                          player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
-								  player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY };
 
 		// Altered animations for LifeSword, ProtoSword, ScreenDivideZ
 		if (selSwordAnimation == 6 || selSwordAnimation == 7 || selSwordAnimation == 8 || selSwordAnimation == 13) {
@@ -930,6 +976,31 @@ void App::drawPlayer() {
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.26) { picIndex = 5; }
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.30) { picIndex = 6; }
 			else if (animationDisplayAmt > 0)                          { picIndex = 7; } }
+        // Altered animation for Tomahawkman's regular attacks
+        else if ( selSwordAnimation >= 14 && selSwordAnimation <= 17 ) {
+            playerSizeX = 0.80 * playerScale;
+            playerSizeY = 0.65 * playerScale;
+            displace2 = 0.22;
+            glTranslatef( 0, 0.1 * playerScale, 0 );
+            texture = tmanAtkSheet1;
+            textureSheetWidth = 4;
+            if      (animationDisplayAmt > currentSwordAtkTime - 0.20) { picIndex = 0; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.24) { picIndex = 1; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.28) { picIndex = 2; }
+			else if (animationDisplayAmt > 0)                          { picIndex = 3; } }
+        // Altered animation for Tomahawkman's Eagle Tomahawk attack
+        else if ( selSwordAnimation == 18 ) {
+            playerSizeX = 1.10 * playerScale;
+            playerSizeY = 0.99  * playerScale;
+            glTranslatef( 0, 0.43 * playerScale, 0 );
+            displace2 = 0.17;
+            texture = tmanAtkSheet2;
+            textureSheetWidth = 5;
+            if      (animationDisplayAmt > currentSwordAtkTime - 0.04) { picIndex = 0; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.12) { picIndex = 1; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.16) { picIndex = 2; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.18) { picIndex = 3; }
+            else if (animationDisplayAmt > 0)                          { picIndex = 4; } }
 		// Animation for the rest of the Attacks
 		else {
 			if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 1; }
@@ -938,15 +1009,19 @@ void App::drawPlayer() {
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 4; }
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.26) { picIndex = 5; }
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.30) { picIndex = 6; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.42) { picIndex = 7; } }
+			else if (animationDisplayAmt > 0)                          { picIndex = 7; } }
 
 		if (player.facing == 1) {
 			glTranslatef(-displace2, 0.02, 0);
-			picIndex += 8; }
+			picIndex += textureSheetWidth; }
 		else if (player.facing == 3) {
 			glTranslatef( displace2, 0.02, 0); }
 
-        drawSpriteSheetSprite(playerPlace, texture, picIndex, 8, 2);
+        GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
+								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
+		                          player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
+								  player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY };
+        drawSpriteSheetSprite(playerPlace, texture, picIndex, textureSheetWidth, 2);
 	}
 	// Movement Animation
 	else if (animationType == 0 && player.moving) {
@@ -962,6 +1037,12 @@ void App::drawPlayer() {
             displace2 = 0.08 * playerScale;
             texture = protoMoveSheet; }
         else if ( player.type == 2 ) {
+            playerSizeX = 0.52 * playerScale;
+            playerSizeY = 0.60 * playerScale;
+            glTranslatef( 0, 0.05 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = tmanMoveSheet; }
+        else if ( player.type == 3 ) {
             playerSizeX = 0.61 * playerScale;
 		    playerSizeY = 0.63 * playerScale;
             glTranslatef( 0, 0.09 * playerScale, 0 );
@@ -1021,6 +1102,12 @@ void App::drawPlayer() {
             displace = 0.08 * playerScale;
             texture = protoMoveSheet; }
         else if ( player.type == 2 ) {
+            playerSizeX = 0.52 * playerScale;
+            playerSizeY = 0.60 * playerScale;
+            glTranslatef( 0, 0.05 * playerScale, 0 );
+            displace = 0.2 * playerScale;
+            texture = tmanMoveSheet; }
+        else if ( player.type == 3 ) {
             playerSizeX = 0.61 * playerScale;
 		    playerSizeY = 0.63 * playerScale;
             glTranslatef( 0, 0.09 * playerScale, 0 );
@@ -1062,6 +1149,12 @@ void App::drawPlayer() {
             displace2 = 0.08 * playerScale;
             texture = protoMoveSheet; }
         else if ( player.type == 2 ) {
+            playerSizeX = 0.52 * playerScale;
+            playerSizeY = 0.60 * playerScale;
+            glTranslatef( 0, 0.05 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = tmanMoveSheet; }
+        else if ( player.type == 3 ) {
             playerSizeX = 0.61 * playerScale;
 		    playerSizeY = 0.63 * playerScale;
             glTranslatef( 0, 0.09 * playerScale, 0 );
@@ -1091,6 +1184,12 @@ void App::drawPlayer() {
             displace2 = 0.08 * playerScale;
             texture = protoMoveSheet; }
         else if ( player.type == 2 ) {
+            playerSizeX = 0.52 * playerScale;
+            playerSizeY = 0.60 * playerScale;
+            glTranslatef( 0, 0.05 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = tmanMoveSheet; }
+        else if ( player.type == 3 ) {
             playerSizeX = 0.61 * playerScale;
 		    playerSizeY = 0.63 * playerScale;
             glTranslatef( 0, 0.09 * playerScale, 0 );
@@ -1120,6 +1219,12 @@ void App::drawPlayer() {
             displace2 = 0.08 * playerScale;
             texture = protoMoveSheet; }
         else if ( player.type == 2 ) {
+            playerSizeX = 0.52 * playerScale;
+            playerSizeY = 0.60 * playerScale;
+            glTranslatef( 0, 0.05 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = tmanMoveSheet; }
+        else if ( player.type == 3 ) {
             playerSizeX = 0.61 * playerScale;
 		    playerSizeY = 0.63 * playerScale;
             glTranslatef( 0, 0.09 * playerScale, 0 );
@@ -1148,6 +1253,12 @@ void App::drawPlayer() {
             displace = 0.08 * playerScale;
             texture = protoMoveSheet; }
         else if ( player.type == 2 ) {
+            playerSizeX = 0.52 * playerScale;
+            playerSizeY = 0.60 * playerScale;
+            glTranslatef( 0, 0.05 * playerScale, 0 );
+            displace = 0.2 * playerScale;
+            texture = tmanMoveSheet; }
+        else if ( player.type == 3 ) {
             playerSizeX = 0.61 * playerScale;
 		    playerSizeY = 0.63 * playerScale;
             glTranslatef( 0, 0.09 * playerScale, 0 );
@@ -1183,8 +1294,20 @@ void App::drawSwordAtks() {
         else if (selSwordAnimation == 11) { downDivideDisplay(player.facing); }
         else if (selSwordAnimation == 12) { xDivideDisplay(player.facing); }
         else if (selSwordAnimation == 13) { zDivideDisplay(player.facing); }
+        else if (selSwordAnimation == 14) { tomaDisplayA1(player.facing); }
+        else if (selSwordAnimation == 15) { tomaDisplayB1(player.facing); }
+        else if (selSwordAnimation == 16) { tomaDisplayA2(player.facing); }
+        else if (selSwordAnimation == 17) { tomaDisplayB2(player.facing); }
+        else if (selSwordAnimation == 18) {
+            for ( int i = 0; i < delayedETomaDisplayList.size(); i++ ) {
+                if ( delayedETomaDisplayList[i].delay <= 0 ) {
+                    eTomaDisplay( delayedETomaDisplayList[i].xPos, delayedETomaDisplayList[i].yPos, delayedETomaDisplayList[i].animationTimer );
+                }
+            }
+        }
     }
 }
+
 void App::drawFloor() {
 	// Draw Tiles
 	glLoadIdentity();
@@ -1350,17 +1473,8 @@ void App::drawTextUI() {
 	if (level > 0) {
 		if      ( energyDisplayed2 > 0 ) { drawText(textSheet1B, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
 		else if ( energyDisplayed2 < 0 ) { drawText(textSheet1C, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
-		else if ( menuDisplay )          { drawText(textSheet1A, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+		//else if ( menuDisplay )          { drawText(textSheet1A, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
 	}
-
-	// Draw Info Box
-	glLoadIdentity();
-	glTranslatef(0, 0.02, 0);
-	GLfloat UIPlace[] = { -1.0,   0.475,  -1.0,  -0.5975,
-                          -0.75, -0.5975, -0.75,  0.475 };
-    if      ( player.type == 0 ) { drawSpriteSheetSprite( UIPlace, infoBoxPic1, 0, 1, 1 ); }
-    else if ( player.type == 1 ) { drawSpriteSheetSprite( UIPlace, infoBoxPic2, 0, 1, 1 ); }
-    else if ( player.type == 2 ) { drawSpriteSheetSprite( UIPlace, infoBoxPic3, 0, 1, 1 ); }
 
 	// Display Sword Name and Cost
 	glLoadIdentity();
@@ -1728,6 +1842,108 @@ void App::zDivideDisplay(int dir) {
 	else if (animationDisplayAmt > lifeAtkTime - 0.28) { drawSpriteSheetSprite(atkPlace, texture, 2, 4, 1); }
 	else if (animationDisplayAmt > lifeAtkTime - 0.32) { drawSpriteSheetSprite(atkPlace, texture, 3, 4, 1); }
 }
+void App::tomaDisplayA1(int dir) {
+    float sizeX = 0.95 / 2 * playerScale;
+    float sizeY = 0.80 * playerScale;
+    float xPos = player.x;
+    float yPos = player.y;
+    GLuint texture;
+
+    if ( dir == 1 ) {
+        xPos -= 1;
+        texture = tomahawkAtkSheetA1; }
+    else if ( dir == 3 ) {
+        xPos += 1;
+        texture = tomahawkAtkSheetA3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+    if      ( animationDisplayAmt > swordAtkTime - 0.20 ) {}
+    else if ( animationDisplayAmt > swordAtkTime - 0.26 ) { drawSpriteSheetSprite(atkPlace, texture, 0, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.28 ) { drawSpriteSheetSprite(atkPlace, texture, 1, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.30 ) { drawSpriteSheetSprite(atkPlace, texture, 2, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.32 ) { drawSpriteSheetSprite(atkPlace, texture, 3, 4, 1); }
+}
+void App::tomaDisplayB1(int dir) {
+    float sizeX = 0.95 / 2 * playerScale;
+    float sizeY = 0.80 * playerScale;
+    float xPos = player.x;
+    float yPos = player.y;
+    GLuint texture;
+
+    if ( dir == 1 ) {
+        xPos -= 1;
+        texture = tomahawkAtkSheetB1; }
+    else if ( dir == 3 ) {
+        xPos += 1;
+        texture = tomahawkAtkSheetB3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+    if      ( animationDisplayAmt > swordAtkTime - 0.20 ) {}
+    else if ( animationDisplayAmt > swordAtkTime - 0.26 ) { drawSpriteSheetSprite(atkPlace, texture, 0, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.28 ) { drawSpriteSheetSprite(atkPlace, texture, 1, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.30 ) { drawSpriteSheetSprite(atkPlace, texture, 2, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.32 ) { drawSpriteSheetSprite(atkPlace, texture, 3, 4, 1); }
+}
+void App::tomaDisplayA2(int dir) {
+    float sizeX = 0.95 * playerScale;
+    float sizeY = 0.80 * playerScale;
+    float xPos = player.x;
+    float yPos = player.y;
+    GLuint texture;
+
+    if ( dir == 1 ) {
+        xPos -= 1.5;
+        texture = tomahawkAtkSheetA1; }
+    else if ( dir == 3 ) {
+        xPos += 1.5;
+        texture = tomahawkAtkSheetA3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+    if      ( animationDisplayAmt > swordAtkTime - 0.20 ) {}
+    else if ( animationDisplayAmt > swordAtkTime - 0.26 ) { drawSpriteSheetSprite(atkPlace, texture, 0, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.28 ) { drawSpriteSheetSprite(atkPlace, texture, 1, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.30 ) { drawSpriteSheetSprite(atkPlace, texture, 2, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.32 ) { drawSpriteSheetSprite(atkPlace, texture, 3, 4, 1); }
+}
+void App::tomaDisplayB2(int dir) {
+    float sizeX = 0.95 * playerScale;
+    float sizeY = 0.80 * playerScale;
+    float xPos = player.x;
+    float yPos = player.y;
+    GLuint texture;
+
+    if ( dir == 1 ) {
+        xPos -= 1.5;
+        texture = tomahawkAtkSheetB1; }
+    else if ( dir == 3 ) {
+        xPos += 1.5;
+        texture = tomahawkAtkSheetB3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+    if      ( animationDisplayAmt > swordAtkTime - 0.20 ) {}
+    else if ( animationDisplayAmt > swordAtkTime - 0.26 ) { drawSpriteSheetSprite(atkPlace, texture, 0, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.28 ) { drawSpriteSheetSprite(atkPlace, texture, 1, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.30 ) { drawSpriteSheetSprite(atkPlace, texture, 2, 4, 1); }
+    else if ( animationDisplayAmt > swordAtkTime - 0.32 ) { drawSpriteSheetSprite(atkPlace, texture, 3, 4, 1); }
+}
+void App::eTomaDisplay(int xPos, int yPos, float animationTime) {
+    float sizeX = 0.52 * playerScale;
+    float sizeY = 0.72 * playerScale;
+    if ( animationTime > 0 ) { glTranslatef( 0, 0.2, 0 ); }
+    GLuint texture = eagleTomaSheet;
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+    if      ( animationTime >= 0.10 ) {}
+    else if ( animationTime >  0.08 ) { drawSpriteSheetSprite( atkPlace, texture, 0, 4, 1 ); }
+    else if ( animationTime >  0.04 ) { drawSpriteSheetSprite( atkPlace, texture, 1, 4, 1 ); }
+    else if ( animationTime >  0.02 ) { drawSpriteSheetSprite( atkPlace, texture, 2, 4, 1 ); }
+    else if ( animationTime >  0.00 ) { drawSpriteSheetSprite( atkPlace, texture, 3, 4, 1 ); }
+}
 
 // Player Control Functions: Attacking & Movement
 void App::face(int dir) {
@@ -1931,7 +2147,7 @@ void App::longAtk(int dir) {		// Does One Dmg to a 2x1 area in front of the play
 		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
-void App::wideAtk(int dir) {			// Does One Dmg to a sweep of 3x1 area in front of the player
+void App::wideAtk(int dir) {			// Does One Dmg to a 1x3 area in front of the player
 	if ( player.type == 0 && player.energy >= wideCost || player.type == 1 && player.energy >= wideCost2 ) {
         if      ( player.type == 0 ) { player.energy -= wideCost; }
         else if ( player.type == 1 ) { player.energy -= wideCost2; }
@@ -1952,9 +2168,9 @@ void App::wideAtk(int dir) {			// Does One Dmg to a sweep of 3x1 area in front o
 		selSwordAnimation = 2;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-        if      ( player.type == 0 ) { currentEnergyGain -= wideCost; }
+        if      ( player.type == 0 ) { currentEnergyGain -= wideCost;  }
         else if ( player.type == 1 ) { currentEnergyGain -= wideCost2; }
-		Mix_PlayChannel( 0, swordSound, 0 );
+        Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::crossAtk(int dir) {			// Does One Dmg in an X pattern in front of the player		// The Middle of the X cross takes Two Dmg total
@@ -2027,10 +2243,7 @@ void App::stepAtk(int dir) {			// Moves the player two squares in the facing Dir
 			chargeDisplayPlusAmt = 0;
             if      ( player.type == 0 ) { currentEnergyGain -= stepCost; }
             else if ( player.type == 1 ) { currentEnergyGain -= stepCost2; }
-			DelayedSound sound;
-			sound.delay = moveAnimationTime;
-			sound.soundName = "sword";
-			delayedSoundList.push_back( sound );
+            delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime ) );
 		}
 		else if (dir == 3 && isTileValid(player.x + 2, player.y)) {
 			if      ( player.type == 0 ) { player.energy -= stepCost; }
@@ -2049,10 +2262,7 @@ void App::stepAtk(int dir) {			// Moves the player two squares in the facing Dir
 			chargeDisplayPlusAmt = 0;
 			if      ( player.type == 0 ) { currentEnergyGain -= stepCost; }
             else if ( player.type == 1 ) { currentEnergyGain -= stepCost2; }
-			DelayedSound sound;
-			sound.delay = moveAnimationTime;
-			sound.soundName = "sword";
-			delayedSoundList.push_back( sound );
+            delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime ) );
 		}
 	}
 }
@@ -2231,10 +2441,7 @@ void App::xDivideAtk( int dir ) {			// Moves the player two squares in the facin
 			chargeDisplayMinusAmt = iconDisplayTime;
 			chargeDisplayPlusAmt = 0;
             currentEnergyGain -= xDivideCost;
-			DelayedSound sound;
-			sound.delay = moveAnimationTime;
-			sound.soundName = "divide";
-			delayedSoundList.push_back( sound );
+            delayedSoundList.push_back( DelayedSound( "divide", moveAnimationTime ) );
 		}
 		else if (dir == 3 && isTileValid(player.x + 2, player.y)) {
 			player.energy -= xDivideCost;
@@ -2253,10 +2460,7 @@ void App::xDivideAtk( int dir ) {			// Moves the player two squares in the facin
 			chargeDisplayMinusAmt = iconDisplayTime;
 			chargeDisplayPlusAmt = 0;
 			currentEnergyGain -= xDivideCost;
-			DelayedSound sound;
-			sound.delay = moveAnimationTime;
-			sound.soundName = "divide";
-			delayedSoundList.push_back( sound );
+            delayedSoundList.push_back( DelayedSound( "divide", moveAnimationTime ) );
 		}
 	}
 }
@@ -2292,6 +2496,150 @@ void App::zDivideAtk(int dir) {		// Does Two Dmg in a Z pattern
 		Mix_PlayChannel( 0, screenDivSound, 0 );
 	}
 }
+void App::tomaAtkA1(int dir) {
+    if ( player.energy >= tomaCostA1 ) { 
+        player.energy -= tomaCostA1;
+        if ( dir == 1 ) {
+            hitBoxDelay( player.x - 1, player.y + 1, preAtkTimeToma );	// x
+            hitBoxDelay( player.x - 1, player.y,     preAtkTimeToma );  // xP
+            hitBoxDelay( player.x - 1, player.y - 1, preAtkTimeToma );	// x
+        }
+        else if ( dir == 3 ) {
+            hitBoxDelay( player.x + 1, player.y + 1, preAtkTimeToma );	//	 x
+            hitBoxDelay( player.x + 1, player.y,     preAtkTimeToma );  //	Px
+            hitBoxDelay( player.x + 1, player.y - 1, preAtkTimeToma );	//	 x
+        }
+        animationType = 1;
+        animationDisplayAmt = swordAtkTime;
+        currentSwordAtkTime = animationDisplayAmt;
+        selSwordAnimation = 14;
+        chargeDisplayMinusAmt = iconDisplayTime;
+        chargeDisplayPlusAmt = 0;
+        currentEnergyGain -= tomaCostA1;
+        Mix_PlayChannel( 0, tomahawkSound, 0 );
+    }
+}
+void App::tomaAtkB1(int dir) {
+    if ( player.energy >= tomaCostA2 ) { 
+        player.energy -= tomaCostA2;
+        if ( dir == 1 ) {
+            hitBoxDelay( player.x - 1, player.y + 1, preAtkTimeToma, 2 );  // X
+            hitBoxDelay( player.x - 1, player.y,     preAtkTimeToma, 2 );  // XP
+            hitBoxDelay( player.x - 1, player.y - 1, preAtkTimeToma, 2 );  // X
+        }
+        else if ( dir == 3 ) {
+            hitBoxDelay( player.x + 1, player.y + 1, preAtkTimeToma, 2 );  //	 X
+            hitBoxDelay( player.x + 1, player.y,     preAtkTimeToma, 2 );  //	PX
+            hitBoxDelay( player.x + 1, player.y - 1, preAtkTimeToma, 2 );  //	 X
+        }
+        animationType = 1;
+        animationDisplayAmt = swordAtkTime;
+        currentSwordAtkTime = animationDisplayAmt;
+        selSwordAnimation = 15;
+        chargeDisplayMinusAmt = iconDisplayTime;
+        chargeDisplayPlusAmt = 0;
+        currentEnergyGain -= tomaCostB1;
+        Mix_PlayChannel( 0, tomahawkSound, 0 );
+    }
+}
+void App::tomaAtkA2(int dir) {
+    if ( player.energy >= tomaCostB1 ) { 
+        player.energy -= tomaCostB1;
+        if ( dir == 1 ) {
+            hitBoxDelay( player.x - 1, player.y + 1, preAtkTimeToma );
+            hitBoxDelay( player.x - 2, player.y + 1, preAtkTimeToma );	// xx
+            hitBoxDelay( player.x - 1, player.y,     preAtkTimeToma );  // xxP
+            hitBoxDelay( player.x - 2, player.y,     preAtkTimeToma );  // xx
+            hitBoxDelay( player.x - 1, player.y - 1, preAtkTimeToma );
+            hitBoxDelay( player.x - 2, player.y - 1, preAtkTimeToma );
+        }
+        else if ( dir == 3 ) {
+            hitBoxDelay( player.x + 1, player.y + 1, preAtkTimeToma );
+            hitBoxDelay( player.x + 2, player.y + 1, preAtkTimeToma );	//	 xx
+            hitBoxDelay( player.x + 1, player.y,     preAtkTimeToma );  //	Pxx
+            hitBoxDelay( player.x + 2, player.y,     preAtkTimeToma );  //	 xx
+            hitBoxDelay( player.x + 1, player.y - 1, preAtkTimeToma );
+            hitBoxDelay( player.x + 2, player.y - 1, preAtkTimeToma );
+        }
+        animationType = 1;
+        animationDisplayAmt = swordAtkTime;
+        currentSwordAtkTime = animationDisplayAmt;
+        selSwordAnimation = 16;
+        chargeDisplayMinusAmt = iconDisplayTime;
+        chargeDisplayPlusAmt = 0;
+        currentEnergyGain -= tomaCostA2;
+        Mix_PlayChannel( 0, tomahawkSound, 0 );
+    }
+}
+void App::tomaAtkB2(int dir) {
+    if ( player.energy >= tomaCostB2 ) { 
+        player.energy -= tomaCostB2;
+        if ( dir == 1 ) {
+            hitBoxDelay( player.x - 1, player.y + 1, preAtkTimeToma, 2 );
+            hitBoxDelay( player.x - 2, player.y + 1, preAtkTimeToma, 2 );  // XX
+            hitBoxDelay( player.x - 1, player.y,     preAtkTimeToma, 2 );  // XXP
+            hitBoxDelay( player.x - 2, player.y,     preAtkTimeToma, 2 );  // XX
+            hitBoxDelay( player.x - 1, player.y - 1, preAtkTimeToma, 2 );
+            hitBoxDelay( player.x - 2, player.y - 1, preAtkTimeToma, 2 );
+        }
+        else if ( dir == 3 ) {
+            hitBoxDelay( player.x + 1, player.y + 1, preAtkTimeToma, 2 );
+            hitBoxDelay( player.x + 2, player.y + 1, preAtkTimeToma, 2 );  //  XX
+            hitBoxDelay( player.x + 1, player.y,     preAtkTimeToma, 2 );  // PXX
+            hitBoxDelay( player.x + 2, player.y,     preAtkTimeToma, 2 );  //  XX
+            hitBoxDelay( player.x + 1, player.y - 1, preAtkTimeToma, 2 );
+            hitBoxDelay( player.x + 2, player.y - 1, preAtkTimeToma, 2 );
+        }
+        animationType = 1;
+        animationDisplayAmt = swordAtkTime;
+        currentSwordAtkTime = animationDisplayAmt;
+        selSwordAnimation = 17;
+        chargeDisplayMinusAmt = iconDisplayTime;
+        chargeDisplayPlusAmt = 0;
+        currentEnergyGain -= tomaCostB2;
+        Mix_PlayChannel( 0, tomahawkSound, 0 );
+    }
+}
+void App::eTomaAtk(int dir) {
+    if ( player.energy >= eTomaCost ) {
+        player.energy -= eTomaCost;
+        if ( dir == 1 ) {
+            hitBoxDelay( player.x - 1, player.y, preAtkTimeEagleToma - 0.06, 5 );          // XXXXXP
+            hitBoxDelay( player.x - 2, player.y, preAtkTimeEagleToma,        2 );
+            hitBoxDelay( player.x - 3, player.y, preAtkTimeEagleToma + 0.04, 2 );
+            hitBoxDelay( player.x - 4, player.y, preAtkTimeEagleToma + 0.08, 2 );
+            hitBoxDelay( player.x - 5, player.y, preAtkTimeEagleToma + 0.12, 2 );
+            
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x - 2, player.y, preAtkTimeEagleToma ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x - 3, player.y, preAtkTimeEagleToma + 0.04 ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x - 4, player.y, preAtkTimeEagleToma + 0.08 ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x - 5, player.y, preAtkTimeEagleToma + 0.12 ) );
+        }
+        else if ( dir == 3 ) {
+            hitBoxDelay( player.x + 1, player.y, preAtkTimeEagleToma - 0.06, 5 );          // PXXXXX
+            hitBoxDelay( player.x + 2, player.y, preAtkTimeEagleToma       , 2 );
+            hitBoxDelay( player.x + 3, player.y, preAtkTimeEagleToma + 0.04, 2 );
+            hitBoxDelay( player.x + 4, player.y, preAtkTimeEagleToma + 0.08, 2 );
+            hitBoxDelay( player.x + 5, player.y, preAtkTimeEagleToma + 0.12, 2 );
+
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x + 2, player.y, preAtkTimeEagleToma ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x + 3, player.y, preAtkTimeEagleToma + 0.04 ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x + 4, player.y, preAtkTimeEagleToma + 0.08 ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x + 5, player.y, preAtkTimeEagleToma + 0.12 ) );
+        }
+        animationType = 1;
+        animationDisplayAmt = eTomaAtkTime;
+        currentSwordAtkTime = animationDisplayAmt;
+        selSwordAnimation = 18;
+        chargeDisplayMinusAmt = iconDisplayTime;
+        chargeDisplayPlusAmt = 0;
+        currentEnergyGain -= eTomaCost;
+        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma ) );
+        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.04 ) );
+        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.08 ) );
+        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.12 ) );
+    }
+}
 void App::hitBox(int xPos, int yPos, int dmg) {
 	if( xPos >= 0 && xPos <= 5 && yPos >= 0 && yPos <= 5) {
 		if (map[xPos][yPos].boxHP > 0) {
@@ -2303,12 +2651,7 @@ void App::hitBox(int xPos, int yPos, int dmg) {
 		}
 }	}
 void App::hitBoxDelay(int xPos, int yPos, float delay, int dmg) {
-	DelayedHpLoss one;
-	one.xPos = xPos;
-	one.yPos = yPos;
-	one.delay = delay;
-	one.dmg = dmg;
-	delayedHpList.push_back(one);
+	delayedHpList.push_back( DelayedHpLoss( dmg, xPos, yPos, delay) );
 }
 
 // Map Functions
@@ -2341,7 +2684,6 @@ void App::reset() {
 	clearFloor();
 	player.reset();
 	player.energy = energyDisplayed = startingEnergy;
-	menuDisplay = false;
 	chargeDisplayPlusAmt = 0;
 	chargeDisplayMinusAmt = 0;
 	animationDisplayAmt = 0;
@@ -2350,14 +2692,13 @@ void App::reset() {
 	loadLevel(level);
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
-    quitMenuOn = resetMenuOn = diffSelMenuOn = charSelMenuOn = trainMenuOn = false;
+    quitMenuOn = resetMenuOn = diffSelMenuOn = trainMenuOn = false;
     menuSel = true;
 }
 void App::next() {
 	level++;
 	loadLevel(level);
 	player.facing = 3;
-	menuDisplay = false;
 	currentEnergyGain = 0;
     selSwordAnimation = -1;
     quitMenuOn = resetMenuOn = trainMenuOn = false;

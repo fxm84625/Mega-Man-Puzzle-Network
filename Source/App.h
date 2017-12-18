@@ -74,6 +74,7 @@ public:
 class DelayedHpLoss {		// Class used for displaying a Delayed HP Loss of a Rock
 public:
 	DelayedHpLoss();
+    DelayedHpLoss( int dmgAmt, int x, int y, float delayTime );
 	int dmg;
 	int xPos, yPos;
 	float delay;
@@ -82,8 +83,18 @@ public:
 class DelayedSound {
 public:
 	DelayedSound();
+    DelayedSound( string name, float time );
 	string soundName;
 	float delay;
+};
+
+class DelayedETomaDisplay {
+public:
+    DelayedETomaDisplay();
+    DelayedETomaDisplay( int x, int y, float time );
+    int xPos, yPos;
+    float delay;
+    float animationTimer;
 };
 
 class App {
@@ -100,10 +111,10 @@ public:
 	Tile map[6][6];				// The current map
 	Player player;
 	bool done;					// If the current game is Over or not
-    bool menuDisplay;
-    bool quitMenuOn, resetMenuOn, diffSelMenuOn, charSelMenuOn, trainMenuOn, menuSel;
+    bool menuDisplay, quitMenuOn, resetMenuOn, diffSelMenuOn, trainMenuOn, menuSel;
     int charSel;
-    int energyDisplayed, energyDisplayed2;        // Shown amount of energy
+    int gameMode;               // 0 = Regular      // 1 = Challenge        // 2 = Timed
+    int energyDisplayed, energyDisplayed2;          // Shown amount of energy
 	int level, levelType;		// Level Types
 	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
 	int currentEnergyGain;		// Current Player Energy gain for this Level
@@ -132,13 +143,21 @@ public:
 	void spinAtk(int dir);			void spinDisplay(int dir);
 	void stepAtk(int dir);			void stepDisplay(int dir);
 	void lifeAtk(int dir);			void lifeDisplay(int dir);
+
     void heroAtk(int dir);          void heroDisplay(int dir);
     void protoAtk(int dir);         void protoDisplay(int dir);
+
     void vDivideAtk(int dir);       void vDivideDisplay(int dir);
     void upDivideAtk(int dir);      void upDivideDisplay(int dir);
     void downDivideAtk(int dir);    void downDivideDisplay(int dir);
     void xDivideAtk(int dir);       void xDivideDisplay(int dir);
     void zDivideAtk(int dir);       void zDivideDisplay(int dir);
+
+    void tomaAtkA1(int dir);        void tomaDisplayA1(int dir);
+    void tomaAtkA2(int dir);        void tomaDisplayA2(int dir);
+    void tomaAtkB1(int dir);        void tomaDisplayB1(int dir);
+    void tomaAtkB2(int dir);        void tomaDisplayB2(int dir);
+    void eTomaAtk(int dir);         void eTomaDisplay(int xPos, int yPos, float animationTime);
 
 	void hitBox(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
 	void hitBoxDelay(int xPos, int yPos, float delay, int dmg = 1);		// Damage a Rock with a delayed start-up
@@ -166,7 +185,6 @@ public:
     void drawQuitMenu();
     void drawResetMenu();
     void drawDiffSelMenu();
-    void drawCharSelMenu();
     void drawTrainMenu();
     void drawTabMenuCtrl();
 	void drawPlayer();
@@ -179,6 +197,7 @@ public:
 
 	vector<DelayedHpLoss> delayedHpList;
 	vector<DelayedSound> delayedSoundList;
+    vector<DelayedETomaDisplay> delayedETomaDisplayList;
 
 	// Test/Debug functions
 	void test();
@@ -193,20 +212,19 @@ public:
 	       megamanMoveSheet, megamanAtkSheet,
            protoMoveSheet,   protoAtkSheet,
            colonelMoveSheet, colonelAtkSheet,
+           tmanMoveSheet,    tmanAtkSheet1,   tmanAtkSheet2,
            lvBarPic, healthBoxPic,
            rockSheet, rockSheetItem, rockDeathSheet,
            floorSheet, floorMoveSheet, floorBottomPic1, floorBottomPic2,
            energySheet,
            bgA, bgB, bgC,
            dimScreenPic,
-           infoBoxPic1, infoBoxPic2, infoBoxPic3,
-           menuPic1, menuPic2, menuPic3,
+           menuPic0, menuPic1, menuPic2, menuPic3,
            musicDisplayPic, tabMenuCtrlSheet,
-           resetPicY, resetPicN,
            diffPic1, diffPic2, diffPic3, diffPic4, diffPic5,
-           charSelPic0, charSelPic1, charSelPic2,
+           resetPic0, resetPic1, resetPic2, resetPic3,
            quitPicY, quitPicN,
-           trainPicY, trainPicN;
+           trainPic0, trainPic1, trainPic2, trainPic3;
 
 	GLuint swordAtkSheet1, swordAtkSheet3,		// Sprites for Sword Attack Animations
 		   longAtkSheet1,  longAtkSheet3,
@@ -215,15 +233,21 @@ public:
 		   spinAtkSheet1,  spinAtkSheet3,
 		   stepAtkSheet1,  stepAtkSheet3,
 		   lifeAtkSheet1,  lifeAtkSheet3,
+           
            heroAtkSheet1,  heroAtkSheet3,
            protoAtkSheet1, protoAtkSheet3,
+           
            screenDivVSheet1,    screenDivVSheet3,
            screenDivUpSheet1,   screenDivUpSheet3,
            screenDivDownSheet1, screenDivDownSheet3,
            screenDivXSheet1,    screenDivXSheet3,
-           screenDivZSheet;
+           screenDivZSheet,
+           
+           tomahawkAtkSheetA1, tomahawkAtkSheetA3,
+           tomahawkAtkSheetB1, tomahawkAtkSheetB3,
+           eagleTomaSheet;
 
-	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,
+	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *explosionSound,
 	          *itemSound,       *rockBreakSound,  *panelBreakSound,
 	          *menuOpenSound,   *menuCloseSound,
               *quitCancelSound, *quitChooseSound, *quitOpenSound,
