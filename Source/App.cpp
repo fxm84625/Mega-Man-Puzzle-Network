@@ -1506,6 +1506,11 @@ void App::drawTextUI() {
             else if ( selSwordAnimation == 11 ) { text = "ScreenDv" + to_string( downDivideCost ); }
             else if ( selSwordAnimation == 12 ) { text = "CrossDiv" + to_string( xDivideCost ); }
             else if ( selSwordAnimation == 13 ) { text = "NeoSnDiv" + to_string( zDivideCost ); }
+            else if ( selSwordAnimation == 14 ) { text = "WideTmhk" + to_string( tomaCostA1 ); }
+            else if ( selSwordAnimation == 15 ) { text = "WdTmhkEX" + to_string( tomaCostB1 ); }
+            else if ( selSwordAnimation == 16 ) { text = "Tomahawk" + to_string( tomaCostA2 ); }
+            else if ( selSwordAnimation == 17 ) { text = "TomahkEX" + to_string( tomaCostB2 ); }
+            else if ( selSwordAnimation == 18 ) { text = "ETomahwk" + to_string( eTomaCost ); }
         }
         drawText( texture, text, 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 );
     }
@@ -2605,10 +2610,10 @@ void App::eTomaAtk(int dir) {
         player.energy -= eTomaCost;
         if ( dir == 1 ) {
             hitBoxDelay( player.x - 1, player.y, preAtkTimeEagleToma - 0.06, 5 );          // XXXXXP
-            hitBoxDelay( player.x - 2, player.y, preAtkTimeEagleToma,        2 );
-            hitBoxDelay( player.x - 3, player.y, preAtkTimeEagleToma + 0.04, 2 );
-            hitBoxDelay( player.x - 4, player.y, preAtkTimeEagleToma + 0.08, 2 );
-            hitBoxDelay( player.x - 5, player.y, preAtkTimeEagleToma + 0.12, 2 );
+            hitBoxDelay( player.x - 2, player.y, preAtkTimeEagleToma,        5 );
+            hitBoxDelay( player.x - 3, player.y, preAtkTimeEagleToma + 0.04, 5 );
+            hitBoxDelay( player.x - 4, player.y, preAtkTimeEagleToma + 0.08, 5 );
+            hitBoxDelay( player.x - 5, player.y, preAtkTimeEagleToma + 0.12, 5 );
             
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x - 2, player.y, preAtkTimeEagleToma ) );
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x - 3, player.y, preAtkTimeEagleToma + 0.04 ) );
@@ -2617,10 +2622,10 @@ void App::eTomaAtk(int dir) {
         }
         else if ( dir == 3 ) {
             hitBoxDelay( player.x + 1, player.y, preAtkTimeEagleToma - 0.06, 5 );          // PXXXXX
-            hitBoxDelay( player.x + 2, player.y, preAtkTimeEagleToma       , 2 );
-            hitBoxDelay( player.x + 3, player.y, preAtkTimeEagleToma + 0.04, 2 );
-            hitBoxDelay( player.x + 4, player.y, preAtkTimeEagleToma + 0.08, 2 );
-            hitBoxDelay( player.x + 5, player.y, preAtkTimeEagleToma + 0.12, 2 );
+            hitBoxDelay( player.x + 2, player.y, preAtkTimeEagleToma       , 5 );
+            hitBoxDelay( player.x + 3, player.y, preAtkTimeEagleToma + 0.04, 5 );
+            hitBoxDelay( player.x + 4, player.y, preAtkTimeEagleToma + 0.08, 5 );
+            hitBoxDelay( player.x + 5, player.y, preAtkTimeEagleToma + 0.12, 5 );
 
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x + 2, player.y, preAtkTimeEagleToma ) );
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player.x + 3, player.y, preAtkTimeEagleToma + 0.04 ) );
