@@ -1,5 +1,5 @@
 -----
-Paper Swords
+Mega Man Puzzle Network
 -----
  	Inspired by Capcom's Mega Man Battle Network
 -----
@@ -14,9 +14,9 @@ Paper Swords
 
 		Space / Shift		Turn around without moving
 
-		R			Reset to the First Level
+		R			Restart to a New Game
 		
-		Tab or F		Open Info Menu - close with any button
+		Tab or F		Toggle Menu
 		
 		X			Enter Training Room
 		
