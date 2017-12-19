@@ -61,8 +61,8 @@ const int zDivideCost    = 250;
 const int tomaCostA1     = 75;
 const int tomaCostB1     = 125;
 const int tomaCostA2     = 125;
-const int tomaCostB2     = 200;
-const int eTomaCost      = 300;
+const int tomaCostB2     = 175;
+const int eTomaCost      = 250;
 
 const int startingEnergy = 300;
 const int energyGainAmt = 100;			    // How much Energy the player gains when moving to a Pick-Up
@@ -76,6 +76,7 @@ const float menuExitTime = 0.2;         // Delay after coming out of a Menu
 const float preAtkTime   = 0.10;
 const float preAtkTimeToma      = 0.20;
 const float preAtkTimeEagleToma = 0.24;
+
 const float swordAtkTime = 0.42;
 //const float longAtkTime  = 0.42;
 //const float wideAtkTime  = 0.42;
@@ -533,7 +534,7 @@ void App::checkKeys() {
 	// Menu Controls
 	while (SDL_PollEvent(&event)) {
 		if      ( event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE ) { done = true; }
-		else if ( event.type == SDL_KEYDOWN ) {		// Read Single Button presses
+		else if ( event.type == SDL_KEYDOWN && animationDisplayAmt <= 0 ) {		// Read Single Button presses
             if      ( event.key.keysym.scancode == SDL_SCANCODE_C ) { changeMusic(); }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_V ) { toggleMusic(); }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE ) {
@@ -642,7 +643,7 @@ void App::checkKeys() {
     }
 
     // Player Movement and Attacks
-    if ( !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn && animationDisplayAmt <= 0 ) {
+    if ( animationDisplayAmt <= 0 && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn  ) {
         // The player can't Move or Attack until after the previous Action is completed, or if a Menu is open
 
 	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
@@ -2515,7 +2516,7 @@ void App::tomaAtkA1(int dir) {
             hitBoxDelay( player.x + 1, player.y - 1, preAtkTimeToma );	//	 x
         }
         animationType = 1;
-        animationDisplayAmt = swordAtkTime;
+        animationDisplayAmt = lifeAtkTime;
         currentSwordAtkTime = animationDisplayAmt;
         selSwordAnimation = 14;
         chargeDisplayMinusAmt = iconDisplayTime;
@@ -2538,7 +2539,7 @@ void App::tomaAtkB1(int dir) {
             hitBoxDelay( player.x + 1, player.y - 1, preAtkTimeToma, 2 );  //	 X
         }
         animationType = 1;
-        animationDisplayAmt = swordAtkTime;
+        animationDisplayAmt = lifeAtkTime;
         currentSwordAtkTime = animationDisplayAmt;
         selSwordAnimation = 15;
         chargeDisplayMinusAmt = iconDisplayTime;
@@ -2567,7 +2568,7 @@ void App::tomaAtkA2(int dir) {
             hitBoxDelay( player.x + 2, player.y - 1, preAtkTimeToma );
         }
         animationType = 1;
-        animationDisplayAmt = swordAtkTime;
+        animationDisplayAmt = lifeAtkTime;
         currentSwordAtkTime = animationDisplayAmt;
         selSwordAnimation = 16;
         chargeDisplayMinusAmt = iconDisplayTime;
@@ -2596,7 +2597,7 @@ void App::tomaAtkB2(int dir) {
             hitBoxDelay( player.x + 2, player.y - 1, preAtkTimeToma, 2 );
         }
         animationType = 1;
-        animationDisplayAmt = swordAtkTime;
+        animationDisplayAmt = lifeAtkTime;
         currentSwordAtkTime = animationDisplayAmt;
         selSwordAnimation = 17;
         chargeDisplayMinusAmt = iconDisplayTime;
