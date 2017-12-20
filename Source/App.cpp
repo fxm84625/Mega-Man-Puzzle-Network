@@ -75,7 +75,7 @@ const float menuExitTime = 0.2;         // Delay after coming out of a Menu
 
 const float preAtkTime   = 0.10;
 const float preAtkTimeToma      = 0.20;
-const float preAtkTimeEagleToma = 0.24;
+const float preAtkTimeEagleToma = 0.27;
 
 const float swordAtkTime = 0.42;
 //const float longAtkTime  = 0.42;
@@ -86,7 +86,7 @@ const float stepAtkTime  = 0.38;
 const float lifeAtkTime  = 0.52;
 //const float heroAtkTime  = 0.52;
 //const float protoAtkTime = 0.52;
-const float eTomaAtkTime = 0.52;
+const float eTomaAtkTime = 0.55;
 
 const float orthoX1 = -1.0;
 const float orthoX2 = 7.0;
@@ -338,7 +338,7 @@ void App::Init() {
 	lifeSwordSound  = Mix_LoadWAV( "Sounds\\LifeSword.ogg" );
     screenDivSound  = Mix_LoadWAV( "Sounds\\ScreenDivide.ogg" );
     tomahawkSound   = Mix_LoadWAV( "Sounds\\Tomahawk.ogg" );
-    explosionSound  = Mix_LoadWAV( "Sounds\\PanelCrack.ogg" );
+    explosionSound  = Mix_LoadWAV( "Sounds\\EToma.ogg" );
 
 	itemSound       = Mix_LoadWAV( "Sounds\\GotItem.ogg" );
 	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit.ogg" );
@@ -513,6 +513,7 @@ void App::updateGame(float elapsed) {
 			if      ( delayedSoundList[i].soundName == "sword" )  { Mix_PlayChannel( 0, swordSound, 0 ); }
 			else if ( delayedSoundList[i].soundName == "life" )   { Mix_PlayChannel( 0, lifeSwordSound, 0 ); }
             else if ( delayedSoundList[i].soundName == "divide" ) { Mix_PlayChannel( 0, screenDivSound, 0 ); }
+            else if ( delayedSoundList[i].soundName == "toma" )   { Mix_PlayChannel( 0, tomahawkSound, 0 ); }
             else if ( delayedSoundList[i].soundName == "eToma" )  { Mix_PlayChannel( 0, explosionSound, 0 ); }
 			delayedSoundList.erase( delayedSoundList.begin() + i);
 	}	}
@@ -997,10 +998,10 @@ void App::drawPlayer() {
             displace2 = 0.17;
             texture = tmanAtkSheet2;
             textureSheetWidth = 5;
-            if      (animationDisplayAmt > currentSwordAtkTime - 0.04) { picIndex = 0; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.12) { picIndex = 1; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.16) { picIndex = 2; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.18) { picIndex = 3; }
+            if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 0; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.18) { picIndex = 1; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 2; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.24) { picIndex = 3; }
             else if (animationDisplayAmt > 0)                          { picIndex = 4; } }
 		// Animation for the rest of the Attacks
 		else {
@@ -1474,7 +1475,6 @@ void App::drawTextUI() {
 	if (level > 0) {
 		if      ( energyDisplayed2 > 0 ) { drawText(textSheet1B, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
 		else if ( energyDisplayed2 < 0 ) { drawText(textSheet1C, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
-		//else if ( menuDisplay )          { drawText(textSheet1A, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
 	}
 
 	// Display Sword Name and Cost
@@ -1507,10 +1507,10 @@ void App::drawTextUI() {
             else if ( selSwordAnimation == 11 ) { text = "ScreenDv" + to_string( downDivideCost ); }
             else if ( selSwordAnimation == 12 ) { text = "CrossDiv" + to_string( xDivideCost ); }
             else if ( selSwordAnimation == 13 ) { text = "NeoSnDiv" + to_string( zDivideCost ); }
-            else if ( selSwordAnimation == 14 ) { text = "WideTmhk" + to_string( tomaCostA1 ); }
-            else if ( selSwordAnimation == 15 ) { text = "WdTmhkEX" + to_string( tomaCostB1 ); }
+            else if ( selSwordAnimation == 14 ) { text = "WideSwng" + to_string( tomaCostA1 ); }
+            else if ( selSwordAnimation == 15 ) { text = "WdSwngEX" + to_string( tomaCostB1 ); }
             else if ( selSwordAnimation == 16 ) { text = "Tomahawk" + to_string( tomaCostA2 ); }
-            else if ( selSwordAnimation == 17 ) { text = "TomahkEX" + to_string( tomaCostB2 ); }
+            else if ( selSwordAnimation == 17 ) { text = "TmhawkEX" + to_string( tomaCostB2 ); }
             else if ( selSwordAnimation == 18 ) { text = "ETomahwk" + to_string( eTomaCost ); }
         }
         drawText( texture, text, 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 );
@@ -2522,7 +2522,7 @@ void App::tomaAtkA1(int dir) {
         chargeDisplayMinusAmt = iconDisplayTime;
         chargeDisplayPlusAmt = 0;
         currentEnergyGain -= tomaCostA1;
-        Mix_PlayChannel( 0, tomahawkSound, 0 );
+        delayedSoundList.push_back( DelayedSound( "toma", preAtkTimeToma ) );
     }
 }
 void App::tomaAtkB1(int dir) {
@@ -2545,7 +2545,7 @@ void App::tomaAtkB1(int dir) {
         chargeDisplayMinusAmt = iconDisplayTime;
         chargeDisplayPlusAmt = 0;
         currentEnergyGain -= tomaCostB1;
-        Mix_PlayChannel( 0, tomahawkSound, 0 );
+        delayedSoundList.push_back( DelayedSound( "toma", preAtkTimeToma ) );
     }
 }
 void App::tomaAtkA2(int dir) {
@@ -2574,7 +2574,7 @@ void App::tomaAtkA2(int dir) {
         chargeDisplayMinusAmt = iconDisplayTime;
         chargeDisplayPlusAmt = 0;
         currentEnergyGain -= tomaCostA2;
-        Mix_PlayChannel( 0, tomahawkSound, 0 );
+        delayedSoundList.push_back( DelayedSound( "toma", preAtkTimeToma ) );
     }
 }
 void App::tomaAtkB2(int dir) {
@@ -2603,7 +2603,7 @@ void App::tomaAtkB2(int dir) {
         chargeDisplayMinusAmt = iconDisplayTime;
         chargeDisplayPlusAmt = 0;
         currentEnergyGain -= tomaCostB2;
-        Mix_PlayChannel( 0, tomahawkSound, 0 );
+        delayedSoundList.push_back( DelayedSound( "toma", preAtkTimeToma ) );
     }
 }
 void App::eTomaAtk(int dir) {
@@ -2641,9 +2641,9 @@ void App::eTomaAtk(int dir) {
         chargeDisplayPlusAmt = 0;
         currentEnergyGain -= eTomaCost;
         delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma ) );
-        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.04 ) );
-        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.08 ) );
-        delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.12 ) );
+        //delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.04 ) );
+        //delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.08 ) );
+        //delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.12 ) );
     }
 }
 void App::hitBox(int xPos, int yPos, int dmg) {
@@ -2718,7 +2718,7 @@ void App::loadLevel(int num) {
 		int type = getRand(32);
 		generateLevel(type); }		// Generate a Level of Random type
 }
-void App::generateLevel(int type, int num) {
+void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 	if (num <= -1) { num = rand() % 100; }				// Random number between 0 and 99, inclusive - used to determine difficulty
 	int x = level;		if (x > 50) { x = 50; }
 	int bound2 = 120 - x * 3 / 2;						// Bounds used in determining difficulty - based on current level number
@@ -2734,7 +2734,6 @@ void App::generateLevel(int type, int num) {
 																					//  50			15%		30%		55%
 																					//  75			10%		30%		60%
 																					// 100			 5%		30%		65%
-																					// 150			 1%		30%		69%
     int gain = 0;       // Gain determines avg "profit" per level
     if      ( currentGameDiff == 0 ) { gain =  4 - diff * 9; }      //  4   -5  -14
     else if ( currentGameDiff == 1 ) { gain =  2 - diff * 9; }      //  2   -7  -16
@@ -3066,9 +3065,9 @@ void App::generateLevel(int type, int num) {
 	}
 	else { generateLevel(0, 100); return; }
 
-    if      ( diff == 0 && extraItems < 4 * itemWorth ) { extraItems = 4 * itemWorth; }
-    else if ( diff == 1 && extraItems < 3 * itemWorth ) { extraItems = 3 * itemWorth; }
-    else if ( diff == 2 && extraItems < 2 * itemWorth ) { extraItems = 2 * itemWorth; }
+    int minItems = 3 * itemWorth;
+    if ( extraItems < minItems ) { extraItems = minItems; }
+
 	generateItems(extraItems, type);
 	generateBoxes(extraBoxes, type);
 	generateFloor(floorDmgs,  type);
@@ -3139,7 +3138,7 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)		{ xPos = 0; yPos = 4; }	//	]+    =[
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]+    =[
 			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]+=====[
 			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==++==[
 			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]==++==[
@@ -3352,7 +3351,7 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)      { xPos = 1; yPos = 1; }	//	] +====[
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	] +====[
 			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =+=+=[
 			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==+==[
 			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =+=+=[
@@ -3370,7 +3369,7 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)      { xPos = 1; yPos = 0; }	//	]     =[
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]     =[
 			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=+====[
 			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==+=+=[
 			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] ==+==[
@@ -3388,7 +3387,7 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)      { xPos = 0; yPos = 1; }	//	]+=====[
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]+=====[
 			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=+=+= [
 			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==+== [
 			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=+=+= [
@@ -3406,7 +3405,7 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)      { xPos = 0; yPos = 1; }	//	]++ ===[
+			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]++ ===[
 			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]++=== [
 			else if (place[randPlace] == 2) { xPos = 0; yPos = 5; }	//	]===== [
 			else if (place[randPlace] == 3) { xPos = 1; yPos = 1; }	//	]===== [
@@ -3424,7 +3423,7 @@ void App::generateItems(int amt, int type) {
 		vector<int> place = { 0,1,2,3,4,5,6,7 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if (place[randPlace] == 0)      { xPos = 1; yPos = 0; }	//	]======[
+			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]======[
 			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]=+====[
 			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=+====[
 			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]===== [
@@ -3557,7 +3556,7 @@ void App::generateItems(int amt, int type) {
 			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
 			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
 			else if (place[randPlace] == 8) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 2; }
+			else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
 			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
 				map[xPos][yPos].item = 1;
 				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
@@ -5122,19 +5121,19 @@ void App::generateFloor(int amt, int type) {
 	}	}
 	// Scattered
 	else if (type == 23) {			// Scattered A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
+		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
 		while (amt > 0 && !place.empty()) {
 			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 0; }	//	]===X==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==X=X=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]===X=X[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	]==X=X=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===X=X[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 5; }	//	]==X=X=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 1; }
+			if      (place[randPlace] == 0)  { xPos = 2; yPos = 0; }	//	]===X==[
+			else if (place[randPlace] == 1)  { xPos = 2; yPos = 2; }	//	]==X=X=[
+			else if (place[randPlace] == 2)  { xPos = 2; yPos = 4; }	//	]===X=X[
+			else if (place[randPlace] == 3)  { xPos = 3; yPos = 1; }	//	]==X=X=[
+			else if (place[randPlace] == 4)  { xPos = 3; yPos = 3; }	//	]===X=X[
+			else if (place[randPlace] == 5)  { xPos = 3; yPos = 5; }	//	]==X=X=[
+			else if (place[randPlace] == 6)  { xPos = 4; yPos = 0; }
+			else if (place[randPlace] == 7)  { xPos = 4; yPos = 2; }
+			else if (place[randPlace] == 8)  { xPos = 4; yPos = 4; }
+			else if (place[randPlace] == 9)  { xPos = 5; yPos = 1; }
 			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
 			if (xPos != -1 && yPos != -1) {
 				map[xPos][yPos].state = 1;
