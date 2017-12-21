@@ -34,3 +34,4 @@ Mega Man Puzzle Network
  	Executable File: "Mega Man Puzzle Network.exe"
  	Keep the \Pics folder and other .dll items in the same folder as the EXE in order to run.
 -----
+https://imgur.com/gallery/qcZ9X
