@@ -45,6 +45,7 @@
 #include <algorithm>
 #include <random>
 #include <time.h>
+#include <utility>
 using namespace std;
 
 class Player {
@@ -113,8 +114,7 @@ public:
 	bool done;					// If the current game is Over or not
     bool menuDisplay, quitMenuOn, resetMenuOn, diffSelMenuOn, trainMenuOn, menuSel;
     int charSel;
-    int gameMode;               // 0 = Regular      // 1 = Challenge        // 2 = Timed
-    int energyDisplayed, energyDisplayed2;          // Shown amount of energy
+    int energyDisplayed, energyDisplayed2;        // Shown amount of energy
 	int level, levelType;		// Level Types
 	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
 	int currentEnergyGain;		// Current Player Energy gain for this Level
@@ -123,8 +123,8 @@ public:
 	float animationDisplayAmt;	// Used for Animation timing
 	float itemAnimationAmt, bgAnimationAmt;		// Used for idle item animations		// Used for background animations
 	float currentSwordAtkTime;	// Used for Sword attack display
-	int animationType;			// 0 = Movement		// 1 = Attack		2 = Special Invalid movement	3,4 = Level Transition
-	int selSwordAnimation;		// Select which sword attack is being Animated (0-6)    // -1: None     // -2: Item
+	int animationType;			// -1 = Trapped    // 0 = Movement    // 1 = Attack    // 2 = Special Invalid movement    // 3,4 = Level Transition
+	int selSwordAnimation;		// Select which sword attack is being Animated
 
 	int musicSel;					// Selects different music tracks
     bool musicMuted;
@@ -159,18 +159,24 @@ public:
     void tomaAtkB2(int dir);        void tomaDisplayB2(int dir);
     void eTomaAtk(int dir);         void eTomaDisplay(int xPos, int yPos, float animationTime);
 
+                                    void longSlashDisplay(int dir);
+                                    void wideSlashDisplay(int dir);
+    void stepCrossAtk(int dir);     void stepCrossDisplay(int dir);
+    void spinSlashAtk(int dir);
+
 	void hitBox(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
-	void hitBoxDelay(int xPos, int yPos, float delay, int dmg = 1);		// Damage a Rock with a delayed start-up
+	void hitBoxDelay(int xPos, int yPos, float delay, int dmg = 1);		// Delayed Damage to a Rock
 
 	void clearFloor();						// Resets all Tiles
 	bool isTileValid(int xPos, int yPos);	// Checks if a specific tile allows the Player to walk on it
 
 	void loadLevel(int num);
-	void generateLevel(int type, int num = -1);		// Generates a Level using the 3 functions below		// "num != -1" used for Debugging
-	void generateItems(int amt, int type);			// Randomly places Energy on the map
+	void generateLevel(int type, int num = -1);		// Generates a Level using the Generate Functions below		// "num != -1" for defined difficulty
+	void generateItems(int amt, int type, int trapAmt = 0);			// Randomly places Energy and Trapped Energy on the map
 	void generateBoxes(int amt, int type);			// Randomly places Rocks on the map
 	void generateFloor(int amt, int type);			// Randomly damages the floor (Cracked floors or Broken floors)
 	void reset();		// Restarts from level 0
+    void test();        // Training Room
 	void next();		// Goes to next level if completed
 	void updateGame(float elapsed);
 
@@ -198,40 +204,39 @@ public:
 	vector<DelayedHpLoss> delayedHpList;
 	vector<DelayedSound> delayedSoundList;
     vector<DelayedETomaDisplay> delayedETomaDisplayList;
-
-	// Test/Debug functions
-	void test();
-	void test2();
 	
 	SDL_Event event;
 	float timeLeftOver;
 	float lastFrameTicks;
 	float fixedElapsed;
 
-	GLuint textSheet1A, textSheet1B, textSheet1C, textSheet2A, textSheet2B, textSheet2C,
-	       megamanMoveSheet, megamanAtkSheet,
-           protoMoveSheet,   protoAtkSheet,
-           colonelMoveSheet, colonelAtkSheet,
-           tmanMoveSheet,    tmanAtkSheet1,   tmanAtkSheet2,
+	GLuint megamanMoveSheet,  megamanAtkSheet,                  megamanHurtSheet,
+           protoMoveSheet,    protoAtkSheet,                    protoHurtSheet,
+           colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,
+           tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,  tmanHurtSheet,
+           slashmanMoveSheet, slashmanAtkSheet,                 slashmanHurtSheet,
+           
            lvBarPic, healthBoxPic,
-           rockSheet, rockSheetItem, rockDeathSheet,
+           rockSheet, rockSheetItem, rockSheetItem2, rockSheetTrappedItem, rockDeathSheet,
            floorSheet, floorMoveSheet, floorBottomPic1, floorBottomPic2,
-           energySheet,
+           energySheet, energySheet2, trappedEnergySheet,
+           
+           textSheet1A, textSheet1B, textSheet1C, textSheet2A, textSheet2B, textSheet2C,
            bgA, bgB, bgC,
            dimScreenPic,
-           menuPic0, menuPic1, menuPic2, menuPic3,
+           menuPic0, menuPic1, menuPic2, menuPic3, menuPic4,
            musicDisplayPic, tabMenuCtrlSheet,
            diffPic1, diffPic2, diffPic3, diffPic4, diffPic5,
-           resetPic0, resetPic1, resetPic2, resetPic3,
+           resetPic0, resetPic1, resetPic2, resetPic3, resetPic4,
            quitPicY, quitPicN,
-           trainPic0, trainPic1, trainPic2, trainPic3;
+           trainPic0, trainPic1, trainPic2, trainPic3, trainPic4;
 
-	GLuint swordAtkSheet1, swordAtkSheet3,		// Sprites for Sword Attack Animations
+    // Sprites for Sword Attack Animations
+	GLuint swordAtkSheet1, swordAtkSheet3,
 		   longAtkSheet1,  longAtkSheet3,
 		   wideAtkSheet1,  wideAtkSheet3,
 		   crossAtkSheet1, crossAtkSheet3,
 		   spinAtkSheet1,  spinAtkSheet3,
-		   stepAtkSheet1,  stepAtkSheet3,
 		   lifeAtkSheet1,  lifeAtkSheet3,
            
            heroAtkSheet1,  heroAtkSheet3,
@@ -245,12 +250,19 @@ public:
            
            tomahawkAtkSheetA1, tomahawkAtkSheetA3,
            tomahawkAtkSheetB1, tomahawkAtkSheetB3,
-           eagleTomaSheet;
+           eagleTomaSheet,
+           
+           longSlashSheet1,    longSlashSheet3,
+           wideSlashSheet1,    wideSlashSheet3;
 
-	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *explosionSound,
-	          *itemSound,       *rockBreakSound,  *panelBreakSound,
+	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *eTomaSound, *spinSlashSound,
+              
+	          *itemSound,       *itemSound2,      *trapItemSound,
+              *rockBreakSound,  *panelBreakSound,
+              
 	          *menuOpenSound,   *menuCloseSound,
               *quitCancelSound, *quitChooseSound, *quitOpenSound,
+              
               *track01, *track02, *track03, *track04, *track05, *track06, *track07, *track08, *track09,
               *track10, *track11, *track12, *track13, *track14, *track15, *track16, *track17, *track18;
 

@@ -47,30 +47,37 @@ const int crossCost = 125;
 const int spinCost  = 150;
 const int stepCost  = 175;
 const int stepCost2 = 150;
-const int lifeCost  = 300;
+const int lifeCost  = 250;
 
 const int heroCost  = 150;
 const int protoCost = 225;
 
 const int vDivideCost    =  75;
-const int upDivideCost   = 125;
+const int upDivideCost   = 100;
 const int downDivideCost = 125;
 const int xDivideCost    = 175;
 const int zDivideCost    = 250;
 
-const int tomaCostA1     = 75;
+const int tomaCostA1     =  75;
 const int tomaCostB1     = 125;
 const int tomaCostA2     = 125;
 const int tomaCostB2     = 175;
 const int eTomaCost      = 250;
 
+const int crossCost2     = 100;
+const int stepCrossCost  = 150;
+const int spinSlashCost  = 225;
+
 const int startingEnergy = 300;
-const int energyGainAmt = 100;			    // How much Energy the player gains when moving to a Pick-Up
+const int energyGainAmt  = 100;			    // How much Energy the player gains when moving to a Pick-Up
+const int energyGainAmt2 = 150;
+const int energyLossAmt  =  50;
 const int itemWorth = energyGainAmt / 50;	// Item "Worth" is used to generate Levels
 
 const float iconDisplayTime = 0.45;		// Energy Gain Icon Display time
 const float boxDmgTime = 0.4;			// Box HP damage indicator time
 const float moveAnimationTime = 0.175;	// Player movement time
+const float pauseAnimationTime = moveAnimationTime * 2.5;
 const float menuExitTime = 0.2;         // Delay after coming out of a Menu
 
 const float preAtkTime   = 0.10;
@@ -78,14 +85,8 @@ const float preAtkTimeToma      = 0.20;
 const float preAtkTimeEagleToma = 0.27;
 
 const float swordAtkTime = 0.42;
-//const float longAtkTime  = 0.42;
-//const float wideAtkTime  = 0.42;
-//const float crossAtkTime = 0.42;
-//const float spinAtkTime  = 0.42;
 const float stepAtkTime  = 0.38;
 const float lifeAtkTime  = 0.52;
-//const float heroAtkTime  = 0.52;
-//const float protoAtkTime = 0.52;
 const float eTomaAtkTime = 0.55;
 
 const float orthoX1 = -1.0;
@@ -217,9 +218,10 @@ float easeOutElastic(float& from, float& to, float& time) {
 	return from + diff + (diff*pow(2.0f, -10.0f*time) * sin((time - s)*(2 * pi) / p));
 }
 
-long getRand(long num) {	// Returns pseudo-random number between 0 and (num-1)
-	srand(time(NULL));				// Gets a new set of random numbers based on time
-	return rand() % num;			// Returns a Random number from the generated string
+long getRand(long num) {
+    // Returns pseudo-random number between 0 and (num-1)
+	srand(time(0));				// Gets a new set of random numbers based on time
+	return rand() % num;		// Returns a Random number from the generated string
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
@@ -247,24 +249,35 @@ void App::Init() {
 	textSheet2B = loadTexture("Pics\\Texts 2 B.png");
 	textSheet2C = loadTexture("Pics\\Texts 2 C.png");
 
-	megamanMoveSheet = loadTexture("Pics\\Characters\\Mega Man Move Sheet.png");
-	megamanAtkSheet  = loadTexture("Pics\\Characters\\Mega Man Atk Sheet.png");
-    protoMoveSheet   = loadTexture("Pics\\Characters\\Proto Man Move Sheet.png");
-    protoAtkSheet    = loadTexture("Pics\\Characters\\Proto Man Atk Sheet.png");
-    colonelMoveSheet = loadTexture("Pics\\Characters\\Colonel Move Sheet.png");
-    colonelAtkSheet  = loadTexture("Pics\\Characters\\Colonel Atk Sheet.png");
-    tmanMoveSheet    = loadTexture("Pics\\Characters\\Toma Move Sheet.png");
-    tmanAtkSheet1    = loadTexture("Pics\\Characters\\Toma Atk Sheet 1.png");
-    tmanAtkSheet2    = loadTexture("Pics\\Characters\\Toma Atk Sheet 2.png");
+	megamanMoveSheet  = loadTexture("Pics\\Characters\\Mega Man Move Sheet.png");
+	megamanAtkSheet   = loadTexture("Pics\\Characters\\Mega Man Atk Sheet.png");
+    megamanHurtSheet  = loadTexture("Pics\\Characters\\Mega Man Hurt Sheet.png");
+    protoMoveSheet    = loadTexture("Pics\\Characters\\Proto Man Move Sheet.png");
+    protoAtkSheet     = loadTexture("Pics\\Characters\\Proto Man Atk Sheet.png");
+    protoHurtSheet    = loadTexture("Pics\\Characters\\Proto Man Hurt Sheet.png");
+    colonelMoveSheet  = loadTexture("Pics\\Characters\\Colonel Move Sheet.png");
+    colonelAtkSheet   = loadTexture("Pics\\Characters\\Colonel Atk Sheet.png");
+    colonelHurtSheet  = loadTexture("Pics\\Characters\\Colonel Hurt Sheet.png");
+    tmanMoveSheet     = loadTexture("Pics\\Characters\\Toma Move Sheet.png");
+    tmanAtkSheet1     = loadTexture("Pics\\Characters\\Toma Atk Sheet 1.png");
+    tmanAtkSheet2     = loadTexture("Pics\\Characters\\Toma Atk Sheet 2.png");
+    tmanHurtSheet     = loadTexture("Pics\\Characters\\Toma Hurt Sheet.png");
+    slashmanMoveSheet = loadTexture("Pics\\Characters\\Slash Move Sheet.png");
+    slashmanAtkSheet  = loadTexture("Pics\\Characters\\Slash Atk Sheet.png");
+    slashmanHurtSheet = loadTexture("Pics\\Characters\\Slash Hurt Sheet.png");
 
 	rockSheet        = loadTexture("Pics\\Rock Sheet 1.png");
 	rockSheetItem    = loadTexture("Pics\\Rock Sheet 2.png");
+    rockSheetItem2   = loadTexture("Pics\\Rock Sheet 2-2.png");
+    rockSheetTrappedItem = loadTexture("Pics\\Rock Sheet 2-3.png");
 	rockDeathSheet   = loadTexture("Pics\\Death Sheet.png");
 	floorSheet       = loadTexture("Pics\\Tile Sheet 2.png");
 	floorMoveSheet   = loadTexture("Pics\\Move Tile Sheet 2.png");
 	floorBottomPic1  = loadTexture("Pics\\Tile Bottom 1.png");
 	floorBottomPic2  = loadTexture("Pics\\Tile Bottom 2.png");
 	energySheet      = loadTexture("Pics\\Energy Sheet.png");
+    energySheet2     = loadTexture("Pics\\Energy Sheet 2.png");
+    trappedEnergySheet = loadTexture("Pics\\Energy Sheet 3.png");
 	bgA              = loadTexture("Pics\\Background A.png");
 	bgB              = loadTexture("Pics\\Background B.png");
 	bgC              = loadTexture("Pics\\Background C.png");
@@ -273,6 +286,7 @@ void App::Init() {
 	menuPic1         = loadTexture("Pics\\Menu1-B.png");
     menuPic2         = loadTexture("Pics\\Menu2-B.png");
     menuPic3         = loadTexture("Pics\\Menu3-B.png");
+    menuPic4         = loadTexture("Pics\\Menu4-B.png");
 	lvBarPic         = loadTexture("Pics\\Level Bar.png");
 	healthBoxPic     = loadTexture("Pics\\Health Box.png");
     musicDisplayPic  = loadTexture("Pics\\MusicDisplay.png");
@@ -283,6 +297,7 @@ void App::Init() {
     resetPic1        = loadTexture("Pics\\Reset 1.png");
     resetPic2        = loadTexture("Pics\\Reset 2.png");
     resetPic3        = loadTexture("Pics\\Reset 3.png");
+    resetPic4        = loadTexture("Pics\\Reset 4.png");
     diffPic1         = loadTexture("Pics\\Difficulty1.png");
     diffPic2         = loadTexture("Pics\\Difficulty2.png");
     diffPic3         = loadTexture("Pics\\Difficulty3.png");
@@ -292,6 +307,7 @@ void App::Init() {
     trainPic1        = loadTexture("Pics\\Training 1.png");
     trainPic2        = loadTexture("Pics\\Training 2.png");
     trainPic3        = loadTexture("Pics\\Training 3.png");
+    trainPic4        = loadTexture("Pics\\Training 4.png");
 
 	swordAtkSheet1 = loadTexture("Pics\\Sword Attacks\\Sword Sheet 1.png");
 	swordAtkSheet3 = loadTexture("Pics\\Sword Attacks\\Sword Sheet 3.png");
@@ -303,8 +319,6 @@ void App::Init() {
 	crossAtkSheet3 = loadTexture("Pics\\Sword Attacks\\Cross Sheet 3.png");
 	spinAtkSheet1  = loadTexture("Pics\\Sword Attacks\\Spin Sheet 1.png");
 	spinAtkSheet3  = loadTexture("Pics\\Sword Attacks\\Spin Sheet 3.png");
-	stepAtkSheet1  = loadTexture("Pics\\Sword Attacks\\Wide Sheet 1.png");
-	stepAtkSheet3  = loadTexture("Pics\\Sword Attacks\\Wide Sheet 3.png");
 	lifeAtkSheet1  = loadTexture("Pics\\Sword Attacks\\Life Sheet 1.png");
 	lifeAtkSheet3  = loadTexture("Pics\\Sword Attacks\\Life Sheet 3.png");
 
@@ -329,20 +343,29 @@ void App::Init() {
     tomahawkAtkSheetB3  = loadTexture("Pics\\Sword Attacks\\Toma Sheet B3.png");
     eagleTomaSheet      = loadTexture("Pics\\Sword Attacks\\Eagle Toma Sheet.png");
 
+    longSlashSheet1     = loadTexture("Pics\\Sword Attacks\\Long Slash Sheet 1.png");
+    longSlashSheet3     = loadTexture("Pics\\Sword Attacks\\Long Slash Sheet 3.png");
+    wideSlashSheet1     = loadTexture("Pics\\Sword Attacks\\Wide Slash Sheet 1.png");
+    wideSlashSheet3     = loadTexture("Pics\\Sword Attacks\\Wide Slash Sheet 3.png");
+
 	Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 4, 4096 );
-	Mix_Volume( -1, 32 );
-	Mix_Volume(  0, 48 );
-    Mix_Volume(  3,  7 );
+	Mix_Volume( 0, 48 );
+    Mix_Volume( 1, 32 );
+    Mix_Volume( 2, 32 );
+    Mix_Volume( 3, 07 );
 	
 	swordSound      = Mix_LoadWAV( "Sounds\\SwordSwing.ogg" );
 	lifeSwordSound  = Mix_LoadWAV( "Sounds\\LifeSword.ogg" );
     screenDivSound  = Mix_LoadWAV( "Sounds\\ScreenDivide.ogg" );
     tomahawkSound   = Mix_LoadWAV( "Sounds\\Tomahawk.ogg" );
-    explosionSound  = Mix_LoadWAV( "Sounds\\EToma.ogg" );
+    eTomaSound      = Mix_LoadWAV( "Sounds\\EToma.ogg" );
+    spinSlashSound  = Mix_LoadWAV( "Sounds\\SpinSlash.ogg");
 
 	itemSound       = Mix_LoadWAV( "Sounds\\GotItem.ogg" );
+    itemSound2      = Mix_LoadWAV( "Sounds\\GotItem2.ogg" );
+    trapItemSound   = Mix_LoadWAV( "Sounds\\TrappedItem.ogg" );
 	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit.ogg" );
-	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack2.ogg" );
+	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack.ogg" );
 
 	menuOpenSound   = Mix_LoadWAV( "Sounds\\ChipDesc.ogg" );
 	menuCloseSound  = Mix_LoadWAV( "Sounds\\ChipDescClose.ogg" );
@@ -379,9 +402,11 @@ App::~App() {
 	Mix_FreeChunk( lifeSwordSound );
     Mix_FreeChunk( screenDivSound );
     Mix_FreeChunk( tomahawkSound );
-    Mix_FreeChunk( explosionSound );
+    Mix_FreeChunk( eTomaSound );
+    Mix_FreeChunk( spinSlashSound );
 
 	Mix_FreeChunk( itemSound );
+    Mix_FreeChunk( itemSound2 );
 	Mix_FreeChunk( rockBreakSound );
 	Mix_FreeChunk( panelBreakSound );
 
@@ -439,14 +464,18 @@ void App::FixedUpdate() {
 	checkKeys();
 	updateGame(fixed_timestep);
 }
+
 void App::updateGame(float elapsed) {
     // Handles Displayed Energy amt
     if ( chargeDisplayMinusAmt <= 0 && chargeDisplayPlusAmt <= 0 ) { energyDisplayed = player.energy; }
-    else if ( energyDisplayed > player.energy ) { energyDisplayed -= 5; }
-    else if ( energyDisplayed < player.energy ) { energyDisplayed += 5; }
+    else if ( energyDisplayed > player.energy ) { energyDisplayed -= 500 * elapsed; }
+    else if ( energyDisplayed < player.energy ) { energyDisplayed += 500 * elapsed; }
+    if ( abs( energyDisplayed - player.energy ) <= 500 * fixed_timestep ) { energyDisplayed = player.energy; }
+
     if ( chargeDisplayMinusAmt <= 0 && chargeDisplayPlusAmt <= 0 ) { energyDisplayed2 = currentEnergyGain; }
-    else if ( energyDisplayed2 > currentEnergyGain ) { energyDisplayed2 -= 5; }
-    else if ( energyDisplayed2 < currentEnergyGain ) { energyDisplayed2 += 5; }
+    else if ( energyDisplayed2 > currentEnergyGain ) { energyDisplayed2 -= 500 * elapsed; }
+    else if ( energyDisplayed2 < currentEnergyGain ) { energyDisplayed2 += 500 * elapsed; }
+    if ( abs( energyDisplayed2 - currentEnergyGain ) <= 500 * fixed_timestep ) { energyDisplayed2 = currentEnergyGain; }
 
 	// Display parameter for Energy gain
 	chargeDisplayPlusAmt -= elapsed;
@@ -455,11 +484,9 @@ void App::updateGame(float elapsed) {
 	// Display parameter for Energy usage
 	chargeDisplayMinusAmt -= elapsed;
 	if (chargeDisplayMinusAmt < 0) { chargeDisplayMinusAmt = 0; }
-
+    
 	// Display parameter for attack, movement, and level transition animations
 	animationDisplayAmt -= elapsed;
-	// Step sword parameter
-	if (animationDisplayAmt < stepAtkTime && selSwordAnimation == 5 && animationType == 1) { player.moving = false; }
 	// Invalid movement when trying to move back onto the Starting Tile
 	if (player.x == -1 && player.y == 0 && animationDisplayAmt < 0) {
 		animationType = 2;
@@ -471,7 +498,7 @@ void App::updateGame(float elapsed) {
 		animationType = 3;
 		animationDisplayAmt = moveAnimationTime * 3; }
 	// Reload default parameters when nothing is happening or being animated
-	else if (animationDisplayAmt < 0) {
+	else if (animationDisplayAmt <= 0) {
 		animationDisplayAmt = 0;
 		player.moving = false;
 		player.turning = false;
@@ -514,7 +541,7 @@ void App::updateGame(float elapsed) {
 			else if ( delayedSoundList[i].soundName == "life" )   { Mix_PlayChannel( 0, lifeSwordSound, 0 ); }
             else if ( delayedSoundList[i].soundName == "divide" ) { Mix_PlayChannel( 0, screenDivSound, 0 ); }
             else if ( delayedSoundList[i].soundName == "toma" )   { Mix_PlayChannel( 0, tomahawkSound, 0 ); }
-            else if ( delayedSoundList[i].soundName == "eToma" )  { Mix_PlayChannel( 0, explosionSound, 0 ); }
+            else if ( delayedSoundList[i].soundName == "eToma" )  { Mix_PlayChannel( 0, eTomaSound, 0 ); }
 			delayedSoundList.erase( delayedSoundList.begin() + i);
 	}	}
 
@@ -573,7 +600,7 @@ void App::checkKeys() {
             }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_S || event.key.keysym.scancode == SDL_SCANCODE_DOWN ) {
                 if ( resetMenuOn || trainMenuOn ) {
-                    if ( charSel < 2 ) {       charSel += 2;      Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
+                    if ( charSel < 3 ) {       charSel += 2;      Mix_PlayChannel( 1, quitChooseSound, 0 );   }   }
             }
             else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT ) {
                 if ( quitMenuOn ) {
@@ -644,7 +671,7 @@ void App::checkKeys() {
     }
 
     // Player Movement and Attacks
-    if ( animationDisplayAmt <= 0 && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn  ) {
+    if ( animationDisplayAmt <= 0 && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn ) {
         // The player can't Move or Attack until after the previous Action is completed, or if a Menu is open
 
 	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
@@ -673,25 +700,35 @@ void App::checkKeys() {
 		else if (keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1]) {
             if      ( player.type == 0 || player.type == 1 ) { swordAtk( player.facing ); }
             else if ( player.type == 2 )                     { tomaAtkA1( player.facing ); }
-            else if ( player.type == 3 )                     { vDivideAtk( player.facing ); } }
+            else if ( player.type == 3 )                     { vDivideAtk( player.facing ); }
+            else if ( player.type == 4 )                     { longAtk( player.facing ); }
+        }
 		else if (keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2]) {
             if      ( player.type == 0 || player.type == 1 ) { longAtk( player.facing ); }
             else if ( player.type == 2 )                     { tomaAtkB1( player.facing); }
-            else if ( player.type == 3 )                     { upDivideAtk( player.facing ); } }
+            else if ( player.type == 3 )                     { upDivideAtk( player.facing ); }
+            else if ( player.type == 4 )                     { wideAtk( player.facing ); }
+        }
 		else if (keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3]) {
             if      ( player.type == 0 || player.type == 1 ) { wideAtk( player.facing ); }
             else if ( player.type == 2 )                     { tomaAtkA2( player.facing ); }
-            else if ( player.type == 3 )                     { downDivideAtk( player.facing ); } }
+            else if ( player.type == 3 )                     { downDivideAtk( player.facing ); }
+            else if ( player.type == 4 )                     { crossAtk( player.facing ); }
+        }
 		else if (keystates[SDL_SCANCODE_4] || keystates[SDL_SCANCODE_KP_4]) { 
             if      ( player.type == 0 ) { crossAtk( player.facing );   }
             else if ( player.type == 1 ) { stepAtk( player.facing );    }
             else if ( player.type == 2 ) { tomaAtkB2( player.facing ); }
-            else if ( player.type == 3 ) { xDivideAtk( player.facing ); } }
+            else if ( player.type == 3 ) { xDivideAtk( player.facing ); }
+            else if ( player.type == 4 ) { stepCrossAtk( player.facing ); }
+        }
 		else if (keystates[SDL_SCANCODE_5] || keystates[SDL_SCANCODE_KP_5]) {
             if      ( player.type == 0 ) { spinAtk( player.facing );    }
             else if ( player.type == 1 ) { heroAtk( player.facing );    }
             else if ( player.type == 2 ) { eTomaAtk( player.facing ); }
-            else if ( player.type == 3 ) { zDivideAtk( player.facing ); } }
+            else if ( player.type == 3 ) { zDivideAtk( player.facing ); }
+            else if ( player.type == 4 ) { spinSlashAtk( player.facing ); }
+        }
 		else if (keystates[SDL_SCANCODE_6] || keystates[SDL_SCANCODE_KP_6]) {
             if      ( player.type == 0 ) { stepAtk(player.facing); }
             else if ( player.type == 1 ) { protoAtk( player.facing ); } }
@@ -843,6 +880,7 @@ void App::drawMenu() {
     else if ( player.type == 1 ) { drawSpriteSheetSprite( place, menuPic1, 0, 1, 1 ); }
     else if ( player.type == 2 ) { drawSpriteSheetSprite( place, menuPic2, 0, 1, 1 ); }
     else if ( player.type == 3 ) { drawSpriteSheetSprite( place, menuPic3, 0, 1, 1 ); }
+    else if ( player.type == 4 ) { drawSpriteSheetSprite( place, menuPic4, 0, 1, 1 ); }
 }
 void App::drawQuitMenu() {
     glLoadIdentity();
@@ -857,6 +895,7 @@ void App::drawResetMenu() {
     else if ( charSel == 1 ) { drawSpriteSheetSprite( place, resetPic1, 0, 1, 1 ); }
     else if ( charSel == 2 ) { drawSpriteSheetSprite( place, resetPic2, 0, 1, 1 ); }
     else if ( charSel == 3 ) { drawSpriteSheetSprite( place, resetPic3, 0, 1, 1 ); }
+    else if ( charSel == 4 ) { drawSpriteSheetSprite( place, resetPic4, 0, 1, 1 ); }
 }
 void App::drawDiffSelMenu() {
     glLoadIdentity();
@@ -874,6 +913,7 @@ void App::drawTrainMenu() {
     else if ( charSel == 1 ) { drawSpriteSheetSprite( place, trainPic1, 0, 1, 1 ); }
     else if ( charSel == 2 ) { drawSpriteSheetSprite( place, trainPic2, 0, 1, 1 ); }
     else if ( charSel == 3 ) { drawSpriteSheetSprite( place, trainPic3, 0, 1, 1 ); }
+    else if ( charSel == 4 ) { drawSpriteSheetSprite( place, trainPic4, 0, 1, 1 ); }
 }
 void App::drawTabMenuCtrl() {
     glLoadIdentity();
@@ -901,7 +941,8 @@ void App::drawPlayer() {
     GLuint texture;
 
 	// Step Sword Move Animation
-	if (animationType == 1 && (selSwordAnimation == 5 || selSwordAnimation == 12)) {
+	if (animationType == 1 && (selSwordAnimation == 5 || selSwordAnimation == 12 || selSwordAnimation == 21)) {
+        int textureSheetWidth = 8;
         if ( player.type == 0 ) {
 		    playerSizeX = 0.66 * playerScale;
 		    playerSizeY = 0.56 * playerScale;
@@ -918,11 +959,13 @@ void App::drawPlayer() {
             playerSizeY = 0.76 * playerScale;
             glTranslatef( 0, 0.2 * playerScale, 0 );
             texture = colonelAtkSheet; }
-
-		GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
-								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
-		                          player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
-								  player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY };
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.94 * playerScale;
+		    playerSizeY = 0.88 * playerScale; 
+            glTranslatef( 0, 0.065 * playerScale, 0 );
+            displace2 = 0.20;
+            textureSheetWidth = 9;
+            texture = slashmanAtkSheet; }
 
 		if		(animationDisplayAmt > stepAtkTime + moveAnimationTime * 1.0) { displace = 2.000 * scaleX; }
 		else if (animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.9) { displace = 1.975 * scaleX; }
@@ -934,21 +977,37 @@ void App::drawPlayer() {
 		else if (animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.3) { displace = 0.760 * scaleX; }
 		else if (animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.2) { displace = 0.380 * scaleX; }
 		else if (animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.1) { displace = 0.000 * scaleX; }
-		if      (animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 1; }
-		else if (animationDisplayAmt > stepAtkTime - 0.10) { picIndex = 2; }
-		else if (animationDisplayAmt > stepAtkTime - 0.14) { picIndex = 3; }
-		else if (animationDisplayAmt > stepAtkTime - 0.20) { picIndex = 4; }
-		else if (animationDisplayAmt > stepAtkTime - 0.26) { picIndex = 5; }
-		else if (animationDisplayAmt > stepAtkTime - 0.32) { picIndex = 6; }
-		else if (animationDisplayAmt > 0)                  { picIndex = 7; }
+
+        if ( player.type == 4 ) {
+            if ( ( player.energy / 100 ) % 2 ) {
+                if      (animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 0; }
+		        else if (animationDisplayAmt > stepAtkTime - 0.18) { picIndex = 1; }
+		        else if (animationDisplayAmt > 0)                  { picIndex = 2; } }
+            else {
+                if      (animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 2; }
+		        else if (animationDisplayAmt > stepAtkTime - 0.18) { picIndex = 3; }
+		        else if (animationDisplayAmt > 0)                  { picIndex = 4; } }
+        }
+        else {
+		    if      (animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 1; }
+		    else if (animationDisplayAmt > stepAtkTime - 0.10) { picIndex = 2; }
+		    else if (animationDisplayAmt > stepAtkTime - 0.14) { picIndex = 3; }
+		    else if (animationDisplayAmt > stepAtkTime - 0.20) { picIndex = 4; }
+		    else if (animationDisplayAmt > stepAtkTime - 0.26) { picIndex = 5; }
+		    else if (animationDisplayAmt > stepAtkTime - 0.32) { picIndex = 6; }
+		    else if (animationDisplayAmt > 0)                  { picIndex = 7; } }
 
 		if (player.facing == 1) {
             glTranslatef(  displace - displace2, 0.02, 0 );
-            picIndex += 8; }
+            picIndex += textureSheetWidth; }
 		else if (player.facing == 3) {
             glTranslatef( -displace + displace2, 0.02, 0 ); }
 
-        drawSpriteSheetSprite( playerPlace, texture, picIndex, 8, 2 );
+        GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
+								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
+		                          player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
+								  player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY };
+        drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
 	}
 	// Attack Animation
 	else if (animationType == 1 && animationDisplayAmt > 0) {
@@ -968,18 +1027,16 @@ void App::drawPlayer() {
             playerSizeY = 0.76 * playerScale;
             glTranslatef( 0, 0.2 * playerScale, 0 );
             texture = colonelAtkSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.94 * playerScale;
+		    playerSizeY = 0.88 * playerScale; 
+            glTranslatef( 0, 0.065 * playerScale, 0 );
+            displace2 = 0.20;
+            textureSheetWidth = 9;
+            texture = slashmanAtkSheet; }
 
-		// Altered animations for LifeSword, ProtoSword, ScreenDivideZ
-		if (selSwordAnimation == 6 || selSwordAnimation == 7 || selSwordAnimation == 8 || selSwordAnimation == 13) {
-			if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 1; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.14) { picIndex = 2; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.18) { picIndex = 3; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 4; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.26) { picIndex = 5; }
-			else if (animationDisplayAmt > currentSwordAtkTime - 0.30) { picIndex = 6; }
-			else if (animationDisplayAmt > 0)                          { picIndex = 7; } }
         // Altered animation for Tomahawkman's regular attacks
-        else if ( selSwordAnimation >= 14 && selSwordAnimation <= 17 ) {
+        if ( selSwordAnimation >= 14 && selSwordAnimation <= 17 ) {
             playerSizeX = 0.80 * playerScale;
             playerSizeY = 0.65 * playerScale;
             displace2 = 0.22;
@@ -990,7 +1047,7 @@ void App::drawPlayer() {
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.24) { picIndex = 1; }
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.28) { picIndex = 2; }
 			else if (animationDisplayAmt > 0)                          { picIndex = 3; } }
-        // Altered animation for Tomahawkman's Eagle Tomahawk attack
+        // Tomahawkman's Eagle Tomahawk attack
         else if ( selSwordAnimation == 18 ) {
             playerSizeX = 1.10 * playerScale;
             playerSizeY = 0.99  * playerScale;
@@ -1003,6 +1060,40 @@ void App::drawPlayer() {
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 2; }
 			else if (animationDisplayAmt > currentSwordAtkTime - 0.24) { picIndex = 3; }
             else if (animationDisplayAmt > 0)                          { picIndex = 4; } }
+        // Slashman's LongSlash and CrossSlash
+        else if ( selSwordAnimation == 19 ) {
+            if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 2; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 3; }
+			else if (animationDisplayAmt > 0)                          { picIndex = 4; }
+        }
+        // Slashman's WideSlash
+        else if ( selSwordAnimation == 20 ) {
+            if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 0; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 1; }
+			else if (animationDisplayAmt > 0)                          { picIndex = 2; }
+        }
+        // Slashman's CrossSlash
+        else if ( selSwordAnimation == 3 && player.type == 4 ) {
+            if ( ( player.energy / 100 ) % 2 ) {
+                if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 0; }
+			    else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 1; }
+			    else if (animationDisplayAmt > 0)                          { picIndex = 2; } }
+            else {
+                if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 2; }
+			    else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 3; }
+			    else if (animationDisplayAmt > 0)                          { picIndex = 4; } }
+        }
+        // Slashman's SpinSlash
+        else if ( selSwordAnimation == 22 ) {
+            if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 5; }
+			else if (animationDisplayAmt > currentSwordAtkTime - 0.16) { picIndex = 6; }
+            else if (animationDisplayAmt > currentSwordAtkTime - 0.22) { picIndex = 7; }
+            else if (animationDisplayAmt > currentSwordAtkTime - 0.28) { picIndex = 6; }
+            else if (animationDisplayAmt > currentSwordAtkTime - 0.34) { picIndex = 8; }
+            else if (animationDisplayAmt > currentSwordAtkTime - 0.40) { picIndex = 6; }
+            else if (animationDisplayAmt > currentSwordAtkTime - 0.46) { picIndex = 7; }
+			else if (animationDisplayAmt > 0)                          { picIndex = 6; }
+        }
 		// Animation for the rest of the Attacks
 		else {
 			if      (animationDisplayAmt > currentSwordAtkTime - 0.10) { picIndex = 1; }
@@ -1026,7 +1117,8 @@ void App::drawPlayer() {
         drawSpriteSheetSprite(playerPlace, texture, picIndex, textureSheetWidth, 2);
 	}
 	// Movement Animation
-	else if (animationType == 0 && player.moving) {
+    else if ( animationType == 0 && player.moving
+              || ( animationType == -1 && animationDisplayAmt > pauseAnimationTime - moveAnimationTime / 2.0 ) ) {
         if ( player.type == 0 ) {
 		    playerSizeX = 0.35 * playerScale;
 		    playerSizeY = 0.54 * playerScale;
@@ -1050,19 +1142,25 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.09 * playerScale, 0 );
             displace2 = -0.1 * playerScale;
             texture = colonelMoveSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.56 * playerScale;
+            glTranslatef( 0, 0.00 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = slashmanMoveSheet; }
 
 		GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
 								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
 		                          player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
 								  player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY };
 
-		if		(animationDisplayAmt > moveAnimationTime * 0.70) { displace = 1; picIndex = 0; }
-		else if (animationDisplayAmt > moveAnimationTime * 0.60) { displace = 1; picIndex = 1; }
-		else if (animationDisplayAmt > moveAnimationTime * 0.50) { displace = 1; picIndex = 2; }
-		else if (animationDisplayAmt > moveAnimationTime * 0.45) { displace = 0; picIndex = 3; }
-		else if (animationDisplayAmt > moveAnimationTime * 0.35) { displace = 0; picIndex = 2; }
-		else if (animationDisplayAmt > moveAnimationTime * 0.25) { displace = 0; picIndex = 1; }
-		else if (animationDisplayAmt > moveAnimationTime * 0.00) { displace = 0; picIndex = 0; }
+		if		(animationDisplayAmt > (moveAnimationTime * 0.70 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 1; picIndex = 0; }
+		else if (animationDisplayAmt > (moveAnimationTime * 0.60 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 1; picIndex = 1; }
+		else if (animationDisplayAmt > (moveAnimationTime * 0.50 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 1; picIndex = 2; }
+		else if (animationDisplayAmt > (moveAnimationTime * 0.45 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 0; picIndex = 3; }
+		else if (animationDisplayAmt > (moveAnimationTime * 0.35 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 0; picIndex = 2; }
+		else if (animationDisplayAmt > (moveAnimationTime * 0.25 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 0; picIndex = 1; }
+		else if (animationDisplayAmt > (moveAnimationTime * 0.00 + (animationType == -1 ? moveAnimationTime * 1.5 : 0))) { displace = 0; picIndex = 0; }
 		if      (player.moveDir == 0) {
 			glTranslatef(0, -displace * scaleY, 0);
 			if      (player.facing == 1) {
@@ -1090,6 +1188,55 @@ void App::drawPlayer() {
 			drawSpriteSheetSprite(playerPlace, texture, picIndex, 4, 2);
 		}
 	}
+    // Trapped Energy Hurt Animation
+    else if (animationType == -1 && animationDisplayAmt > 0) {
+        if ( player.type == 0 ) {
+		    playerSizeX = 0.40 * playerScale;
+		    playerSizeY = 0.48 * playerScale;
+            glTranslatef( 0, -0.06 * playerScale, 0 );
+            displace2 = 0.014;
+            texture = megamanHurtSheet; }
+        else if ( player.type == 1 ) {
+            playerSizeX = 0.70 * playerScale;
+		    playerSizeY = 0.49 * playerScale;
+            glTranslatef( 0, -0.05 * playerScale, 0 );
+            displace2 = -0.01 * playerScale;
+            texture = protoHurtSheet; }
+        else if ( player.type == 2 ) {
+            playerSizeX = 0.59 * playerScale;
+            playerSizeY = 0.51 * playerScale;
+            glTranslatef( 0, -0.02 * playerScale, 0 );
+            displace2 = 0.17 * playerScale;
+            texture = tmanHurtSheet; }
+        else if ( player.type == 3 ) {
+            playerSizeX = 0.65 * playerScale;
+		    playerSizeY = 0.67 * playerScale;
+            glTranslatef( 0, 0.088 * playerScale, 0 );
+            displace2 = -0.184 * playerScale;
+            texture = colonelHurtSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.52 * playerScale;
+            glTranslatef( 0, -0.04 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = slashmanHurtSheet; }
+
+		GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
+								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
+		                          player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
+								  player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY };
+
+		if		( animationDisplayAmt > moveAnimationTime * 0.75 ) { picIndex = 0; }
+        else if ( animationDisplayAmt > moveAnimationTime * 0.00 ) { picIndex = 1; }
+		if (player.facing == 1) {
+			glTranslatef(-displace2, 0, 0);
+			drawSpriteSheetSprite(playerPlace, texture, picIndex + 2, 2, 2);
+		}
+		else if (player.facing == 3) {
+			glTranslatef(displace2, 0, 0);
+			drawSpriteSheetSprite(playerPlace, texture, picIndex, 2, 2);
+		}
+    }
 	// Turning Animation
 	else if (animationType == 0 && player.turning) {
 		bool reverse = true;
@@ -1115,6 +1262,12 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.09 * playerScale, 0 );
             displace = -0.1 * playerScale;
             texture = colonelMoveSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.56 * playerScale;
+            glTranslatef( 0, 0.00 * playerScale, 0 );
+            displace = 0.2 * playerScale;
+            texture = slashmanMoveSheet; }
 
 		GLfloat playerPlace[] = { player.x  * scaleX - playerSizeX, player.y * scaleY + playerSizeY,
 								  player.x  * scaleX - playerSizeX, player.y * scaleY - playerSizeY,
@@ -1162,6 +1315,12 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.09 * playerScale, 0 );
             displace2 = -0.1 * playerScale;
             texture = colonelMoveSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.56 * playerScale;
+            glTranslatef( 0, 0.00 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = slashmanMoveSheet; }
 
 		GLfloat playerPlace[] = { player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY,
 								  player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
@@ -1197,6 +1356,12 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.09 * playerScale, 0 );
             displace2 = -0.1 * playerScale;
             texture = colonelMoveSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.56 * playerScale;
+            glTranslatef( 0, 0.00 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = slashmanMoveSheet; }
 
 		GLfloat playerPlace[] = { player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY,
 								  player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
@@ -1232,6 +1397,12 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.09 * playerScale, 0 );
             displace2 = -0.1 * playerScale;
             texture = colonelMoveSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.56 * playerScale;
+            glTranslatef( 0, 0.00 * playerScale, 0 );
+            displace2 = 0.2 * playerScale;
+            texture = slashmanMoveSheet; }
 
 		GLfloat playerPlace[] = { player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY,
 								  player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
@@ -1266,6 +1437,12 @@ void App::drawPlayer() {
             glTranslatef( 0, 0.09 * playerScale, 0 );
             displace = -0.1 * playerScale;
             texture = colonelMoveSheet; }
+        else if ( player.type == 4 ) {
+            playerSizeX = 0.66 * playerScale;
+		    playerSizeY = 0.56 * playerScale;
+            glTranslatef( 0, 0.00 * playerScale, 0 );
+            displace = 0.2 * playerScale;
+            texture = slashmanMoveSheet; }
 
 		GLfloat playerPlace[] = { player.x  * scaleX + playerSizeX, player.y * scaleY + playerSizeY,
 								  player.x  * scaleX + playerSizeX, player.y * scaleY - playerSizeY,
@@ -1307,6 +1484,9 @@ void App::drawSwordAtks() {
                 }
             }
         }
+        else if (selSwordAnimation == 19) { longSlashDisplay(player.facing); }
+        else if (selSwordAnimation == 20) { wideSlashDisplay(player.facing); }
+        else if (selSwordAnimation == 21) { stepCrossDisplay(player.facing); }
     }
 }
 
@@ -1389,9 +1569,13 @@ void App::drawBoxes(int row) {			// Draw the Rock Obstacles on the Floor
 				GLfloat place[] = { i * scaleX + sizeX, row * scaleY + sizeY, i * scaleX + sizeX, row * scaleY - sizeY,
 									i * scaleX - sizeX, row * scaleY - sizeY, i * scaleX - sizeX, row * scaleY + sizeY };
 
-				if      (map[i][row].boxType <= 0) { sheetHeight = 5; textureSheet = rockSheet; }
-				else if (map[i][row].boxType == 1) { sheetHeight = 5; textureSheet = rockSheet; }
-				else if (map[i][row].boxType == 2) { sheetHeight = 3; textureSheet = rockSheetItem; }
+				if      (map[i][row].boxType <= 1) { sheetHeight = 5; textureSheet = rockSheet; }
+                else if (map[i][row].boxType == 2) {
+                    sheetHeight = 3;
+                    if      ( map[i][row].item == 2 )  { textureSheet = rockSheetItem2; }
+                    else if ( map[i][row].item == -1 ) { textureSheet = rockSheetTrappedItem; }
+                    else                               { textureSheet = rockSheetItem; }
+                }
 
 				index = (map[i][row].boxHP - 1) * 3;
 				if      (map[i][row].prevDmg == 1 && map[i][row].boxAtkInd > 0) { index += 4; }
@@ -1418,16 +1602,21 @@ void App::drawItems(int row) {		// Draw the Collectable Resources on the Map
 	for (int i = 0; i < 6; i++) {
 		GLfloat place[] = { i + itemSizeX * scaleX, row * scaleY + itemSizeY, i + itemSizeX * scaleX, row * scaleY - itemSizeY,
 							i - itemSizeX * scaleX, row * scaleY - itemSizeY, i - itemSizeX * scaleX, row * scaleY + itemSizeY };
-		if (map[i][row].item > 0 && map[i][row].boxHP <= 0) {
-			if      (itemAnimationAmt >= 0 && itemAnimationAmt < 1) { drawSpriteSheetSprite(place, energySheet, 0, 8, 1); }
-			else if (itemAnimationAmt >= 1 && itemAnimationAmt < 2) { drawSpriteSheetSprite(place, energySheet, 1, 8, 1); }
-			else if (itemAnimationAmt >= 2 && itemAnimationAmt < 3) { drawSpriteSheetSprite(place, energySheet, 2, 8, 1); }
-			else if (itemAnimationAmt >= 3 && itemAnimationAmt < 4) { drawSpriteSheetSprite(place, energySheet, 3, 8, 1); }
-			else if (itemAnimationAmt >= 4 && itemAnimationAmt < 5) { drawSpriteSheetSprite(place, energySheet, 4, 8, 1); }
-			else if (itemAnimationAmt >= 5 && itemAnimationAmt < 6) { drawSpriteSheetSprite(place, energySheet, 5, 8, 1); }
-			else if (itemAnimationAmt >= 6 && itemAnimationAmt < 7) { drawSpriteSheetSprite(place, energySheet, 6, 8, 1); }
-			else if (itemAnimationAmt >= 7 && itemAnimationAmt < 8) { drawSpriteSheetSprite(place, energySheet, 7, 8, 1); }
-}	}	}
+		if (map[i][row].item != 0 && map[i][row].boxHP <= 0) {
+            GLuint texture = energySheet;
+            if      ( map[i][row].item == 2 )  { texture = energySheet2; }
+            else if ( map[i][row].item == -1 ) { texture = trappedEnergySheet; }
+
+			if      (itemAnimationAmt >= 0 && itemAnimationAmt < 1) { drawSpriteSheetSprite(place, texture, 0, 8, 1); }
+			else if (itemAnimationAmt >= 1 && itemAnimationAmt < 2) { drawSpriteSheetSprite(place, texture, 1, 8, 1); }
+			else if (itemAnimationAmt >= 2 && itemAnimationAmt < 3) { drawSpriteSheetSprite(place, texture, 2, 8, 1); }
+			else if (itemAnimationAmt >= 3 && itemAnimationAmt < 4) { drawSpriteSheetSprite(place, texture, 3, 8, 1); }
+			else if (itemAnimationAmt >= 4 && itemAnimationAmt < 5) { drawSpriteSheetSprite(place, texture, 4, 8, 1); }
+			else if (itemAnimationAmt >= 5 && itemAnimationAmt < 6) { drawSpriteSheetSprite(place, texture, 5, 8, 1); }
+			else if (itemAnimationAmt >= 6 && itemAnimationAmt < 7) { drawSpriteSheetSprite(place, texture, 6, 8, 1); }
+			else if (itemAnimationAmt >= 7 && itemAnimationAmt < 8) { drawSpriteSheetSprite(place, texture, 7, 8, 1); } }
+    }
+}
 void App::drawTextUI() {
 	// Display current Level number
 	glLoadIdentity();
@@ -1473,8 +1662,8 @@ void App::drawTextUI() {
 	if (abs( energyDisplayed2 ) >= 100)  { glTranslatef(-0.04, 0, 0); }
 	if (abs( energyDisplayed2 ) >= 1000) { glTranslatef(-0.04, 0, 0); }
 	if (level > 0) {
-		if      ( energyDisplayed2 > 0 ) { drawText(textSheet1B, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
-		else if ( energyDisplayed2 < 0 ) { drawText(textSheet1C, to_string(abs( energyDisplayed2 )), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0); }
+        if      ( energyDisplayed2 > 0 ) { drawText( textSheet1B, to_string( abs( energyDisplayed2 ) ), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 ); }
+        else if ( energyDisplayed2 < 0 ) { drawText( textSheet1C, to_string( abs( energyDisplayed2 ) ), 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 ); }
 	}
 
 	// Display Sword Name and Cost
@@ -1487,14 +1676,22 @@ void App::drawTextUI() {
         if ( selSwordAnimation == -2 ) {
             texture = textSheet1B;
             text = "Energy" + to_string( energyGainAmt ); }
+        else if ( selSwordAnimation == -3 ) {
+            texture = textSheet1B;
+            text = "Energy" + to_string( energyGainAmt2 ); }
+        else if ( selSwordAnimation == -4 ) {
+            texture = textSheet1C;
+            text = "Energy" + to_string( energyLossAmt ); }
         else {
             texture = textSheet1C;
             if      ( selSwordAnimation == 0 )  { text = "Sword"    + to_string( swordCost ); }
             else if ( selSwordAnimation == 1 )  { text = "LongSwrd" + to_string( longCost ); }
             else if ( selSwordAnimation == 2 ) {
-                if ( player.type == 0 )         { text = "WideSwrd" + to_string( wideCost ); }
-                else if (player.type == 1 )     { text = "WideSwrd" + to_string( wideCost2 ); } }
-            else if ( selSwordAnimation == 3 )  { text = "CrossSrd" + to_string( crossCost ); }
+                if      ( player.type == 0 )    { text = "WideSwrd" + to_string( wideCost ); }
+                else if ( player.type == 1 )    { text = "WideSwrd" + to_string( wideCost2 ); } }
+            else if ( selSwordAnimation == 3 ) {
+                if      ( player.type == 0 )    { text = "CrossSrd" + to_string( crossCost ); }
+                else if ( player.type == 4 )    { text = "CrossSls" + to_string( crossCost2 ); } }
             else if ( selSwordAnimation == 4 )  { text = "SpinSwrd" + to_string( spinCost ); }
             else if ( selSwordAnimation == 5 ) {
                 if ( player.type == 0 )         { text = "StepSwrd" + to_string( stepCost ); }
@@ -1510,8 +1707,12 @@ void App::drawTextUI() {
             else if ( selSwordAnimation == 14 ) { text = "WideSwng" + to_string( tomaCostA1 ); }
             else if ( selSwordAnimation == 15 ) { text = "WdSwngEX" + to_string( tomaCostB1 ); }
             else if ( selSwordAnimation == 16 ) { text = "Tomahawk" + to_string( tomaCostA2 ); }
-            else if ( selSwordAnimation == 17 ) { text = "TmhawkEX" + to_string( tomaCostB2 ); }
+            else if ( selSwordAnimation == 17 ) { text = "TomahkEX" + to_string( tomaCostB2 ); }
             else if ( selSwordAnimation == 18 ) { text = "ETomahwk" + to_string( eTomaCost ); }
+            else if ( selSwordAnimation == 19 ) { text = "LongSlsh" + to_string( longCost ); }
+            else if ( selSwordAnimation == 20 ) { text = "WideSlsh" + to_string( wideCost ); }
+            else if ( selSwordAnimation == 21 ) { text = "StepCrss" + to_string( stepCrossCost ); }
+            else if ( selSwordAnimation == 22 ) { text = "SpinSlsh" + to_string( spinSlashCost ); }
         }
         drawText( texture, text, 0.08 * 2 / 4, 0.16 * 2 / 2.7, 0 );
     }
@@ -1665,10 +1866,10 @@ void App::stepDisplay(int dir) {
 
 	if (dir == 1) {
 		xPos--;
-        texture = stepAtkSheet1; }
+        texture = wideAtkSheet1; }
 	else if (dir == 3) {
 		xPos++;
-        texture = stepAtkSheet3; }
+        texture = wideAtkSheet3; }
 
     GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
                            xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
@@ -1950,6 +2151,69 @@ void App::eTomaDisplay(int xPos, int yPos, float animationTime) {
     else if ( animationTime >  0.02 ) { drawSpriteSheetSprite( atkPlace, texture, 2, 4, 1 ); }
     else if ( animationTime >  0.00 ) { drawSpriteSheetSprite( atkPlace, texture, 3, 4, 1 ); }
 }
+void App::longSlashDisplay(int dir) {
+    float sizeX = 0.84 * playerScale;
+	float sizeY = 0.54 * playerScale;
+	float xPos = player.x;
+	float yPos = player.y;
+    GLuint texture;
+
+	if (dir == 1) {
+		xPos -= 1.5;
+        texture = longSlashSheet1; }
+	else if (dir == 3) {
+		xPos += 1.5;
+        texture = longSlashSheet3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+						   xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+	if		(animationDisplayAmt > swordAtkTime - 0.12) {}
+	else if (animationDisplayAmt > swordAtkTime - 0.20) { drawSpriteSheetSprite(atkPlace, texture, 0, 3, 1); }
+	else if (animationDisplayAmt > swordAtkTime - 0.26) { drawSpriteSheetSprite(atkPlace, texture, 1, 3, 1); }
+	else if (animationDisplayAmt > swordAtkTime - 0.32) { drawSpriteSheetSprite(atkPlace, texture, 2, 3, 1); }
+}
+void App::wideSlashDisplay(int dir) {
+    float sizeX = 0.39 * playerScale;
+	float sizeY = 0.95 * playerScale;
+	float xPos = player.x;
+	float yPos = player.y;
+    GLuint texture;
+
+	if (dir == 1) {
+		xPos--;
+        texture = wideSlashSheet1; }
+	else if (dir == 3) {
+		xPos++;
+        texture = wideSlashSheet3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+						   xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+	if		(animationDisplayAmt > swordAtkTime - 0.12) {}
+	else if (animationDisplayAmt > swordAtkTime - 0.20) { drawSpriteSheetSprite(atkPlace, texture, 0, 3, 1); }
+	else if (animationDisplayAmt > swordAtkTime - 0.26) { drawSpriteSheetSprite(atkPlace, texture, 1, 3, 1); }
+	else if (animationDisplayAmt > swordAtkTime - 0.32) { drawSpriteSheetSprite(atkPlace, texture, 2, 3, 1); }
+}
+void App::stepCrossDisplay(int dir) {
+    float sizeX = 1.2 * playerScale;
+	float sizeY = 1.2 * playerScale;
+	float xPos = player.x;
+	float yPos = player.y;
+    GLuint texture;
+
+	if (dir == 1) {
+		xPos--;
+        texture = crossAtkSheet1; }
+	else if (dir == 3) {
+		xPos++;
+        texture = crossAtkSheet3; }
+
+    GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
+    if      ( animationDisplayAmt > stepAtkTime - 0.18 ) {}
+    else if ( animationDisplayAmt > stepAtkTime - 0.26 ) { drawSpriteSheetSprite( atkPlace, texture, 0, 3, 1 ); }
+    else if ( animationDisplayAmt > stepAtkTime - 0.32 ) { drawSpriteSheetSprite( atkPlace, texture, 1, 3, 1 ); }
+    else if ( animationDisplayAmt > stepAtkTime - 0.38 ) { drawSpriteSheetSprite( atkPlace, texture, 2, 3, 1 ); }
+}
 
 // Player Control Functions: Attacking & Movement
 void App::face(int dir) {
@@ -1970,14 +2234,30 @@ void App::move(int dir) {
 			player.moveDir = 0;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
-				chargeDisplayPlusAmt = iconDisplayTime;
-				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
+                chargeDisplayPlusAmt = iconDisplayTime;
+                chargeDisplayMinusAmt = 0;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    animationType = -1;
+                    animationDisplayAmt = pauseAnimationTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 	else if (dir == 1) {	// Move Left
 		if (isTileValid(player.x - 1, player.y)) {
@@ -1989,14 +2269,30 @@ void App::move(int dir) {
 			player.moveDir = 1;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
-				chargeDisplayPlusAmt = iconDisplayTime;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
+                chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    animationType = -1;
+                    animationDisplayAmt = pauseAnimationTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 	else if (dir == 2) {	// Move Down
 		if (isTileValid(player.x, player.y - 1)) {
@@ -2008,14 +2304,30 @@ void App::move(int dir) {
 			player.moveDir = 2;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
-				chargeDisplayPlusAmt = iconDisplayTime;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
+                chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    animationType = -1;
+                    animationDisplayAmt = pauseAnimationTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 	else if (dir == 3) {	// Move Right
 		if (isTileValid(player.x + 1, player.y)) {
@@ -2027,14 +2339,30 @@ void App::move(int dir) {
 			player.moveDir = 3;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
-				chargeDisplayPlusAmt = iconDisplayTime;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
+                chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    animationType = -1;
+                    animationDisplayAmt = pauseAnimationTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 }
 void App::move2(int dir) {		// Move Two Tiles
@@ -2048,14 +2376,28 @@ void App::move2(int dir) {		// Move Two Tiles
 			player.moveDir = 0;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
-				chargeDisplayPlusAmt = iconDisplayTime;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
+                chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 	else if (dir == 1) {	// Move Left
 		if (isTileValid(player.x - 2, player.y)) {
@@ -2067,14 +2409,28 @@ void App::move2(int dir) {		// Move Two Tiles
 			player.moveDir = 1;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
-				chargeDisplayPlusAmt = iconDisplayTime;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
+                chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 	else if (dir == 2) {	// Move Down
 		if (isTileValid(player.x, player.y - 2)) {
@@ -2086,14 +2442,28 @@ void App::move2(int dir) {		// Move Two Tiles
 			player.moveDir = 2;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 	else if (dir == 3) {	// Move Right
 		if (isTileValid(player.x + 2, player.y)) {
@@ -2105,16 +2475,31 @@ void App::move2(int dir) {		// Move Two Tiles
 			player.moveDir = 3;
 			animationType = 0;
 			animationDisplayAmt = moveAnimationTime;
-			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item > 0) {			// Walk onto Energy resource -> Take Energy
-				player.energy += energyGainAmt;
+			if (player.x != -1 && player.x != 6 && map[player.x][player.y].item != 0) {  // Walk onto Energy resource -> Take Energy
 				chargeDisplayPlusAmt = iconDisplayTime;
 				chargeDisplayMinusAmt = 0;
-				currentEnergyGain += energyGainAmt;
+                if ( map[player.x][player.y].item == 2 ) {
+                    Mix_PlayChannel( 1, itemSound2, 0 );
+                    selSwordAnimation = -3;
+                    player.energy += energyGainAmt2;
+                    currentEnergyGain += energyGainAmt2; }
+                else if ( map[player.x][player.y].item == -1 ) {
+                    Mix_PlayChannel( 1, trapItemSound, 0 );
+                    chargeDisplayPlusAmt = 0;
+                    chargeDisplayMinusAmt = iconDisplayTime;
+                    selSwordAnimation = -4;
+                    player.energy -= energyLossAmt;
+                    if ( player.energy < 0 ) player.energy = 0;
+                    currentEnergyGain -= energyLossAmt; }
+                else {
+                    Mix_PlayChannel( 1, itemSound, 0 );
+                    selSwordAnimation = -2;
+                    player.energy += energyGainAmt;
+                    currentEnergyGain += energyGainAmt; }
 				map[player.x][player.y].item = 0;
-				Mix_PlayChannel( 1, itemSound, 0 );
-                selSwordAnimation = -2;
 	} } }
 }
+
 void App::swordAtk(int dir) {			// Does One Dmg to one square in front of the player
 	if (player.energy >= swordCost) {
 		player.energy -= swordCost;
@@ -2146,7 +2531,8 @@ void App::longAtk(int dir) {		// Does One Dmg to a 2x1 area in front of the play
 		animationType = 1;
 		animationDisplayAmt = swordAtkTime;
 		currentSwordAtkTime = animationDisplayAmt;
-		selSwordAnimation = 1;
+        if      ( player.type == 0 || player.type == 1 ) { selSwordAnimation = 1; }
+        else if ( player.type == 4 )                     { selSwordAnimation = 19; }
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
 		currentEnergyGain -= longCost;
@@ -2154,9 +2540,11 @@ void App::longAtk(int dir) {		// Does One Dmg to a 2x1 area in front of the play
 	}
 }
 void App::wideAtk(int dir) {			// Does One Dmg to a 1x3 area in front of the player
-	if ( player.type == 0 && player.energy >= wideCost || player.type == 1 && player.energy >= wideCost2 ) {
-        if      ( player.type == 0 ) { player.energy -= wideCost; }
-        else if ( player.type == 1 ) { player.energy -= wideCost2; }
+	if ( player.type == 0 && player.energy >= wideCost ||
+         player.type == 4 && player.energy >= wideCost ||
+         player.type == 1 && player.energy >= wideCost2 ) {
+        if      ( player.type == 0 || player.type == 4) { player.energy -= wideCost;  }
+        else if ( player.type == 1 )                    { player.energy -= wideCost2; }
 		if (dir == 1) {
 			hitBoxDelay(player.x - 1, player.y + 1, preAtkTime);	// x
 			hitBoxDelay(player.x - 1, player.y,     preAtkTime);	// xP
@@ -2171,17 +2559,20 @@ void App::wideAtk(int dir) {			// Does One Dmg to a 1x3 area in front of the pla
 		animationType = 1;
 		animationDisplayAmt = swordAtkTime;
 		currentSwordAtkTime = animationDisplayAmt;
-		selSwordAnimation = 2;
+		if      ( player.type == 0 || player.type == 1) { selSwordAnimation = 2; }
+        else if ( player.type == 4  )                   { selSwordAnimation = 20; }
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-        if      ( player.type == 0 ) { currentEnergyGain -= wideCost;  }
-        else if ( player.type == 1 ) { currentEnergyGain -= wideCost2; }
+        if      ( player.type == 0 || player.type == 4 ) { currentEnergyGain -= wideCost;  }
+        else if ( player.type == 1 )                     { currentEnergyGain -= wideCost2; }
         Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
 void App::crossAtk(int dir) {			// Does One Dmg in an X pattern in front of the player		// The Middle of the X cross takes Two Dmg total
-	if (player.energy >= crossCost) {
-		player.energy -= crossCost;
+	if ( player.type == 0 && player.energy >= crossCost ||
+         player.type == 4 && player.energy >= crossCost2 ) {
+        if      ( player.type == 0 ) { player.energy -= crossCost; }
+        else if ( player.type == 4 ) { player.energy -= crossCost2; }
 		if (dir == 1) {
 			hitBoxDelay(player.x,	  player.y - 1, preAtkTime);	//	x x
 			hitBoxDelay(player.x - 1, player.y,     preAtkTime, 2);	//	 xP
@@ -2200,10 +2591,11 @@ void App::crossAtk(int dir) {			// Does One Dmg in an X pattern in front of the 
 		animationType = 1;
 		animationDisplayAmt = swordAtkTime;
 		currentSwordAtkTime = animationDisplayAmt;
-		selSwordAnimation = 3;
+        selSwordAnimation = 3;
 		chargeDisplayMinusAmt = iconDisplayTime;
 		chargeDisplayPlusAmt = 0;
-		currentEnergyGain -= crossCost;
+        if      ( player.type == 0 ) { currentEnergyGain -= crossCost; }
+        else if ( player.type == 4 ) { currentEnergyGain -= crossCost2; }
 		Mix_PlayChannel( 0, swordSound, 0 );
 	}
 }
@@ -2360,14 +2752,14 @@ void App::vDivideAtk( int dir ) {   // Attacks in a V pattern   // Does 2 dmg at
     if (player.energy >= vDivideCost) {
 		player.energy -= vDivideCost;
 		if (dir == 1) {
-            hitBoxDelay(player.x,     player.y + 1, preAtkTime );   //   x
-            hitBoxDelay(player.x - 1, player.y,     preAtkTime, 2); //  XP
-            hitBoxDelay(player.x,     player.y - 1, preAtkTime );   //   x
+            hitBoxDelay(player.x,     player.y + 1, preAtkTime );       //   x
+            hitBoxDelay(player.x - 1, player.y,     preAtkTime );   //  XP
+            hitBoxDelay(player.x,     player.y - 1, preAtkTime );       //   x
         }
 		else if (dir == 3) {
-            hitBoxDelay(player.x,     player.y + 1, preAtkTime );   //  x
-            hitBoxDelay(player.x + 1, player.y,     preAtkTime, 2); //  PX
-            hitBoxDelay(player.x,     player.y - 1, preAtkTime );   //  x
+            hitBoxDelay(player.x,     player.y + 1, preAtkTime );       //  x
+            hitBoxDelay(player.x + 1, player.y,     preAtkTime );       //  PX
+            hitBoxDelay(player.x,     player.y - 1, preAtkTime );       //  x
         }
 		// Start Sword Attack Animation
 		animationType = 1;
@@ -2646,6 +3038,72 @@ void App::eTomaAtk(int dir) {
         //delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma + 0.12 ) );
     }
 }
+void App::stepCrossAtk(int dir) {
+    if ( player.energy >= stepCrossCost ) {
+		if (dir == 1 && isTileValid(player.x - 2, player.y)) {
+			player.energy -= stepCrossCost;
+
+			move2(1);
+            hitBoxDelay(player.x - 2, player.y + 1, moveAnimationTime + preAtkTime);
+			hitBoxDelay(player.x - 2, player.y - 1, moveAnimationTime + preAtkTime);	    // x x
+			hitBoxDelay(player.x - 1, player.y,     moveAnimationTime + preAtkTime, 2); 	//  XP
+			hitBoxDelay(player.x,     player.y + 1, moveAnimationTime + preAtkTime);	    // x x
+            hitBoxDelay(player.x,     player.y - 1, moveAnimationTime + preAtkTime);
+
+			animationType = 1;
+			animationDisplayAmt = stepAtkTime + moveAnimationTime;
+			currentSwordAtkTime = animationDisplayAmt;
+			selSwordAnimation = 21;
+			chargeDisplayMinusAmt = iconDisplayTime;
+			chargeDisplayPlusAmt = 0;
+            currentEnergyGain -= stepCrossCost;
+            delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime ) );
+		}
+		else if (dir == 3 && isTileValid(player.x + 2, player.y)) {
+            player.energy -= stepCrossCost;
+
+			move2(3);
+            hitBoxDelay(player.x,     player.y + 1, moveAnimationTime + preAtkTime);
+			hitBoxDelay(player.x,     player.y - 1, moveAnimationTime + preAtkTime);        //	x x
+			hitBoxDelay(player.x + 1, player.y,     moveAnimationTime + preAtkTime, 2);	    //	PX
+			hitBoxDelay(player.x + 2, player.y + 1, moveAnimationTime + preAtkTime);	    //	x x
+            hitBoxDelay(player.x + 2, player.y - 1, moveAnimationTime + preAtkTime);
+
+			animationType = 1;
+			animationDisplayAmt = stepAtkTime + moveAnimationTime;
+			currentSwordAtkTime = animationDisplayAmt;
+			selSwordAnimation = 21;
+			chargeDisplayMinusAmt = iconDisplayTime;
+			chargeDisplayPlusAmt = 0;
+			currentEnergyGain -= stepCrossCost;
+            delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime ) );
+		}
+	}
+}
+void App::spinSlashAtk(int dir) {
+    if (player.energy >= spinSlashCost) {
+		player.energy -= spinSlashCost;
+		hitBoxDelay(player.x - 1, player.y + 1, preAtkTime, 2);	    //	XXX
+		hitBoxDelay(player.x - 1, player.y,     preAtkTime, 2);	    //	XPX
+		hitBoxDelay(player.x - 1, player.y - 1, preAtkTime, 2);	    //	XXX
+		hitBoxDelay(player.x,	  player.y - 1, preAtkTime, 2);
+		hitBoxDelay(player.x,	  player.y + 1, preAtkTime, 2);
+		hitBoxDelay(player.x + 1, player.y + 1, preAtkTime, 2);
+		hitBoxDelay(player.x + 1, player.y,     preAtkTime, 2);
+		hitBoxDelay(player.x + 1, player.y - 1, preAtkTime, 2);
+
+		// Start Sword Attack Animation
+		animationType = 1;
+		animationDisplayAmt = lifeAtkTime;
+		currentSwordAtkTime = animationDisplayAmt;
+        selSwordAnimation = 22;
+		chargeDisplayMinusAmt = iconDisplayTime;
+		chargeDisplayPlusAmt = 0;
+		currentEnergyGain -= spinSlashCost;
+		Mix_PlayChannel( 0, spinSlashSound, 0 );
+	}
+}
+
 void App::hitBox(int xPos, int yPos, int dmg) {
 	if( xPos >= 0 && xPos <= 5 && yPos >= 0 && yPos <= 5) {
 		if (map[xPos][yPos].boxHP > 0) {
@@ -2687,6 +3145,7 @@ void Player::reset() {
 	facing = 3;
 }
 void App::reset() {
+    srand( time( 0 ) );
 	clearFloor();
 	player.reset();
 	player.energy = energyDisplayed = startingEnergy;
@@ -2715,12 +3174,12 @@ void App::loadLevel(int num) {
 	player.x = 0;		player.y = 0;
 	if (level == 1) { generateLevel(0, 0); }
 	else {
-		int type = getRand(32);
+		int type = getRand(44);
 		generateLevel(type); }		// Generate a Level of Random type
 }
-void App::generateLevel(int type, int num) {        // (levelType, difficulty)
+void App::generateLevel(int type, int num) {        // (levelType, difficulty)          // difficulty -1 = randomly generated difficulty
 	if (num <= -1) { num = rand() % 100; }				// Random number between 0 and 99, inclusive - used to determine difficulty
-	int x = level;		if (x > 50) { x = 50; }
+	int x = level;		if ( x > 50 ) { x = 50; }
 	int bound2 = 120 - x * 3 / 2;						// Bounds used in determining difficulty - based on current level number
 	if (level >=  75) { bound2 = 40; }
 	if (level >= 100) { bound2 = 35; }
@@ -2735,12 +3194,12 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 																					//  75			10%		30%		60%
 																					// 100			 5%		30%		65%
     int gain = 0;       // Gain determines avg "profit" per level
-    if      ( currentGameDiff == 0 ) { gain =  4 - diff * 9; }      //  4   -5  -14
-    else if ( currentGameDiff == 1 ) { gain =  2 - diff * 9; }      //  2   -7  -16
-    else if ( currentGameDiff == 2 ) { gain =  0 - diff * 9; }      //  0   -9  -18
-    else if ( currentGameDiff == 3 ) { gain = -2 - diff * 9; }      // -2  -11  -20
-    else if ( currentGameDiff == 4 ) { gain = -4 - diff * 9; }      // -4  -13  -22
-	int extraBoxes = 0, extraItems = 0, floorDmgs = 0;		// Number of things per floor based on level number and difficulty
+    if      ( currentGameDiff == 0 ) { gain =  2 - diff * 9; }      //  2  -07  -16
+    else if ( currentGameDiff == 1 ) { gain =  0 - diff * 9; }      //  0  -09  -18
+    else if ( currentGameDiff == 2 ) { gain = -2 - diff * 9; }      // -2  -11  -20
+    else if ( currentGameDiff == 3 ) { gain = -4 - diff * 9; }      // -4  -13  -22
+    else if ( currentGameDiff == 4 ) { gain = -6 - diff * 9; }      // -6  -15  -24
+	int extraBoxes = 0, extraItems = 0, floorDmgs = 0, trappedItems = 0;		// Number of things per floor based on level number and difficulty
 
 	// Map types
 	// Rooms
@@ -2799,8 +3258,19 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 14 + extraBoxes + gain;															//	]===O==[
 		floorDmgs = rand() % 4 + 2 + diff * 3;		// 2-5	// 5-8	// 8-11
 	}
+    else if (type == 5) {		// Rooms F
+		map[0][3].boxHP = 1;	map[2][1].boxHP = 1;	map[3][5].boxHP = 1;	//	] ==O==[
+		map[1][2].boxHP = 1;	map[2][4].boxHP = 1;	map[4][2].boxHP = 1;	//	]==OO==[
+		map[1][3].boxHP = 1;	map[3][1].boxHP = 1;	map[4][3].boxHP = 1;	//	]OO==O=[
+		map[2][0].boxHP = 1;	map[3][4].boxHP = 1;	map[5][2].boxHP = 1;	//	]=O==OO[
+        map[0][5].state = 3;    map[5][0].state = 3;                            //	]==OO==[
+                                                                                //	]==O== [
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 4 + 1 + diff * 4;		// 1-4	// 5-8	// 9-12
+	}
 	// Plus
-	else if (type == 5) {		// Plus A
+	else if (type == 6) {		// Plus A
 		for (int i = 0; i < 3; i++) {											// ] ==O==[
 			map[0][i + 3].state = 3;		map[i + 3][0].state = 3;			// ] =OOO=[
 			map[i + 2][2].boxHP = 1;		map[2][i + 2].boxHP = 1;			// ]=OO=OO[
@@ -2812,7 +3282,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 4 + diff * 3;			// 0-3	// 3-6	// 6-9
 	}
-	else if (type == 6) {		// Plus B
+	else if (type == 7) {		// Plus B
 		for (int i = 0; i < 3; i++) {											// ] ===O=[
 			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] =OOOO[
 			map[i + 2][2].boxHP = 1;	map[2][i + 2].boxHP = 1;				// ] =O=O=[
@@ -2823,7 +3293,17 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 4 + 1 + diff * 3;		// 1-4	// 4-7	// 7-10
 	}
-	else if (type == 7) {		// Plus C
+	else if (type == 8) {		// Plus C
+        map[4][4].boxHP = 1;
+		for (int i = 0; i < 3; i++) {											// ] =O===[
+			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] OOOO=[
+			map[i + 3][2].boxHP = 1;	map[2][i + 3].boxHP = 1;				// ] =O=O=[
+			map[i + 1][4].boxHP = 1;	map[4][i + 1].boxHP = 1; }				// ]===OOO[
+		extraBoxes = 4 + x / 5 + diff * 2;										// ]====O=[
+		extraItems = 11 + extraBoxes + gain;									// ]===   [
+		floorDmgs = rand() % 3 + 1 + diff * 2;		// 1-3	// 3-5	// 5-7
+	}
+    else if (type == 9) {		// Plus D
 		map[4][4].state = 3;
 		for (int i = 0; i < 3; i++) {											// ] O=O==[
 			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] O=O =[
@@ -2833,7 +3313,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 11 + extraBoxes + gain;									// ]===   [
 		floorDmgs = rand() % 3 + 1 + diff * 2;		// 1-3	// 3-5	// 5-7
 	}
-	else if (type == 8) {		// Plus D
+	else if (type == 10) {		// Plus E
 		for (int i = 0; i < 3; i++) {											// ] OOO==[
 			map[0][i + 3].state = 3;	map[i + 3][0].state = 3;				// ] O=O==[
 			map[i + 3][1].boxHP = 1;	map[1][i + 3].boxHP = 1;				// ] O=OOO[
@@ -2843,7 +3323,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 14 + extraBoxes + gain;
 		floorDmgs = rand() % 4 + diff * 2;			// 0-3	// 2-5	// 4-7
 	}
-	else if (type == 9) {		// Plus E
+	else if (type == 11) {		// Plus F
 		for ( int i = 0; i < 2; i++ ) {											// ]O== ==[
 			map[0][i + 4].boxHP = 1;	map[i + 1][3].boxHP = 1;				// ]O==O==[
 			map[3][i + 1].boxHP = 1;	map[i + 4][0].boxHP = 1; }				// ]=OO=O [
@@ -2853,18 +3333,31 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 10 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + 2 + diff * 2;		// 2-6	// 4-8	// 6-10
 	}
-	// Paths
-	else if (type == 10) {		// Paths A
-		map[5][3].state = 1;																			//	]===OO=[
-		map[1][3].state = 3;	map[2][3].state = 3;	map[3][3].state = 3;	map[4][3].state = 3;	//	]===OO=[
-		map[3][4].boxHP = 1;	map[3][5].boxHP = 1;	map[4][4].boxHP = 1;	map[4][5].boxHP = 1;	//	]=    X[
-		map[3][0].boxHP = 1;	map[3][1].boxHP = 1;	map[3][2].boxHP = 1;							//	]===OO=[
-		map[4][0].boxHP = 1;	map[4][1].boxHP = 1;	map[4][2].boxHP = 1;							//	]===OO=[
-		extraBoxes = 3 + x / 5 + diff * 2;																//	]===OO=[
-		extraItems = 10 + extraBoxes + gain;
-		floorDmgs = rand() % 3 + 2 + diff;			// 2-4	// 3-5	// 4-6
+    else if (type == 12) {		// Plus G
+		for ( int i = 0; i < 2; i++ ) {
+            map[i][5].state = 3;        map[5][i].state = 3;                    // ]  O=O=[
+			map[2][i + 1].boxHP = 1;	map[i + 1][2].boxHP = 1;				// ]=OO=OO[
+            map[2][i + 4].boxHP = 1;    map[i + 4][2].boxHP = 1;                // ]===O==[
+            map[4][i + 1].boxHP = 1;    map[i + 1][4].boxHP = 1;                // ]=OO=OO[
+			map[4][i + 4].boxHP = 1;	map[i + 4][4].boxHP = 1; }				// ]= O=O [
+		map[3][3].boxHP = 1;	map[1][1].state = 3;							// ]===== [
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 13 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 2;		    // 0-4	// 2-6	// 4-8
 	}
-	else if (type == 11) {		// Paths B
+	// Paths
+	else if (type == 13) {		// Paths A
+        for ( int i = 0; i < 2; i++ ) {                             //	]=OO===[
+            map[i + 1][2].state = 3;    map[i + 3][3].state = 3; }  //	]=OO===[
+        for ( int i = 0; i < 3; i++ ) {                             //	]=OO  X[
+            map[1][i + 3].boxHP = 1;    map[3][i].boxHP = 1;        //	]=  OO=[
+            map[2][i + 3].boxHP = 1;    map[4][i].boxHP = 1; }      //	]===OO=[
+		map[5][3].state = 1;										//	]===OO=[
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 3 + 1 + diff;			// 1-3	// 2-4	// 3-5
+	}
+	else if (type == 14) {		// Paths B
 		map[5][3].state = 1;
 		map[2][2].state = 3;	map[3][2].state = 3;	map[3][3].state = 3;	map[4][3].state = 3;	//	]==OOO=[
 		map[2][3].boxHP = 1;	map[2][5].boxHP = 1;	map[3][4].boxHP = 1;	map[4][4].boxHP = 1;	//	]==OOO=[
@@ -2875,7 +3368,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 14 + extraBoxes + gain;
 		floorDmgs = rand() % 3 + 1 + diff;		// 1-3	// 2-4	// 3-5
 	}
-	else if (type == 12) {		// Paths C
+	else if (type == 15) {		// Paths C
         for ( int i = 0; i < 2; i++ ) {                                                     //	] =OO==[
             map[i][1].state = 3;    map[i + 2][4].boxHP = 1;    map[i + 4][1].state = 3;    //	]==OO==[
             map[i][2].boxHP = 1;    map[i + 2][5].boxHP = 1;    map[i + 4][2].boxHP = 1;    //	]OO==OO[
@@ -2885,7 +3378,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 3;		// 0-4	// 3-7	// 6-10
 	}
-	else if (type == 13) {		// Paths D
+	else if (type == 16) {		// Paths D
 		for ( int i = 0; i < 2; i++ ) {														//	]    ==[
 			map[i][3].boxHP = 1;	map[i + 2][1].boxHP = 1;	map[5][i].state = 3;		//	]OO==OO[
 			map[i][4].boxHP = 1;	map[i + 2][2].boxHP = 1;	map[i + 4][3].boxHP = 1;	//	]OO==OO[
@@ -2895,8 +3388,41 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
+    else if (type == 17) {		// Paths E
+		for ( int i = 0; i < 2; i++ ) {														//	]===OO=[
+			map[1][i + 2].boxHP = 1;	map[3][i].boxHP = 1;	map[3][i + 4].boxHP = 1;	//	]===OO=[
+			map[2][i + 2].boxHP = 1;	map[4][i].boxHP = 1;	map[4][i + 4].boxHP = 1;	//	]=OO= =[
+			map[1][i].state = 3;	    map[4][i + 2].state = 3; }	                        //	]=OO= =[
+		                    																//	]= =OO=[
+															                                //	]= =OO=[
+        extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 4 + diff * 2;	    // 0-3	// 2-5	// 4-7
+	}
+    else if (type == 18) {		// Paths F
+		for ( int i = 0; i < 2; i++ ) {														//	] OO= =[
+			map[1][i].boxHP = 1;	map[1][i + 4].boxHP = 1;	map[3][i + 2].boxHP = 1;	//	] OO= =[
+			map[2][i].boxHP = 1;	map[2][i + 4].boxHP = 1;	map[4][i + 2].boxHP = 1;	//	]===OO=[
+			map[0][i + 4].state = 3;	map[4][i].state = 3;    map[4][i + 4].state = 3; }  //	]===OO=[
+		                    																//	]=OO= =[
+															                                //	]=OO= =[
+        extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+		floorDmgs = rand() % 3 + diff * 2;	    // 0-2	// 2-4	// 4-6
+	}
+    else if (type == 19) {		// Paths G
+		for ( int i = 0; i < 2; i++ ) {									//	] =OO==[
+			map[0][i + 2].boxHP = 1;	map[2][i + 0].boxHP = 1;	    //	]==OO==[
+			map[1][i + 2].boxHP = 1;	map[3][i + 0].boxHP = 1;	    //	]OO==OO[
+			map[4][i + 2].boxHP = 1;    map[2][i + 4].boxHP = 1;        //	]OO==OO[
+            map[5][i + 2].boxHP = 1;    map[3][i + 4].boxHP = 1; }      //	]==OO==[
+        map[0][5].state = 3;    map[5][0].state = 3;                    //	]==OO= [
+        extraBoxes = 5 + x / 5 + diff * 2;
+		extraItems = 16 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 2;	    // 0-4	// 2-6	// 4-8
+	}
 	// Cross
-	else if (type == 14) {		// Cross A
+	else if (type == 20) {		// Cross A
 		for (int i = 0; i < 4; i++ ) {											//	] O===O[
 			map[0][i + 2].state = 3;	map[i + 2][0].state = 3;	}			//	] =O=O=[
 		map[1][1].boxHP = 1;	map[2][4].boxHP = 1;	map[4][4].boxHP = 1;	//	] ==O==[
@@ -2906,7 +3432,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 9 + extraBoxes + gain;
 		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8
 	}
-	else if (type == 15) {		// Cross B
+	else if (type == 21) {		// Cross B
         for ( int i = 0; i < 5; i++ ) {                                                             //	]     =[
             map[i][5].state = 3;    map[i + 1][i].boxHP = 1;    map[i + 1][4 - i].boxHP = 1; }      //	]=O===O[
         map[0][2].state = 3;                                                                        //	]==O=O=[
@@ -2914,7 +3440,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 9 + extraBoxes + gain;														    //	]==O=O=[
 		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8							    //	]=O===O[
 	}
-	else if (type == 16) {		// Cross C
+	else if (type == 22) {		// Cross C
         for ( int i = 0; i < 5; i++ ) {                                                         //	]O===O=[
             map[i][i + 1].boxHP = 1;    map[i][5 - i].boxHP = 1;    map[5][i].state = 3; }      //	]=O=O= [
         map[2][0].state = 3;    map[3][0].state = 3;    map[4][0].state = 3;                    //	]==O== [
@@ -2922,7 +3448,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 9 + extraBoxes + gain;                                                     //	]O===O [
 		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8                          //	]==    [
 	}
-	else if (type == 17) {		// Cross D
+	else if (type == 23) {		// Cross D
         for ( int i = 0; i < 2; i++ ) {                                                         // ]== ===[
             map[i][1].boxHP = 1;    map[2][i + 2].boxHP = 1;    map[i + 3][1].boxHP = 1;        // ]OO=OO [
             map[i][4].boxHP = 1;                                map[i + 3][4].boxHP = 1; }      // ]==O== [
@@ -2932,7 +3458,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 10 + extraBoxes + gain;
         floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
-    else if (type == 18) {		// Cross E
+    else if (type == 24) {		// Cross E
         for ( int i = 0; i < 2; i++ ) {                                                         // ]  == =[
             map[1][i].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[1][i + 3].boxHP = 1;        // ]=O==O=[
             map[4][i].boxHP = 1;                                map[4][i + 3].boxHP = 1; }      // ]=O==O=[
@@ -2942,8 +3468,30 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 10 + extraBoxes + gain;
         floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
+    else if (type == 25) {		// Cross F
+        for ( int i = 0; i < 3; i++ ) {                                         // ]   O=O[
+            map[i][5].state = 3;    map[5][i].state = 3;                        // ]  ==O=[
+            map[i + 1][i + 1].boxHP = 1;    map[3 - i][i + 1].boxHP = 1;        // ]=O=O=O[
+            map[i + 3][i + 3].boxHP = 1;    map[5 - i][i + 3].boxHP = 1; }      // ]==O== [
+        map[0][4].state = 3;    map[4][0].state = 3;                            // ]=O=O  [
+        map[1][4].state = 3;    map[4][1].state = 3;                            // ]====  [
+		extraBoxes = 3 + x / 5 + diff * 2;
+		extraItems = 9 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
+	}
+    else if (type == 26) {		// Cross G
+        for ( int i = 0; i < 3; i++ ) {                                         // ] O=O==[
+            map[i + 1][i + 3].boxHP = 1;    map[5 - i][i + 1].boxHP = 1;        // ]==O= =[
+            map[i + 3][i + 1].boxHP = 1;    map[3 - i][i + 3].boxHP = 1; }      // ]=O=O=O[
+        map[1][1].state = 3;    map[2][1].state = 3;                            // ]=  =O=[
+        map[1][2].state = 3;    map[2][2].state = 3;                            // ]=  O=O[
+        map[0][5].state = 3;    map[4][4].state = 3;    map[5][0].state = 3;    // ]===== [
+		extraBoxes = 3 + x / 5 + diff * 2;
+		extraItems = 9 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + diff * 2;	    // 0-4	// 2-6	// 4-8
+	}
 	// Gallery
-	else if (type == 19) {		// Gallery A
+	else if (type == 27) {		// Gallery A
 		for (int i = 1; i < 5; i++) {											//	]======[
 			map[i][1].boxHP = 1;	map[i][2].boxHP = 1;						//	]=OOOO=[
 			map[i][3].boxHP = 1;	map[i][4].boxHP = 1; }						//	]=OOOO=[
@@ -2951,7 +3499,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 16 + extraBoxes + gain;									//	]=OOOO=[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			//	]======[
 	}
-	else if (type == 20) {		// Gallery B									// ]======[
+	else if (type == 28) {		// Gallery B									// ]======[
 		for (int i = 1; i < 5; i++) {											// ]OO==OO[
 			map[0][i].boxHP = 1;	map[1][i].boxHP = 1;						// ]OO==OO[
 			map[4][i].boxHP = 1;	map[5][i].boxHP = 1; }						// ]OO==OO[
@@ -2959,7 +3507,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 16 + extraBoxes + gain;									// ]======[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 21) {		// Gallery C
+	else if (type == 29) {		// Gallery C
 		for (int i = 1; i < 5; i++) {											// ]=OOOO=[
 			map[i][0].boxHP = 1;	map[i][3].boxHP = 1;						// ]======[
 			map[i][2].boxHP = 1;	map[i][5].boxHP = 1; }						// ]=OOOO=[
@@ -2967,7 +3515,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 16 + extraBoxes + gain;									// ]======[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			// ]=OOOO=[
 	}
-	else if (type == 22) {		// Gallery D
+	else if (type == 30) {		// Gallery D
         for (int i = 1; i < 5; i++) {                                           // ]======[
 			map[0][i].boxHP = 1;	map[3][i].boxHP = 1;                        // ]O=OO=O[
 			map[2][i].boxHP = 1;	map[5][i].boxHP = 1; }                      // ]O=OO=O[
@@ -2975,8 +3523,19 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 16 + extraBoxes + gain;                                    // ]O=OO=O[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8          // ]======[
 	}
+    else if (type == 31) {		// Gallery E
+        for (int i = 0; i < 3; i++) {                                           // ]=OOO==[
+			map[0][i + 2].boxHP = 1;	map[i + 1][5].boxHP = 1;                // ]O=====[
+			map[i + 2][0].boxHP = 1;	map[5][i + 1].boxHP = 1; }              // ]O=OO=O[
+        map[2][2].boxHP = 1;    map[3][2].boxHP = 1;                            // ]O=OO=O[
+        map[2][3].boxHP = 1;    map[3][3].boxHP = 1;                            // ]=====O[
+                                                                                // ]==OOO=[
+		extraBoxes = 5 + x / 5 + diff * 2;
+		extraItems = 16 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8          
+	}
 	// Scattered
-	else if (type == 23) {		// Scattered A
+	else if (type == 32) {		// Scattered A
 		for (int i = 0; i < 6; i += 2) {										//	]==O=O=[
 			map[2][i + 1].boxHP = 1;											//	]===O=O[
 			map[3][i].boxHP = 1;												//	]==O=O=[
@@ -2986,7 +3545,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 9 + diff * 4;		// 2-6	// 6-10	// 8-12
 	}
-	else if (type == 24) {		// Scattered B
+	else if (type == 33) {		// Scattered B
 		for (int i = 0; i < 4; i++) {
 			map[    i % 2][2 + i].boxHP = 1;									//	]=O=O=O[
 			map[2 + i % 2][2 + i].boxHP = 1;									//	]O=O=O=[
@@ -2995,7 +3554,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;									//	]======[
 		floorDmgs = rand() % 5 + 2 + diff * 3;	// 2-6	// 5-9	// 8-12			//	]======[
 	}
-	else if (type == 25) {		// Scattered C
+	else if (type == 34) {		// Scattered C
         for ( int i = 0; i < 3; i++ ) {                                         // ]   =O=[
             map[i][5].state = 3;    map[5][i].state = 3; }                      // ]=O=O=O[
         for ( int i = 0; i < 4; i++ ) {                                         // ]O=O=O=[
@@ -3005,7 +3564,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
 	}
-	else if (type == 26) {		// Scattered D
+	else if (type == 35) {		// Scattered D
         for ( int i = 1; i <= 5; i += 2 ) {
             map[i][2].boxHP = 1;    map[i][4].boxHP = 1;                    // ] =O=O=[
             map[2][i].boxHP = 1;    map[4][i].boxHP = 1; }                  // ] O=O=O[
@@ -3015,8 +3574,30 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;                                // ]====  [
         floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
 	}
+    else if (type == 36) {		// Scattered E
+        for ( int i = 0; i < 5; i++ ) { map[i + 1][5 - i].boxHP = 1; }  // ]=O=O==[
+        for ( int i = 0; i < 3; i++ ) { map[i + 3][5 - i].boxHP = 1; }  // ]O=O=O=[
+        for ( int i = 0; i < 2; i++ ) {                                 // ]=O=O=O[
+            map[i][4 - i].boxHP = 1;    map[i + 3][1 - i].boxHP = 1; }  // ] ===O=[
+        map[0][2].state = 3;    map[2][0].state = 3;                    // ]===O=O[
+                                                                        // ]== =O=[
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + 2 + diff * 3;	// 2-6	// 5-9	// 8-12
+	}
+    else if (type == 37) {		// Scattered F
+        for ( int i = 0; i < 6; i++ ) { map[i + 0][5 - i].boxHP = 1; }  // ]O=O ==[
+        for ( int i = 0; i < 4; i++ ) { map[i + 2][5 - i].boxHP = 1; }  // ]=O=O==[
+        map[0][3].boxHP = 1;    map[3][0].boxHP = 1;                    // ]O=O=O [
+        map[0][2].state = 3;    map[2][0].state = 3;                    // ] ==O=O[
+        map[3][5].state = 3;    map[5][3].state = 3;                    // ]====O=[
+                                                                        // ]== O=O[
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + 2 + diff * 2;	// 2-6	// 4-8	// 6-10
+	}
 	// Layers
-	else if (type == 27) {		// Layers A
+	else if (type == 38) {		// Layers A
         map[1][0].state = 3;    map[2][0].state = 3;    map[4][0].state = 3;
         map[1][5].state = 3;    map[3][0].state = 3;    map[4][1].state = 3;    //	]= OO==[
 		for (int yPos = 1; yPos < 6; yPos++) {									//	]==OO==[
@@ -3025,7 +3606,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 10 + extraBoxes + gain;									//	]==OO =[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			//	]=    =[
 	}
-	else if (type == 28) {		// Layers B
+	else if (type == 39) {		// Layers B
 		map[5][0].state = 3;													//	]    ==[
 		for (int i = 0; i < 4; i++) {											//	]=OO=O=[
 			map[1][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]=OO=O=[
@@ -3035,7 +3616,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 29) {		// Layers C
+	else if (type == 40) {		// Layers C
 		map[5][0].state = 3;													//	]    ==[
 		for (int i = 0; i < 4; i++) {											//	]=O=OO=[
 			map[1][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]=O=OO=[
@@ -3045,7 +3626,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 30) {		// Layers D
+	else if (type == 41) {		// Layers D
         for ( int i = 0; i < 2; i++ ) {                                                         //	]=OO===[
             map[i + 1][5].boxHP = 1;    map[i + 2][3].boxHP = 1;    map[i + 4][2].boxHP = 1;    //	]=OO===[
             map[i + 1][4].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[i + 4][1].boxHP = 1; }  //	]==OO==[
@@ -3054,7 +3635,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;                                                    //	]== ===[
         floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 31) {		// Layers E
+	else if (type == 42) {		// Layers E
         for ( int i = 0; i < 2; i++ ) {                                                         // ]=== ==[
             map[i][3].boxHP = 1;    map[i + 2][3].boxHP = 1;    map[i + 3][1].boxHP = 1;        // ]OO====[
             map[i][4].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[i + 3][0].boxHP = 1; }      // ]OOOO= [
@@ -3063,2231 +3644,1732 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)
 		extraItems = 12 + extraBoxes + gain;                                                    // ]===OO=[
         floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
+    else if (type == 43) {		// Layers F
+        for ( int i = 0; i < 2; i++ ) {                                                         // ] OO===[
+            map[1][i + 4].boxHP = 1;    map[2][i + 2].boxHP = 1;    map[3][i].boxHP = 1;        // ] OO===[
+            map[2][i + 4].boxHP = 1;    map[3][i + 2].boxHP = 1;    map[4][i].boxHP = 1;        // ]==OO==[
+            map[0][i + 4].state = 3;    map[5][i].state = 3;                             }      // ]==OO==[
+                                                                                                // ]===OO [
+                                                                                                // ]===OO [
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+        floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
+	}
 	else { generateLevel(0, 100); return; }
 
-    int minItems = 3 * itemWorth;
+    if      ( diff == 0 ) { trappedItems = rand() % 2; }        // 0, 1
+    else if ( diff >= 1 ) { trappedItems = rand() % 3 + 2; }    // 2, 3, 4
+    if ( level >= 75 ) { trappedItems++; }
+
+    int minItems = minItems = 3 * itemWorth;
     if ( extraItems < minItems ) { extraItems = minItems; }
 
-	generateItems(extraItems, type);
+	generateItems(extraItems, type, trappedItems);
 	generateBoxes(extraBoxes, type);
 	generateFloor(floorDmgs,  type);
 }
-void App::generateItems(int amt, int type) {
+void App::generateItems(int amt, int type, int trapAmt) {
+    // Randomly places Energy on the map based on a template       // Mode 0 = normal, Mode 1 = Trapped items
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
+    vector<pair<int,int>> places;
 	// Rooms
 	if (type == 0) {			// Rooms A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	] +====[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	] +==  [
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	] +===+[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	] +===+[
-			else if (place[randPlace] == 4) { xPos = 5; yPos = 0; }	//	]   ==+[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 1; }	//	]=====+[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+        places.push_back( make_pair( 1, 2 ) );  //	] +====[
+        places.push_back( make_pair( 1, 3 ) );  //	] +==  [
+        places.push_back( make_pair( 1, 4 ) );  //	] +===+[
+        places.push_back( make_pair( 1, 5 ) );  //	] +===+[
+        places.push_back( make_pair( 5, 0 ) );  //	]   ==+[
+        places.push_back( make_pair( 5, 1 ) );  //	]=====+[
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	else if (type == 1) {		// Rooms B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      ( place[randPlace] == 0 ) { xPos = 0; yPos = 3; }	//	]++====[
-			else if ( place[randPlace] == 1 ) { xPos = 0; yPos = 4; }	//	]++==  [
-			else if ( place[randPlace] == 2 ) { xPos = 0; yPos = 5; }	//	]++==  [
-			else if ( place[randPlace] == 3 ) { xPos = 1; yPos = 3; }	//	]  ==++[
-			else if ( place[randPlace] == 4 ) { xPos = 1; yPos = 4; }	//	]  ==++[
-			else if ( place[randPlace] == 5 ) { xPos = 1; yPos = 5; }	//	]====++[
-			else if ( place[randPlace] == 6 ) { xPos = 4; yPos = 0; }
-			else if ( place[randPlace] == 7 ) { xPos = 4; yPos = 1; }
-			else if ( place[randPlace] == 8 ) { xPos = 4; yPos = 2; }
-			else if ( place[randPlace] == 9 ) { xPos = 5; yPos = 0; }
-			else if ( place[randPlace] == 10 ) { xPos = 5; yPos = 1; }
-			else if ( place[randPlace] == 11 ) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 2) {		// Rooms C
-		vector<int> place = { 0,1,2,3,4,5,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]++= ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]++====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]===== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	] =====[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]====++[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]== =++[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+        places.push_back( make_pair( 0, 3 ) );  //	]++====[
+        places.push_back( make_pair( 0, 4 ) );  //	]++==  [
+        places.push_back( make_pair( 0, 5 ) );  //	]++==  [
+        places.push_back( make_pair( 1, 3 ) );  //	]  ==++[
+        places.push_back( make_pair( 1, 4 ) );  //	]  ==++[
+        places.push_back( make_pair( 1, 5 ) );  //	]====++[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 2)  {		// Rooms C
+        places.push_back( make_pair( 0, 3 ) );  //	]=== ==[
+        places.push_back( make_pair( 0, 4 ) );  //	]++====[
+        places.push_back( make_pair( 1, 3 ) );  //	]++=== [
+        places.push_back( make_pair( 1, 4 ) );  //	] ===++[
+        places.push_back( make_pair( 4, 1 ) );  //	]====++[
+        places.push_back( make_pair( 4, 2 ) );  //	]== ===[
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	else if (type == 3) {		// Rooms D
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]+    =[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]+=====[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==++==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]==++==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]=====+[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]=    +[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+        places.push_back( make_pair( 0, 3 ) );  //	]+    =[
+        places.push_back( make_pair( 0, 4 ) );  //	]+=====[
+        places.push_back( make_pair( 0, 5 ) );  //	]+=++==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==++=+[
+        places.push_back( make_pair( 2, 3 ) );  //	]=====+[
+        places.push_back( make_pair( 3, 2 ) );  //	]=    +[
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	else if (type == 4) {		// Rooms E
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]++====[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]++====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]====++[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]====++[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]);
-	}	}	}
+        places.push_back( make_pair( 0, 4 ) );  //  ]++====[
+        places.push_back( make_pair( 0, 5 ) );  //  ]++====[
+        places.push_back( make_pair( 1, 4 ) );  //  ]======[
+        places.push_back( make_pair( 1, 5 ) );  //  ]======[
+        places.push_back( make_pair( 4, 0 ) );  //  ]====++[
+        places.push_back( make_pair( 4, 1 ) );  //  ]====++[
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
+    else if (type == 5) {		// Rooms F
+        places.push_back( make_pair( 0, 4 ) );  //  ] ++===[
+        places.push_back( make_pair( 1, 4 ) );  //  ]++====[
+        places.push_back( make_pair( 1, 5 ) );  //  ]======[
+        places.push_back( make_pair( 2, 5 ) );  //  ]======[
+        places.push_back( make_pair( 3, 0 ) );  //  ]====++[
+        places.push_back( make_pair( 4, 0 ) );  //  ]===++ [
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
 	// Plus
-	else if (type == 5) {		// Plus A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 2; }	//	] =====[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =+++=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]==+=+=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==+++=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]====  [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 6) {		// Plus B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 2; }	//	] =====[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =+++=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	] =+=+=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]==+++=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 7) {		// Plus C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] +=+==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] +=+ =[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	] +=+++[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===+++[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 8) {		// Plus D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] +++==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] +=+==[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	] +=+++[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }	//	]=====+[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===+++[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 9) {		// Plus E
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	// ]+== ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	// ]+=====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	// ]=++== [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	// ]===+==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	// ]===+==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	// ]====++[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+	else if (type == 6) {		// Plus A
+        places.push_back( make_pair( 2, 2 ) );  //	] =====[
+        places.push_back( make_pair( 2, 3 ) );  //	] =+++=[
+        places.push_back( make_pair( 2, 4 ) );  //	]==+=+=[
+        places.push_back( make_pair( 3, 2 ) );  //	]==+++=[
+        places.push_back( make_pair( 3, 4 ) );  //	]======[
+        places.push_back( make_pair( 4, 2 ) );  //	]====  [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 7) {		// Plus B
+        places.push_back( make_pair( 2, 2 ) );  //	] =====[
+        places.push_back( make_pair( 2, 3 ) );  //	] =+++=[
+        places.push_back( make_pair( 2, 4 ) );  //	] =+=+=[
+        places.push_back( make_pair( 3, 2 ) );  //	]==+++=[
+        places.push_back( make_pair( 3, 4 ) );  //	]======[
+        places.push_back( make_pair( 4, 2 ) );  //	]===   [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+    else if (type == 8) {		// Plus C
+        places.push_back( make_pair( 1, 4 ) );  //	] =+===[
+        places.push_back( make_pair( 2, 4 ) );  //	] ++++=[
+        places.push_back( make_pair( 2, 5 ) );  //	] ===+=[
+        places.push_back( make_pair( 3, 4 ) );  //	]====++[
+        places.push_back( make_pair( 4, 1 ) );  //	]====+=[
+        places.push_back( make_pair( 4, 2 ) );  //	]===   [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 9) {		// Plus D
+        places.push_back( make_pair( 1, 3 ) );  //  ] +=+==[
+        places.push_back( make_pair( 1, 4 ) );  //  ] +=+==[
+        places.push_back( make_pair( 1, 5 ) );  //  ] +=+++[
+        places.push_back( make_pair( 3, 1 ) );  //  ]======[
+        places.push_back( make_pair( 3, 3 ) );  //  ]===+++[
+        places.push_back( make_pair( 3, 4 ) );  //  ]===   [
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 10) {		// Plus E
+        places.push_back( make_pair( 1, 3 ) );  //	] +++==[
+        places.push_back( make_pair( 1, 4 ) );  //	] +=+==[
+        places.push_back( make_pair( 1, 5 ) );  //	] +=+++[
+        places.push_back( make_pair( 2, 5 ) );  //	]=====+[
+        places.push_back( make_pair( 3, 1 ) );  //	]===+++[
+        places.push_back( make_pair( 3, 3 ) );  //	]===   [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 11) {		// Plus F
+        places.push_back( make_pair( 0, 4 ) );  // ]+== ==[
+        places.push_back( make_pair( 0, 5 ) );  // ]+=====[
+        places.push_back( make_pair( 1, 3 ) );  // ]=++== [
+        places.push_back( make_pair( 2, 3 ) );  // ]===+==[
+        places.push_back( make_pair( 3, 1 ) );  // ]===+==[
+        places.push_back( make_pair( 3, 2 ) );  // ]====++[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 5, 0 ) );
+	}
+    else if (type == 12) {		// Plus G
+        places.push_back( make_pair( 1, 2 ) );  //	]  +===[
+        places.push_back( make_pair( 1, 4 ) );  //	]=++=+=[
+        places.push_back( make_pair( 2, 1 ) );  //	]======[
+        places.push_back( make_pair( 2, 2 ) );  //	]=++=++[
+        places.push_back( make_pair( 2, 4 ) );  //	]= +=+ [
+        places.push_back( make_pair( 2, 5 ) );  //	]===== [
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	// Paths
-	else if (type == 10) {		// Paths A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 0; }	//	]===++=[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	]===++=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===++=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 5; }	//	]===++=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 0; }	//	]===++=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 11) {		// Paths C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 3; }	//	]==++==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 4; }	//	]==++==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 5; }	//	]==+  =[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]==  +=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===++=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===++=[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 12) {		// Paths C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 2; }	//	] =+===[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]==+===[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]++===+[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]++===+[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]  ==  [
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]====  [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 13) {		// Paths D
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 3; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]++===+[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]++===+[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	] =++= [
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]===== [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+	else if (type == 13) {		// Paths A
+        places.push_back( make_pair( 1, 3 ) );  //	]=++===[
+        places.push_back( make_pair( 1, 4 ) );  //	]=++===[
+        places.push_back( make_pair( 1, 5 ) );  //	]=++  =[
+        places.push_back( make_pair( 2, 3 ) );  //	]===++=[
+        places.push_back( make_pair( 2, 4 ) );  //	]===++=[
+        places.push_back( make_pair( 2, 5 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+	}
+	else if (type == 14) {		// Paths B
+        places.push_back( make_pair( 2, 3 ) );  //	]==++==[
+        places.push_back( make_pair( 2, 4 ) );  //	]==++==[
+        places.push_back( make_pair( 2, 5 ) );  //	]==+  =[
+        places.push_back( make_pair( 3, 0 ) );  //	]==  +=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 4 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+	}
+	else if (type == 15) {		// Paths C
+        places.push_back( make_pair( 0, 2 ) );  //	] =+===[
+        places.push_back( make_pair( 0, 3 ) );  //	]==+===[
+        places.push_back( make_pair( 1, 2 ) );  //	]++===+[
+        places.push_back( make_pair( 1, 3 ) );  //	]++===+[
+        places.push_back( make_pair( 2, 4 ) );  //	]  ==  [
+        places.push_back( make_pair( 2, 5 ) );  //	]====  [
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 16) {		// Paths D
+        places.push_back( make_pair( 0, 3 ) );  //	]    ==[
+        places.push_back( make_pair( 0, 4 ) );  //	]++===+[
+        places.push_back( make_pair( 1, 3 ) );  //	]++===+[
+        places.push_back( make_pair( 1, 4 ) );  //	]======[
+        places.push_back( make_pair( 2, 1 ) );  //	] =++= [
+        places.push_back( make_pair( 3, 1 ) );  //	]===== [
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 17) {		// Paths E
+        places.push_back( make_pair( 2, 2 ) );  //	]====+=[
+        places.push_back( make_pair( 2, 3 ) );  //	]====+=[
+        places.push_back( make_pair( 3, 0 ) );  //	]==+= =[
+        places.push_back( make_pair( 3, 1 ) );  //	]==+= =[
+        places.push_back( make_pair( 4, 0 ) );  //	]= =++=[
+        places.push_back( make_pair( 4, 1 ) );  //	]= =++=[
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+    else if (type == 18) {		// Paths F
+        places.push_back( make_pair( 1, 4 ) );  //	] ++= =[
+        places.push_back( make_pair( 1, 5 ) );  //	] ++= =[
+        places.push_back( make_pair( 2, 0 ) );  //	]====+=[
+        places.push_back( make_pair( 2, 1 ) );  //	]====+=[
+        places.push_back( make_pair( 2, 4 ) );  //	]==+= =[
+        places.push_back( make_pair( 2, 5 ) );  //	]==+= =[
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
+    else if (type == 19) {		// Paths G
+        places.push_back( make_pair( 0, 2 ) );  //	] =++==[
+        places.push_back( make_pair( 0, 3 ) );  //	]======[
+        places.push_back( make_pair( 2, 0 ) );  //	]+====+[
+        places.push_back( make_pair( 2, 5 ) );  //	]+====+[
+        places.push_back( make_pair( 3, 0 ) );  //	]======[
+        places.push_back( make_pair( 3, 5 ) );  //	]==++= [
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	// Cross
-	else if (type == 14) {		// Cross A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	] +====[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =+=+=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==+==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =+=+=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=+===+[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 15) {		// Cross B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=+====[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==+=+=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] ==+==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]==+=+=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]=+===+[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 16) {		// Cross C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]+=====[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=+=+= [
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==+== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=+=+= [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]+===+ [
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 17) {		// Cross D
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]++ ===[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]++=== [
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 5; }	//	]===== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 1; }	//	]===== [
-			else if (place[randPlace] == 4) { xPos = 1; yPos = 4; }	//	]++=++ [
-			else if (place[randPlace] == 5) { xPos = 1; yPos = 5; }	//	]===== [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-    else if (type == 18) {		// Cross E
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]=+====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=+====[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]===== [
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]=+==++[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]=+==++[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+	else if (type == 20) {		// Cross A
+        places.push_back( make_pair( 1, 1 ) );  //	] +====[
+        places.push_back( make_pair( 1, 5 ) );  //	] =+=+=[
+        places.push_back( make_pair( 2, 2 ) );  //	] ==+==[
+        places.push_back( make_pair( 2, 4 ) );  //	] =+=+=[
+        places.push_back( make_pair( 3, 3 ) );  //	]=+===+[
+        places.push_back( make_pair( 4, 2 ) );  //	]==    [
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
+	else if (type == 21) {		// Cross B
+        places.push_back( make_pair( 1, 0 ) );  //	]     =[
+        places.push_back( make_pair( 1, 4 ) );  //	]=+====[
+        places.push_back( make_pair( 2, 1 ) );  //	]==+=+=[
+        places.push_back( make_pair( 2, 3 ) );  //	] ==+==[
+        places.push_back( make_pair( 3, 2 ) );  //	]==+=+=[
+        places.push_back( make_pair( 4, 1 ) );  //	]=+===+[
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 0 ) );
+	}
+	else if (type == 22) {		// Cross C
+        places.push_back( make_pair( 0, 1 ) );  //	]+=====[
+        places.push_back( make_pair( 0, 5 ) );  //	]=+=+= [
+        places.push_back( make_pair( 1, 2 ) );  //	]==+== [
+        places.push_back( make_pair( 1, 4 ) );  //	]=+=+= [
+        places.push_back( make_pair( 2, 3 ) );  //	]+===+ [
+        places.push_back( make_pair( 3, 2 ) );  //	]==    [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+	}
+	else if (type == 23) {		// Cross D
+        places.push_back( make_pair( 0, 1 ) );  //	]++ ===[
+        places.push_back( make_pair( 0, 4 ) );  //	]++=== [
+        places.push_back( make_pair( 0, 5 ) );  //	]===== [
+        places.push_back( make_pair( 1, 1 ) );  //	]===== [
+        places.push_back( make_pair( 1, 4 ) );  //	]++=++ [
+        places.push_back( make_pair( 1, 5 ) );  //	]===== [
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 4, 1 ) );
+	}
+    else if (type == 24) {		// Cross E
+        places.push_back( make_pair( 1, 0 ) );  //	]======[
+        places.push_back( make_pair( 1, 1 ) );  //	]=+====[
+        places.push_back( make_pair( 1, 3 ) );  //	]=+====[
+        places.push_back( make_pair( 1, 4 ) );  //	]===== [
+        places.push_back( make_pair( 4, 0 ) );  //	]=+==++[
+        places.push_back( make_pair( 4, 1 ) );  //	]=+==++[
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
+    else if (type == 25) {		// Cross F
+        places.push_back( make_pair( 1, 1 ) );  //	]   +==[
+        places.push_back( make_pair( 1, 3 ) );  //	]  ==+=[
+        places.push_back( make_pair( 2, 2 ) );  //	]=+=+=+[
+        places.push_back( make_pair( 3, 1 ) );  //	]==+== [
+        places.push_back( make_pair( 3, 3 ) );  //	]=+=+  [
+        places.push_back( make_pair( 3, 5 ) );  //	]====  [
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+    else if (type == 26) {		// Cross G
+        places.push_back( make_pair( 1, 3 ) );  //	] +====[
+        places.push_back( make_pair( 1, 5 ) );  //	]==+= =[
+        places.push_back( make_pair( 2, 4 ) );  //	]=+=+==[
+        places.push_back( make_pair( 3, 1 ) );  //	]=  =+=[
+        places.push_back( make_pair( 3, 3 ) );  //	]=  +=+[
+        places.push_back( make_pair( 4, 2 ) );  //	]===== [
+        places.push_back( make_pair( 5, 1 ) );
+	}
 	// Gallery
-	else if (type == 19) {		// Gallery A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=++++=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=++++=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=++++=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]=++++=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 20) {		// Gallery B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]++==++[
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]++==++[
-			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]++==++[
-			else if (place[randPlace] == 4) { xPos = 1; yPos = 1; }	//	]++==++[
-			else if (place[randPlace] == 5) { xPos = 1; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 1; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 1; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 21) {		// Gallery C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]=++++=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=++++=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]=++++=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 0; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]=++++=[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 22) {		// Gallery C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]+=++=+[
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]+=++=+[
-			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]+=++=+[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]+=++=+[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+	else if (type == 27) {		// Gallery A
+        places.push_back( make_pair( 1, 1 ) );  //	]======[
+        places.push_back( make_pair( 1, 2 ) );  //	]=++++=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=++++=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=++++=[
+        places.push_back( make_pair( 2, 1 ) );  //	]=++++=[
+        places.push_back( make_pair( 2, 2 ) );  //	]======[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 28) {		// Gallery B
+        places.push_back( make_pair( 0, 1 ) );  //	]======[
+        places.push_back( make_pair( 0, 2 ) );  //	]++==++[
+        places.push_back( make_pair( 0, 3 ) );  //	]++==++[
+        places.push_back( make_pair( 0, 4 ) );  //	]++==++[
+        places.push_back( make_pair( 1, 1 ) );  //	]++==++[
+        places.push_back( make_pair( 1, 2 ) );  //	]======[
+        places.push_back( make_pair( 1, 3 ) );
+        places.push_back( make_pair( 1, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 29) {		// Gallery C
+        places.push_back( make_pair( 1, 0 ) );  //	]=++++=[
+        places.push_back( make_pair( 1, 2 ) );  //	]======[
+        places.push_back( make_pair( 1, 3 ) );  //	]=++++=[
+        places.push_back( make_pair( 1, 5 ) );  //	]=++++=[
+        places.push_back( make_pair( 2, 0 ) );  //	]======[
+        places.push_back( make_pair( 2, 2 ) );  //	]=++++=[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+	else if (type == 30) {		// Gallery D
+        places.push_back( make_pair( 0, 1 ) );  //	]======[
+        places.push_back( make_pair( 0, 2 ) );  //	]+=++=+[
+        places.push_back( make_pair( 0, 3 ) );  //	]+=++=+[
+        places.push_back( make_pair( 0, 4 ) );  //	]+=++=+[
+        places.push_back( make_pair( 2, 1 ) );  //	]+=++=+[
+        places.push_back( make_pair( 2, 2 ) );  //	]======[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 31) {		// Gallery E
+        places.push_back( make_pair( 0, 2 ) );  //	]=+++==[
+        places.push_back( make_pair( 0, 3 ) );  //	]+=====[
+        places.push_back( make_pair( 0, 4 ) );  //	]+=++=+[
+        places.push_back( make_pair( 1, 5 ) );  //	]+=++=+[
+        places.push_back( make_pair( 2, 0 ) );  //	]=====+[
+        places.push_back( make_pair( 2, 2 ) );  //	]==+++=[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
     // Scattered
-	else if (type == 23) {		// Scattered A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]==+===[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	]===+==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 5; }	//	]==+=+=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]===+=+[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]==+=+=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===+=+[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 24) {		// Scattered B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 2; }	//	]=+=+==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]+=+===[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=+=+=+[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]+=+=+=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 25) {		// Scattered C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 3; }	//	]   ===[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=+=+==[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }	//	]+=+=+=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 1; }	//	]=+=+= [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]==+=+ [
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]===+= [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 26) {		// Scattered D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	] =+===[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] +=+==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==+=+=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=+=+=+[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==+=+=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====  [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-            else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
+	else if (type == 32) {		// Scattered A
+        places.push_back( make_pair( 2, 1 ) );  //	]==+===[
+        places.push_back( make_pair( 2, 3 ) );  //	]===+==[
+        places.push_back( make_pair( 2, 5 ) );  //	]==+=+=[
+        places.push_back( make_pair( 3, 0 ) );  //	]===+=+[
+        places.push_back( make_pair( 3, 2 ) );  //	]==+=+=[
+        places.push_back( make_pair( 3, 4 ) );  //	]===+=+[
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 33) {		// Scattered B
+        places.push_back( make_pair( 0, 2 ) );  //	]=+=+==[
+        places.push_back( make_pair( 0, 4 ) );  //	]+=+===[
+        places.push_back( make_pair( 1, 3 ) );  //	]=+=+=+[
+        places.push_back( make_pair( 1, 5 ) );  //	]+=+=+=[
+        places.push_back( make_pair( 2, 2 ) );  //	]======[
+        places.push_back( make_pair( 2, 4 ) );  //	]======[
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 34) {		// Scattered C
+        places.push_back( make_pair( 0, 3 ) );  //	]   ===[
+        places.push_back( make_pair( 1, 2 ) );  //	]=+=+==[
+        places.push_back( make_pair( 1, 4 ) );  //	]+=+=+=[
+        places.push_back( make_pair( 2, 1 ) );  //	]=+=+= [
+        places.push_back( make_pair( 2, 3 ) );  //	]==+=+ [
+        places.push_back( make_pair( 3, 0 ) );  //	]===+= [
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
+	else if (type == 35) {		// Scattered D
+        places.push_back( make_pair( 1, 2 ) );  //	] =+===[
+        places.push_back( make_pair( 1, 4 ) );  //	] +=+==[
+        places.push_back( make_pair( 2, 1 ) );  //	]==+=+=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=+=+=+[
+        places.push_back( make_pair( 2, 5 ) );  //	]==+=+=[
+        places.push_back( make_pair( 3, 2 ) );  //	]====  [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+    else if (type == 36) {		// Scattered E
+        places.push_back( make_pair( 0, 4 ) );  //	]=+====[
+        places.push_back( make_pair( 1, 3 ) );  //	]+=+===[
+        places.push_back( make_pair( 1, 5 ) );  //	]=+=+==[
+        places.push_back( make_pair( 2, 4 ) );  //	] ===+=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===+=+[
+        places.push_back( make_pair( 3, 3 ) );  //	]== =+=[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
+    else if (type == 37) {		// Scattered F
+        places.push_back( make_pair( 0, 3 ) );  //	]+=+ ==[
+        places.push_back( make_pair( 0, 5 ) );  //	]=+====[
+        places.push_back( make_pair( 1, 4 ) );  //	]+=+== [
+        places.push_back( make_pair( 2, 3 ) );  //	] ==+=+[
+        places.push_back( make_pair( 2, 5 ) );  //	]====+=[
+        places.push_back( make_pair( 3, 0 ) );  //	]== +=+[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	// Layers
-	else if (type == 27) {		// Layers A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 1; }	//	]= ++==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==++==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==++==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==++==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==++ =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]=    =[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 5; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 28) {		// Layers B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 2; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==+=+=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==+=+=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==+=+=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]==+=+=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 29) {		// Layers C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 2; }	//	]===++=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 3; }	//	]===++=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===++=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]===++=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 30) {		// Layers D
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 4; }	//	]=+====[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	]=+====[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]==+===[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] =++==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]====++[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]== ===[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else if (type == 31) {		// Layers E
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	//	]=== ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]++====[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==++= [
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	]===+==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]====+=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 0; }	//	]====+=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			if (xPos != -1 && yPos != -1 && map[xPos][yPos].state != 2) {
-				map[xPos][yPos].item = 1;
-				if (map[xPos][yPos].boxHP > 0) { map[xPos][yPos].boxType = 2; }
-				amt -= itemWorth;
-				remove(place.begin(), place.end(), place[randPlace]); }
-	}	}
-	else { generateItems(amt, 0); }
+	else if (type == 38) {		// Layers A
+        places.push_back( make_pair( 2, 1 ) );  //	]= ++==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==++==[
+        places.push_back( make_pair( 2, 3 ) );  //	]==++==[
+        places.push_back( make_pair( 2, 4 ) );  //	]==++==[
+        places.push_back( make_pair( 2, 5 ) );  //	]==++ =[
+        places.push_back( make_pair( 3, 1 ) );  //	]=    =[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+	}
+	else if (type == 39) {		// Layers B
+        places.push_back( make_pair( 2, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==+=+=[
+        places.push_back( make_pair( 2, 3 ) );  //	]==+=+=[
+        places.push_back( make_pair( 2, 4 ) );  //	]==+=+=[
+        places.push_back( make_pair( 4, 1 ) );  //	]==+=+=[
+        places.push_back( make_pair( 4, 2 ) );  //	]=     [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 40) {		// Layers C
+        places.push_back( make_pair( 3, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 3, 2 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 3 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 4 ) );  //	]===++=[
+        places.push_back( make_pair( 4, 1 ) );  //	]===++=[
+        places.push_back( make_pair( 4, 2 ) );  //	]=     [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 41) {		// Layers D
+        places.push_back( make_pair( 1, 4 ) );  //	]=+====[
+        places.push_back( make_pair( 1, 5 ) );  //	]=+====[
+        places.push_back( make_pair( 2, 2 ) );  //	]==+===[
+        places.push_back( make_pair( 2, 3 ) );  //	] =++==[
+        places.push_back( make_pair( 3, 2 ) );  //	]====++[
+        places.push_back( make_pair( 4, 1 ) );  //	]== ===[
+        places.push_back( make_pair( 5, 1 ) );
+	}
+	else if (type == 42) {		// Layers E
+        places.push_back( make_pair( 0, 4 ) );  //	]=== ==[
+        places.push_back( make_pair( 1, 4 ) );  //	]++====[
+        places.push_back( make_pair( 2, 3 ) );  //	]==++= [
+        places.push_back( make_pair( 3, 2 ) );  //	]===+==[
+        places.push_back( make_pair( 3, 3 ) );  //	]====+=[
+        places.push_back( make_pair( 4, 0 ) );  //	]====+=[
+        places.push_back( make_pair( 4, 1 ) );
+	}
+    else if (type == 43) {		// Layers F
+        places.push_back( make_pair( 1, 4 ) );  //	] ++===[
+        places.push_back( make_pair( 1, 5 ) );  //	] +====[
+        places.push_back( make_pair( 2, 3 ) );  //	]==+===[
+        places.push_back( make_pair( 2, 5 ) );  //	]===+==[
+        places.push_back( make_pair( 3, 0 ) );  //	]====+ [
+        places.push_back( make_pair( 3, 2 ) );  //	]===++ [
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+	}
+    else { generateItems( amt, 0, 0 ); return; }
+
+    for ( int i = 0; i < amt; i += itemWorth ) {
+        if ( !places.empty() ) {
+            int randPlace = rand() % places.size();
+            xPos = places[randPlace].first;
+            yPos = places[randPlace].second;
+            if ( xPos != -1 && yPos != -1 && map[xPos][yPos].state <= 1 && map[xPos][yPos].boxHP <= 3 ) {
+                map[xPos][yPos].item++;
+                if ( map[xPos][yPos].boxHP > 0 ) { map[xPos][yPos].boxType = 2; }
+                if ( map[xPos][yPos].item >= 2 ) { remove( places.begin(), places.end(), places[randPlace] ); }
+            }
+        }
+    }
+
+    for ( int i = 0; i < places.size(); i++ ) {
+        xPos = places[i].first;
+        yPos = places[i].second;
+        if ( map[xPos][yPos].item >= 1 ) { remove( places.begin(), places.end(), places[i] ); }
+    }
+
+    for ( int i = 0; i < trapAmt; i++ ) {
+        if ( !places.empty() ) {
+            int randPlace = rand() % places.size();
+            xPos = places[randPlace].first;
+            yPos = places[randPlace].second;
+            if ( xPos != -1 && yPos != -1 && map[xPos][yPos].state <= 1 && map[xPos][yPos].boxHP <= 3 && map[xPos][yPos].item == 0 ) {
+                map[xPos][yPos].item = -1;
+                if ( map[xPos][yPos].boxHP > 0 ) { map[xPos][yPos].boxType = 2; }
+                remove( places.begin(), places.end(), places[randPlace] );
+            }
+        }
+    }
 }
 void App::generateBoxes(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
+    vector<pair<int, int>> places;
 	// Rooms
-	if (type == 0 ) {			// Rooms A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 2; }	//	] =O=O=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] =O=  [
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	] =O=O=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }	//	] =O=O=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 0; }	//	]   =O=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]====O=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+    if ( type == 0 ) {			// Rooms A
+        places.push_back( make_pair( 2, 2 ) );  //	] =O=O=[
+        places.push_back( make_pair( 2, 3 ) );  //	] =O=  [
+        places.push_back( make_pair( 2, 4 ) );  //	] =O=O=[
+        places.push_back( make_pair( 2, 5 ) );  //	] =O=O=[
+        places.push_back( make_pair( 4, 0 ) );  //	]   =O=[
+        places.push_back( make_pair( 4, 1 ) );  //	]====O=[
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+    }
 	else if (type == 1) {		// Rooms B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      ( place[randPlace] == 0 ) { xPos = 0; yPos = 3; }	//	]OO==O=[
-			else if ( place[randPlace] == 1 ) { xPos = 0; yPos = 4; }	//	]OO==  [
-			else if ( place[randPlace] == 2 ) { xPos = 0; yPos = 5; }	//	]OO==  [
-			else if ( place[randPlace] == 3 ) { xPos = 1; yPos = 3; }	//	]  ==OO[
-			else if ( place[randPlace] == 4 ) { xPos = 1; yPos = 4; }	//	]  ==OO[
-			else if ( place[randPlace] == 5 ) { xPos = 1; yPos = 5; }	//	]====OO[
-			else if ( place[randPlace] == 6 ) { xPos = 4; yPos = 0; }
-			else if ( place[randPlace] == 7 ) { xPos = 4; yPos = 1; }
-			else if ( place[randPlace] == 8 ) { xPos = 4; yPos = 2; }
-			else if ( place[randPlace] == 9 ) { xPos = 4; yPos = 5; }
-			else if ( place[randPlace] == 10 ) { xPos = 5; yPos = 0; }
-			else if ( place[randPlace] == 11 ) { xPos = 5; yPos = 1; }
-			else if ( place[randPlace] == 12 ) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+        places.push_back( make_pair( 0, 3 ) );  //	]OO==O=[
+        places.push_back( make_pair( 0, 4 ) );  //	]OO==  [
+        places.push_back( make_pair( 0, 5 ) );  //	]OO==  [
+        places.push_back( make_pair( 1, 3 ) );  //	]  ==OO[
+        places.push_back( make_pair( 1, 4 ) );  //	]  ==OO[
+        places.push_back( make_pair( 1, 5 ) );  //	]====OO[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	else if (type == 2) {		// Rooms C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	]=== ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=OO=O=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]=OO== [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] ==OO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===OO=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]== ===[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+        places.push_back( make_pair( 1, 3 ) );  //	]=== ==[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO=O=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=OO== [
+        places.push_back( make_pair( 2, 4 ) );  //	] ==OO=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===OO=[
+        places.push_back( make_pair( 3, 2 ) );  //	]== ===[
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
 	else if (type == 3) {		// Rooms D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]=O==O=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 1; }	//	]O=OO=O[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]O=OO=O[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	//	]=O==O=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 3; }	//	]=    =[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+        places.push_back( make_pair( 0, 2 ) );  //	]=    =[
+        places.push_back( make_pair( 0, 3 ) );  //	]=O==O=[
+        places.push_back( make_pair( 1, 1 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 1, 4 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 2, 2 ) );  //	]=O==O=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=    =[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	else if (type == 4) {		// Rooms E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 0; yPos = 3; }	//	]==OO==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]==O=O=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]OO===O[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 1; }	//	]=OO=OO[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	//	]==OO==[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]===O==[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+        places.push_back( make_pair( 0, 3 ) );  //	]==OO==[
+        places.push_back( make_pair( 1, 2 ) );  //	]==O=O=[
+        places.push_back( make_pair( 1, 3 ) );  //	]OO===O[
+        places.push_back( make_pair( 2, 1 ) );  //	]=OO=OO[
+        places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 4 ) );  //	]===O==[
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+    else if (type == 5) {		// Rooms F
+        places.push_back( make_pair( 0, 3 ) );  //	] ==O==[
+        places.push_back( make_pair( 1, 2 ) );  //	]==OO==[
+        places.push_back( make_pair( 1, 3 ) );  //	]OO==O=[
+        places.push_back( make_pair( 2, 0 ) );  //	]=O==OO[
+        places.push_back( make_pair( 2, 1 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 4 ) );  //	]==O== [
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	// Plus
-	else if (type == 5) {		// Plus A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] ==O==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	] =OOO=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]=OO=OO[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OOO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===O==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====  [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 6) {		// Plus B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 2; }	//	] ===O=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	] =OOOO[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] =O=O=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=OOOO=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==O===[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 7) {		// Plus C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 1; yPos = 3; }	//	] O=O==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	] O=O =[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	] O=OOO[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===OOO[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 8) {		// Plus D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 3; }	// ] OOO==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	// ] O=O==[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	// ] O=OOO[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	// ]==O==O[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	// ]===OOO[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	// ]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 9) {		// Plus E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 0; yPos = 4; }	//	]O== ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]O==O==[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=OO=O [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]===O==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]===O==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====OO[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 0; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+	else if (type == 6) {		// Plus A
+        places.push_back( make_pair( 1, 3 ) );  //	] ==O==[
+        places.push_back( make_pair( 2, 2 ) );  //	] =OOO=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=OO=OO[
+        places.push_back( make_pair( 2, 4 ) );  //	]==OOO=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===O==[
+        places.push_back( make_pair( 3, 2 ) );  //	]====  [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 7) {		// Plus B
+        places.push_back( make_pair( 1, 2 ) );  //	] ===O=[
+        places.push_back( make_pair( 2, 1 ) );  //	] =OOOO[
+        places.push_back( make_pair( 2, 2 ) );  //	] =O=O=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 2, 4 ) );  //	]==O===[
+        places.push_back( make_pair( 3, 2 ) );  //	]===   [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 8) {		// Plus C
+        places.push_back( make_pair( 1, 4 ) );  //	] =O===[
+        places.push_back( make_pair( 2, 3 ) );  //	] OOOO=[
+        places.push_back( make_pair( 2, 4 ) );  //	] =O=O=[
+        places.push_back( make_pair( 2, 5 ) );  //	]===OOO[
+        places.push_back( make_pair( 3, 2 ) );  //	]====O=[
+        places.push_back( make_pair( 3, 4 ) );  //	]===   [
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 9) {		// Plus D
+        places.push_back( make_pair( 1, 3 ) );  //	] O=O==[
+        places.push_back( make_pair( 1, 4 ) );  //	] O=O =[
+        places.push_back( make_pair( 1, 5 ) );  //	] O=OOO[
+        places.push_back( make_pair( 3, 1 ) );  //	]======[
+        places.push_back( make_pair( 3, 3 ) );  //	]===OOO[
+        places.push_back( make_pair( 3, 4 ) );  //	]===   [
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 10) {		// Plus E
+        places.push_back( make_pair( 1, 3 ) );  // ] OOO==[
+        places.push_back( make_pair( 1, 4 ) );  // ] O=O==[
+        places.push_back( make_pair( 1, 5 ) );  // ] O=OOO[
+        places.push_back( make_pair( 2, 2 ) );  // ]==O==O[
+        places.push_back( make_pair( 2, 5 ) );  // ]===OOO[
+        places.push_back( make_pair( 3, 1 ) );  // ]===   [
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 11) {		// Plus F
+        places.push_back( make_pair( 0, 4 ) );  //	]O== ==[
+        places.push_back( make_pair( 0, 5 ) );  //	]O==O==[
+        places.push_back( make_pair( 1, 3 ) );  //	]=OO=O [
+        places.push_back( make_pair( 2, 3 ) );  //	]===O==[
+        places.push_back( make_pair( 3, 1 ) );  //	]===O==[
+        places.push_back( make_pair( 3, 2 ) );  //	]====OO[
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 0 ) );
+	}
+    else if (type == 12) {		// Plus G
+        places.push_back( make_pair( 1, 2 ) );  //	]  O=O=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO=OO[
+        places.push_back( make_pair( 2, 1 ) );  //	]===O==[
+        places.push_back( make_pair( 2, 2 ) );  //	]=OO=OO[
+        places.push_back( make_pair( 2, 4 ) );  //	]= O=O [
+        places.push_back( make_pair( 2, 5 ) );  //	]===== [
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
 	// Paths
-	else if (type == 10) {		// Paths A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)	{ xPos = 3; yPos = 0; }	//	]===OO=[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	]===OO=[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===OO=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 5; }	//	]===OO=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 0; }	//	]===OO=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 11) {		// Paths C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 2; yPos = 0; }	//	]==OOO=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]==OOO=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==O  =[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==  O=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==OOO=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]==OOO=[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 12) {		// Paths D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if		(place[randPlace] == 0)	{ xPos = 0; yPos = 2; }	//	] =OO==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]==OO==[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]OO==OO[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]OO==OO[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]  ==  [
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]====  [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 13) {		// Paths D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]OO==OO[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]OO==OO[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]==OO==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	] =OO= [
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]===== [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+	else if (type == 13) {		// Paths A
+        places.push_back( make_pair( 1, 3 ) );  //	]=OO===[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO===[
+        places.push_back( make_pair( 1, 5 ) );  //	]=OO  =[
+        places.push_back( make_pair( 2, 3 ) );  //	]=  OO=[
+        places.push_back( make_pair( 2, 4 ) );  //	]===OO=[
+        places.push_back( make_pair( 2, 5 ) );  //	]===OO=[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+	}
+	else if (type == 14) {		// Paths B
+        places.push_back( make_pair( 2, 0 ) );  //	]==OOO=[
+        places.push_back( make_pair( 2, 1 ) );  //	]==OOO=[
+        places.push_back( make_pair( 2, 3 ) );  //	]==O  =[
+        places.push_back( make_pair( 2, 4 ) );  //	]==  O=[
+        places.push_back( make_pair( 2, 5 ) );  //	]==OOO=[
+        places.push_back( make_pair( 3, 0 ) );  //	]==OOO=[
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+	else if (type == 15) {		// Paths D
+        places.push_back( make_pair( 0, 2 ) );  //	] =OO==[
+        places.push_back( make_pair( 0, 3 ) );  //	]==OO==[
+        places.push_back( make_pair( 1, 2 ) );  //	]OO==OO[
+        places.push_back( make_pair( 1, 3 ) );  //	]OO==OO[
+        places.push_back( make_pair( 2, 4 ) );  //	]  ==  [
+        places.push_back( make_pair( 2, 5 ) );  //	]====  [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 16) {		// Paths D
+        places.push_back( make_pair( 0, 3 ) );  //	]    ==[
+        places.push_back( make_pair( 0, 4 ) );  //	]OO==OO[
+        places.push_back( make_pair( 1, 3 ) );  //	]OO==OO[
+        places.push_back( make_pair( 1, 4 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 1 ) );  //	] =OO= [
+        places.push_back( make_pair( 2, 2 ) );  //	]===== [
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 17) {		// Paths E
+        places.push_back( make_pair( 1, 2 ) );  //	]===OO=[
+        places.push_back( make_pair( 1, 3 ) );  //	]===OO=[
+        places.push_back( make_pair( 2, 2 ) );  //	]=OO= =[
+        places.push_back( make_pair( 2, 3 ) );  //	]=OO= =[
+        places.push_back( make_pair( 3, 0 ) );  //	]= =OO=[
+        places.push_back( make_pair( 3, 1 ) );  //	]= =OO=[
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+    else if (type == 18) {		// Paths F
+        places.push_back( make_pair( 1, 0 ) );  //	] OO= =[
+        places.push_back( make_pair( 1, 1 ) );  //	] OO= =[
+        places.push_back( make_pair( 1, 4 ) );  //	]===OO=[
+        places.push_back( make_pair( 1, 5 ) );  //	]===OO=[
+        places.push_back( make_pair( 2, 0 ) );  //	]=OO= =[
+        places.push_back( make_pair( 2, 1 ) );  //	]=OO= =[
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
+    else if (type == 19) {		// Paths G
+        places.push_back( make_pair( 0, 2 ) );  //	] =OO==[
+        places.push_back( make_pair( 0, 3 ) );  //	]==OO==[
+        places.push_back( make_pair( 1, 2 ) );  //	]OO==OO[
+        places.push_back( make_pair( 1, 3 ) );  //	]OO==OO[
+        places.push_back( make_pair( 2, 0 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 1 ) );  //	]==OO= [
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	// Cross
-	else if (type == 14) {		// Cross A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	] O===O[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	] =O=O=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	] ==O==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	] =O=O=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]=O===O[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 15) {		// Cross B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=O===O[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==O=O=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	] ==O==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]==O=O=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }	//	]=O===O[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 16) {		// Cross C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]O===O=[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=O=O= [
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==O== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=O=O= [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]O===O [
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 17) {		// Cross D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	// ]== ===[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	// ]OO=OO [
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 1; }	// ]==O== [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	// ]==O== [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	// ]OO=OO [
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 3; }	// ]===== [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-    else if (type == 18) {		// Cross E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	// ]  == =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	// ]=O==O=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	// ]=O==O=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	// ]==OO= [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	// ]=O==O=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	// ]=O==O=[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+	else if (type == 20) {		// Cross A
+        places.push_back( make_pair( 1, 1 ) );  //	] O===O[
+        places.push_back( make_pair( 1, 5 ) );  //	] =O=O=[
+        places.push_back( make_pair( 2, 2 ) );  //	] ==O==[
+        places.push_back( make_pair( 2, 4 ) );  //	] =O=O=[
+        places.push_back( make_pair( 3, 3 ) );  //	]=O===O[
+        places.push_back( make_pair( 4, 2 ) );  //	]==    [
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 5 ) );
+	}
+	else if (type == 21) {		// Cross B
+        places.push_back( make_pair( 1, 0 ) );  //	]     =[
+        places.push_back( make_pair( 1, 4 ) );  //	]=O===O[
+        places.push_back( make_pair( 2, 1 ) );  //	]==O=O=[
+        places.push_back( make_pair( 2, 3 ) );  //	] ==O==[
+        places.push_back( make_pair( 3, 2 ) );  //	]==O=O=[
+        places.push_back( make_pair( 4, 1 ) );  //	]=O===O[
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 22) {		// Cross C
+        places.push_back( make_pair( 0, 1 ) );  //	]O===O=[
+        places.push_back( make_pair( 0, 5 ) );  //	]=O=O= [
+        places.push_back( make_pair( 1, 2 ) );  //	]==O== [
+        places.push_back( make_pair( 1, 4 ) );  //	]=O=O= [
+        places.push_back( make_pair( 2, 3 ) );  //	]O===O [
+        places.push_back( make_pair( 3, 2 ) );  //	]==    [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+	else if (type == 23) {		// Cross D
+        places.push_back( make_pair( 0, 1 ) );  // ]== ===[
+        places.push_back( make_pair( 0, 4 ) );  // ]OO=OO [
+        places.push_back( make_pair( 1, 1 ) );  // ]==O== [
+        places.push_back( make_pair( 1, 4 ) );  // ]==O== [
+        places.push_back( make_pair( 2, 2 ) );  // ]OO=OO [
+        places.push_back( make_pair( 2, 3 ) );  // ]===== [
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+    else if (type == 24) {		// Cross E
+        places.push_back( make_pair( 1, 0 ) );  // ]  == =[
+        places.push_back( make_pair( 1, 1 ) );  // ]=O==O=[
+        places.push_back( make_pair( 1, 3 ) );  // ]=O==O=[
+        places.push_back( make_pair( 1, 4 ) );  // ]==OO= [
+        places.push_back( make_pair( 2, 2 ) );  // ]=O==O=[
+        places.push_back( make_pair( 3, 2 ) );  // ]=O==O=[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+    else if (type == 25) {		// Cross F
+        places.push_back( make_pair( 1, 1 ) );  //	]   O=O[
+        places.push_back( make_pair( 1, 3 ) );  //	]  ==O=[
+        places.push_back( make_pair( 2, 2 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 3, 1 ) );  //	]==O== [
+        places.push_back( make_pair( 3, 3 ) );  //	]=O=O  [
+        places.push_back( make_pair( 3, 5 ) );  //	]====  [
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 5 ) );
+	}
+    else if (type == 26) {		// Cross G
+        places.push_back( make_pair( 1, 3 ) );  //	] O=O==[
+        places.push_back( make_pair( 1, 5 ) );  //	]==O= =[
+        places.push_back( make_pair( 2, 4 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 3, 1 ) );  //	]=  =O=[
+        places.push_back( make_pair( 3, 3 ) );  //	]=  O=O[
+        places.push_back( make_pair( 3, 5 ) );  //	]===== [
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	// Gallery
-	else if (type == 19) {		// Gallery A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=OOOO=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=OOOO=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=OOOO=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]=OOOO=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 20) {		// Gallery B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]OO==OO[
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]OO==OO[
-			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]OO==OO[
-			else if (place[randPlace] == 4) { xPos = 1; yPos = 1; }	//	]OO==OO[
-			else if (place[randPlace] == 5) { xPos = 1; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 1; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 1; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 21) {		// Gallery C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]=OOOO=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=OOOO=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]=OOOO=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 0; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]=OOOO=[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 12) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 13) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 22) {		// Gallery D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]O=OO=O[
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]O=OO=O[
-			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]O=OO=O[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]O=OO=O[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 2; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 12) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 13) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 14) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 15) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+	else if (type == 27) {		// Gallery A
+        places.push_back( make_pair( 1, 1 ) );  //	]======[
+        places.push_back( make_pair( 1, 2 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 2, 1 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 2, 2 ) );  //	]======[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 28) {		// Gallery B
+        places.push_back( make_pair( 0, 1 ) );  //	]======[
+        places.push_back( make_pair( 0, 2 ) );  //	]OO==OO[
+        places.push_back( make_pair( 0, 3 ) );  //	]OO==OO[
+        places.push_back( make_pair( 0, 4 ) );  //	]OO==OO[
+        places.push_back( make_pair( 1, 1 ) );  //	]OO==OO[
+        places.push_back( make_pair( 1, 2 ) );  //	]======[
+        places.push_back( make_pair( 1, 3 ) );
+        places.push_back( make_pair( 1, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 29) {		// Gallery C
+        places.push_back( make_pair( 1, 0 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 1, 2 ) );  //	]======[
+        places.push_back( make_pair( 1, 3 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 1, 5 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 2, 0 ) );  //	]======[
+        places.push_back( make_pair( 2, 2 ) );  //	]=OOOO=[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+	else if (type == 30) {		// Gallery D
+        places.push_back( make_pair( 0, 1 ) );  //	]======[
+        places.push_back( make_pair( 0, 2 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 0, 3 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 0, 4 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 2, 1 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 2, 2 ) );  //	]======[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 31) {		// Gallery E
+        places.push_back( make_pair( 0, 2 ) );  //	]=OOO==[
+        places.push_back( make_pair( 0, 3 ) );  //	]O=====[
+        places.push_back( make_pair( 0, 4 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 1, 5 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 2, 0 ) );  //	]=====O[
+        places.push_back( make_pair( 2, 2 ) );  //	]==OOO=[
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 5 ) );
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	// Scattered
-	else if (type == 23) {		// Scattered A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]==O=O=[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	]===O=O[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 5; }	//	]==O=O=[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]===O=O[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]==O=O=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===O=O[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 0; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 24) {		// Scattered B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]=O=O=O[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; }	//	]O=O=O=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=O=O=O[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 5; }	//	]O=O=O=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 25) {		// Scattered C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 0; yPos = 3; }	//	]   =O=[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 2; }	//	]=O=O=O[
-			else if (place[randPlace] == 2)  { xPos = 1; yPos = 4; }	//	]O=O=O=[
-			else if (place[randPlace] == 3)  { xPos = 2; yPos = 1; }	//	]=O=O= [
-			else if (place[randPlace] == 4)  { xPos = 2; yPos = 3; }	//	]==O=O [
-			else if (place[randPlace] == 5)  { xPos = 3; yPos = 0; }	//	]===O= [
-			else if (place[randPlace] == 6)  { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7)  { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9)  { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 26) {		// Scattered D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 1; yPos = 2; } //	] =O=O=[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 4; } //	] O=O=O[
-			else if (place[randPlace] == 2)  { xPos = 2; yPos = 1; } //	]==O=O=[
-			else if (place[randPlace] == 3)  { xPos = 2; yPos = 3; } //	]=O=O=O[
-			else if (place[randPlace] == 4)  { xPos = 2; yPos = 5; } //	]==O=O=[
-			else if (place[randPlace] == 5)  { xPos = 3; yPos = 2; } //	]====  [
-			else if (place[randPlace] == 6)  { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7)  { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9)  { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
-            else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
+	else if (type == 32) {		// Scattered A
+        places.push_back( make_pair( 2, 1 ) );  //	]==O=O=[
+        places.push_back( make_pair( 2, 3 ) );  //	]===O=O[
+        places.push_back( make_pair( 2, 5 ) );  //	]==O=O=[
+        places.push_back( make_pair( 3, 0 ) );  //	]===O=O[
+        places.push_back( make_pair( 3, 2 ) );  //	]==O=O=[
+        places.push_back( make_pair( 3, 4 ) );  //	]===O=O[
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 33) {		// Scattered B
+        places.push_back( make_pair( 0, 2 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 0, 4 ) );  //	]O=O=O=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 1, 5 ) );  //	]O=O=O=[
+        places.push_back( make_pair( 2, 2 ) );  //	]======[
+        places.push_back( make_pair( 2, 4 ) );  //	]======[
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 5 ) );
+	}
+	else if (type == 34) {		// Scattered C
+        places.push_back( make_pair( 0, 3 ) );  //	]   =O=[
+        places.push_back( make_pair( 1, 2 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 1, 4 ) );  //	]O=O=O=[
+        places.push_back( make_pair( 2, 1 ) );  //	]=O=O= [
+        places.push_back( make_pair( 2, 3 ) );  //	]==O=O [
+        places.push_back( make_pair( 3, 0 ) );  //	]===O= [
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 35) {		// Scattered D
+        places.push_back( make_pair( 1, 2 ) );  //	] =O=O=[
+        places.push_back( make_pair( 1, 4 ) );  //	] O=O=O[
+        places.push_back( make_pair( 2, 1 ) );  //	]==O=O=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 2, 5 ) );  //	]==O=O=[
+        places.push_back( make_pair( 3, 2 ) );  //	]====  [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 36) {		// Scattered E
+        places.push_back( make_pair( 0, 4 ) );  //	]=O=O==[
+        places.push_back( make_pair( 1, 3 ) );  //	]O=O=O=[
+        places.push_back( make_pair( 1, 5 ) );  //	]=O=O=O[
+        places.push_back( make_pair( 2, 4 ) );  //	] ===O=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===O=O[
+        places.push_back( make_pair( 3, 3 ) );  //	]== =O=[
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+    else if (type == 37) {		// Scattered F
+        places.push_back( make_pair( 0, 3 ) );  //	]O=O ==[
+        places.push_back( make_pair( 0, 5 ) );  //	]=O=O==[
+        places.push_back( make_pair( 1, 4 ) );  //	]O=O=O [
+        places.push_back( make_pair( 2, 3 ) );  //	] ==O=O[
+        places.push_back( make_pair( 2, 5 ) );  //	]====O=[
+        places.push_back( make_pair( 3, 0 ) );  //	]== O=O[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	// Layers
-	else if (type == 27) {		// Layers A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]= OO==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==OO==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==OO==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==OO==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 5; }	//	]==OO =[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]=    =[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 28) {		// Layers B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 1; yPos = 1; } //	]    ==[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 2; } //	]=OO=O=[
-			else if (place[randPlace] == 2)  { xPos = 1; yPos = 3; } //	]=OO=O=[
-			else if (place[randPlace] == 3)  { xPos = 1; yPos = 4; } //	]=OO=O=[
-			else if (place[randPlace] == 4)  { xPos = 2; yPos = 1; } //	]=OO=O=[
-			else if (place[randPlace] == 5)  { xPos = 2; yPos = 2; } //	]=     [
-			else if (place[randPlace] == 6)  { xPos = 2; yPos = 3; }
-			else if (place[randPlace] == 7)  { xPos = 2; yPos = 4; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9)  { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 29) {		// Layers C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 1; yPos = 1; } //	]    ==[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 2; } //	]=O=OO=[
-			else if (place[randPlace] == 2)  { xPos = 1; yPos = 3; } //	]=O=OO=[
-			else if (place[randPlace] == 3)  { xPos = 1; yPos = 4; } //	]=O=OO=[
-			else if (place[randPlace] == 4)  { xPos = 3; yPos = 1; } //	]=O=OO=[
-			else if (place[randPlace] == 5)  { xPos = 3; yPos = 2; } //	]=     [
-			else if (place[randPlace] == 6)  { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7)  { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9)  { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 30) {		// Layers D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 1; yPos = 4; } //	]=OO===[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 5; } //	]=OO===[
-			else if (place[randPlace] == 2)  { xPos = 2; yPos = 2; } //	]==OO==[
-			else if (place[randPlace] == 3)  { xPos = 2; yPos = 3; } //	] =OOOO[
-			else if (place[randPlace] == 4)  { xPos = 2; yPos = 4; } //	]====OO[
-			else if (place[randPlace] == 5)  { xPos = 2; yPos = 5; } //	]== ===[
-			else if (place[randPlace] == 6)  { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7)  { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9)  { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else if (type == 31) {		// Layers E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; } //	]=== ==[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 4; } //	]OO====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; } //	]OOOO= [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; } //	]==OO==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; } //	]===OO=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 3; } //	]===OO=[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 10) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 11) { xPos = 4; yPos = 1; }
-			if (xPos != -1 && yPos != -1) {
-				if (map[xPos][yPos].item > 0) {
-					map[xPos][yPos].boxType = 2;
-					if (map[xPos][yPos].boxHP >= 3) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-				}	}
-				else {
-					if (map[xPos][yPos].boxHP >= 3) { map[xPos][yPos].boxType = 1; }
-					if (map[xPos][yPos].boxHP >= 5) { remove(place.begin(), place.end(), place[randPlace]); }
-					else {
-						map[xPos][yPos].boxHP++;
-						amt--;
-	}	}	}	}	}
-	else { generateBoxes(amt, 0); }
+	else if (type == 38) {		// Layers A
+        places.push_back( make_pair( 2, 1 ) );  //	]= OO==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 3 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 4 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 5 ) );  //	]==OO =[
+        places.push_back( make_pair( 3, 1 ) );  //	]=    =[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
+	}
+	else if (type == 39) {		// Layers B
+        places.push_back( make_pair( 1, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 1, 2 ) );  //	]=OO=O=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=OO=O=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO=O=[
+        places.push_back( make_pair( 2, 1 ) );  //	]=OO=O=[
+        places.push_back( make_pair( 2, 2 ) );  //	]=     [
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 40) {		// Layers C
+        places.push_back( make_pair( 1, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 1, 2 ) );  //	]=O=OO=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=O=OO=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=O=OO=[
+        places.push_back( make_pair( 3, 1 ) );  //	]=O=OO=[
+        places.push_back( make_pair( 3, 2 ) );  //	]=     [
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 41) {		// Layers D
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO===[
+        places.push_back( make_pair( 1, 5 ) );  //	]=OO===[
+        places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 3 ) );  //	] =OOOO[
+        places.push_back( make_pair( 2, 4 ) );  //	]====OO[
+        places.push_back( make_pair( 2, 5 ) );  //	]== ===[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 42) {		// Layers E
+        places.push_back( make_pair( 0, 3 ) );  //	]=== ==[
+        places.push_back( make_pair( 0, 4 ) );  //	]OO====[
+        places.push_back( make_pair( 1, 3 ) );  //	]OOOO= [
+        places.push_back( make_pair( 1, 4 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 2 ) );  //	]===OO=[
+        places.push_back( make_pair( 2, 3 ) );  //	]===OO=[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+	}
+    else if (type == 43) {		// Layers F
+        places.push_back( make_pair( 1, 4 ) );  //	] OO===[
+        places.push_back( make_pair( 1, 5 ) );  //	] OO===[
+        places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 3 ) );  //	]==OO==[
+        places.push_back( make_pair( 2, 4 ) );  //	]===OO [
+        places.push_back( make_pair( 2, 5 ) );  //	]===OO [
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+	}
+    else { generateBoxes( amt, 0 ); return; }
+
+    while ( amt > 0 && !places.empty() ) {
+        int randPlace = rand() % places.size();
+        xPos = places[randPlace].first;
+        yPos = places[randPlace].second;
+        if ( xPos != -1 && yPos != -1 ) {
+            if ( map[xPos][yPos].item != 0 ) {
+                map[xPos][yPos].boxType = 2;
+                if ( map[xPos][yPos].boxHP >= 3 ) { remove( places.begin(), places.end(), places[randPlace] ); }
+                else {
+                    map[xPos][yPos].boxHP++;
+                    amt--;
+                }
+            }
+            else {
+                if ( map[xPos][yPos].boxHP >= 3 ) { map[xPos][yPos].boxType = 1; }
+                if ( map[xPos][yPos].boxHP >= 5 ) { remove( places.begin(), places.end(), places[randPlace] ); }
+                else {
+                    map[xPos][yPos].boxHP++;
+                    amt--;
+                }
+            }
+        }
+    }
 }
 void App::generateFloor(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
+    vector<pair<int, int>> places;
 	// Rooms
 	if (type == 0) {				// Rooms A
-		vector<int> place = { 0,1,2,3,4,5 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 3; yPos = 0; }	//	] ==X==[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 1; }	//	] ==X  [
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 2; }	//	] ==X==[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 3; }	//	] ==X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]   X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 5; }	//	]===X==[
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+        places.push_back( make_pair( 3, 0 ) );  //	] ==X==[
+        places.push_back( make_pair( 3, 1 ) );  //	] ==X  [
+        places.push_back( make_pair( 3, 2 ) );  //	] ==X==[
+        places.push_back( make_pair( 3, 3 ) );  //	] ==X==[
+        places.push_back( make_pair( 3, 4 ) );  //	]   X==[
+        places.push_back( make_pair( 3, 5 ) );  //	]===X==[
+	}
 	else if (type == 1) {			// Rooms B
-		vector<int> place = { 0,1,2,3,4,5 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 3; }	//	]==X===[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 4; }	//	]==X=  [
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 5; }	//	]==X=  [
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 0; }	//	]  =X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]  =X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]===X==[
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+        places.push_back( make_pair( 2, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 2, 4 ) );  //	]==X=  [
+        places.push_back( make_pair( 2, 5 ) );  //	]==X=  [
+        places.push_back( make_pair( 3, 0 ) );  //	]  =X==[
+        places.push_back( make_pair( 3, 1 ) );  //	]  =X==[
+        places.push_back( make_pair( 3, 2 ) );  //	]===X==[
+	}
 	else if (type == 2) {			// Rooms C
-		vector<int> place = { 0,1,2,3,4,5 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]=== ==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	//	]===X==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 2; }	//	]===XX [
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 3; }	//	] XX===[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]==X===[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]== ===[
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+        places.push_back( make_pair( 1, 2 ) );  //	]=== ==[
+        places.push_back( make_pair( 2, 1 ) );  //	]===X==[
+        places.push_back( make_pair( 2, 2 ) );  //	]===XX [
+        places.push_back( make_pair( 3, 3 ) );  //	] XX===[
+        places.push_back( make_pair( 3, 4 ) );  //	]==X===[
+        places.push_back( make_pair( 4, 3 ) );  //	]== ===[
+	}
 	else if (type == 3) {			// Rooms D
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]=    =[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]=X==X=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]=X==X=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]=    =[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+        places.push_back( make_pair( 1, 2 ) );  //	]=    =[
+        places.push_back( make_pair( 1, 3 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 1 ) );  //	]=X==X=[
+        places.push_back( make_pair( 2, 4 ) );  //	]=X==X=[
+        places.push_back( make_pair( 3, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 4 ) );  //	]=    =[
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
 	else if (type == 4) {			// Rooms E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]====X=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=X=X=X[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 0; }	//	]==XXX=[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]X==X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	//	]====X=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]==X===[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+        places.push_back( make_pair( 0, 2 ) );  //	]====X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X=X=X[
+        places.push_back( make_pair( 2, 0 ) );  //	]==XXX=[
+        places.push_back( make_pair( 2, 3 ) );  //	]X==X==[
+        places.push_back( make_pair( 3, 2 ) );  //	]====X=[
+        places.push_back( make_pair( 3, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 5) {			// Rooms F
+        places.push_back( make_pair( 0, 2 ) );  //	]==X===[
+        places.push_back( make_pair( 1, 1 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]==XX=X[
+        places.push_back( make_pair( 2, 2 ) );  //	]X=XX==[
+        places.push_back( make_pair( 2, 3 ) );  //	]=X==X=[
+        places.push_back( make_pair( 2, 5 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	// Plus
-	else if (type == 5) {			// Plus A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }		//	] =X=X=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }		//	] X===X[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }		//	]===X==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }		//	]=X===X[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }		//	]==X=X=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 1; }		//	]====  [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 6) {			// Plus B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }		//	] =XX==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }		//	] X====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }		//	] X=X=X[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }		//	]=====X[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }		//	]=X=XX=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }		//	]===   [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 8) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 7) {			// Plus C
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 2; }		//	] =X===[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }		//	] =X===[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }		//	] =X===[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 5; }		//	]==XXXX[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }		//	]======[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }		//	]===   [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 8) {			// Plus D
-		vector<int> place = { 0,1,2,3,4,5,6 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	// ] =====[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 1; }	// ] =X=X=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	// ] =X===[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	// ]=X=XX=[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 2; }	// ]==X===[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; } // ]===   [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 9) {			// Plus E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }		//	]=== ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }		//	]=XX===[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 4; }		//	]X==X= [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 1; }		//	]=XX=X=[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 2; }		//	]==X=X=[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }		//	]===X==[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+	else if (type == 6) {			// Plus A
+        places.push_back( make_pair( 1, 2 ) );  //	] =X=X=[
+        places.push_back( make_pair( 1, 4 ) );  //	] X===X[
+        places.push_back( make_pair( 2, 1 ) );  //	]===X==[
+        places.push_back( make_pair( 2, 5 ) );  //	]=X===X[
+        places.push_back( make_pair( 3, 3 ) );  //	]==X=X=[
+        places.push_back( make_pair( 4, 1 ) );  //	]====  [
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 7) {			// Plus B
+        places.push_back( make_pair( 1, 1 ) );  //	] =XX==[
+        places.push_back( make_pair( 1, 3 ) );  //	] X====[
+        places.push_back( make_pair( 1, 4 ) );  //	] X=X=X[
+        places.push_back( make_pair( 2, 5 ) );  //	]=====X[
+        places.push_back( make_pair( 3, 1 ) );  //	]=X=XX=[
+        places.push_back( make_pair( 3, 3 ) );  //	]===   [
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+    else if (type == 8) {			// Plus C
+        places.push_back( make_pair( 1, 3 ) );  //	] ==XX=[
+        places.push_back( make_pair( 2, 2 ) );  //	] ====X[
+        places.push_back( make_pair( 3, 1 ) );  //	] X=X=X[
+        places.push_back( make_pair( 3, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 3, 5 ) );  //	]===X==[
+        places.push_back( make_pair( 4, 5 ) );  //	]===   [
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 9) {			// Plus D
+        places.push_back( make_pair( 2, 2 ) );  //	] =X===[
+        places.push_back( make_pair( 2, 3 ) );  //	] =X===[
+        places.push_back( make_pair( 2, 4 ) );  //	] =X===[
+        places.push_back( make_pair( 2, 5 ) );  //	]==XXXX[
+        places.push_back( make_pair( 3, 2 ) );  //	]======[
+        places.push_back( make_pair( 4, 2 ) );  //	]===   [
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 10) {			// Plus E
+        places.push_back( make_pair( 1, 2 ) );  // ] =====[
+        places.push_back( make_pair( 2, 1 ) );  // ] =X=X=[
+        places.push_back( make_pair( 2, 3 ) );  // ] =X===[
+        places.push_back( make_pair( 2, 4 ) );  // ]=X=XX=[
+        places.push_back( make_pair( 3, 2 ) );  // ]==X===[
+        places.push_back( make_pair( 4, 2 ) );  // ]===   [
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 11) {			// Plus F
+        places.push_back( make_pair( 0, 3 ) );  //	]=== ==[
+        places.push_back( make_pair( 1, 2 ) );  //	]=XX===[
+        places.push_back( make_pair( 1, 4 ) );  //	]X==X= [
+        places.push_back( make_pair( 2, 1 ) );  //	]=XX=X=[
+        places.push_back( make_pair( 2, 2 ) );  //	]==X=X=[
+        places.push_back( make_pair( 2, 4 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+	}
+    else if (type == 12) {			// Plus G
+        places.push_back( make_pair( 1, 3 ) );  //	]  =x==[
+        places.push_back( make_pair( 2, 3 ) );  //	]===x==[
+        places.push_back( make_pair( 3, 1 ) );  //	]=xx=xx[
+        places.push_back( make_pair( 3, 2 ) );  //	]===x==[
+        places.push_back( make_pair( 3, 4 ) );  //	]= =x= [
+        places.push_back( make_pair( 3, 5 ) );  //	]===== [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
 	// Paths
-	else if (type == 10) {			// Paths A
-		vector<int> place = { 0,1,2,3,4,5 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }		//	]==X===[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 0; }		//	]==X===[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }		//	]X    =[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }		//	]==X===[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }		//	]==X===[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }		//	]==X===[
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 11) {			// Paths B
-		vector<int> place = { 0,1,2,3,4 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 0; }	//	]=X====[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]=X====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=X=  =[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]==  ==[
-			else if (place[randPlace] == 4) { xPos = 1; yPos = 5; }	//	]=X====[
-			if (xPos != -1 && yPos != -1) {							//	]=X====[
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 12) {			// Paths C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	] X==X=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]XX==XX[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 5; }	//	]==XX==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	//	]==XX==[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]  ==  [
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]====  [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 9) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 13) {			// Paths D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]==XX==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]XX==XX[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	] X==X [
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 3; }	//	]===== [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 4; }
-            else if (place[randPlace] == 7) { xPos = 4; yPos = 1; }
-            else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-            else if (place[randPlace] == 9) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+	else if (type == 13) {			// Paths A
+        places.push_back( make_pair( 0, 3 ) );  //	]X=====[
+        places.push_back( make_pair( 0, 4 ) );  //	]X=====[
+        places.push_back( make_pair( 0, 5 ) );  //	]X==  =[
+        places.push_back( make_pair( 2, 0 ) );  //	]=  ===[
+        places.push_back( make_pair( 2, 1 ) );  //	]==X===[
+                                                //	]==X===[
+	}
+	else if (type == 14) {			// Paths B
+        places.push_back( make_pair( 1, 0 ) );  //	]=X====[
+        places.push_back( make_pair( 1, 1 ) );  //	]=X====[
+        places.push_back( make_pair( 1, 3 ) );  //	]=X=  =[
+        places.push_back( make_pair( 1, 4 ) );  //	]==  ==[
+        places.push_back( make_pair( 1, 5 ) );  //	]=X====[
+                                                //	]=X====[
+	}
+	else if (type == 15) {			// Paths C
+        places.push_back( make_pair( 0, 4 ) );  //	] X==X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]XX==XX[
+        places.push_back( make_pair( 1, 5 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 3 ) );  //	]  ==  [
+        places.push_back( make_pair( 3, 2 ) );  //	]====  [
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 16) {			// Paths D
+        places.push_back( make_pair( 0, 2 ) );  //	]    ==[
+        places.push_back( make_pair( 1, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 1, 2 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 3 ) );  //	]XX==XX[
+        places.push_back( make_pair( 2, 4 ) );  //	] X==X [
+        places.push_back( make_pair( 3, 3 ) );  //	]===== [
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+    else if (type == 17) {		// Paths E
+        places.push_back( make_pair( 1, 4 ) );  //	]==X===[
+        places.push_back( make_pair( 2, 4 ) );  //	]=XX===[
+        places.push_back( make_pair( 2, 5 ) );  //	]===X X[
+        places.push_back( make_pair( 3, 2 ) );  //	]===X X[
+        places.push_back( make_pair( 3, 3 ) );  //	]= ====[
+        places.push_back( make_pair( 5, 2 ) );  //	]= ====[
+        places.push_back( make_pair( 5, 3 ) );
+	}
+    else if (type == 18) {		// Paths F
+        places.push_back( make_pair( 1, 2 ) );  //	] === =[
+        places.push_back( make_pair( 1, 3 ) );  //	] ==X =[
+        places.push_back( make_pair( 2, 2 ) );  //	]=XX===[
+        places.push_back( make_pair( 2, 3 ) );  //	]=XX===[
+        places.push_back( make_pair( 3, 1 ) );  //	]===X =[
+        places.push_back( make_pair( 3, 4 ) );  //	]==== =[
+	}
+    else if (type == 19) {		// Paths G
+        places.push_back( make_pair( 1, 1 ) );  //	] =====[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X==X=[
+        places.push_back( make_pair( 2, 2 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 3 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 2 ) );  //	]=X==X=[
+        places.push_back( make_pair( 3, 3 ) );  //	]===== [
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
 	// Cross
-	else if (type == 14) {			// Cross A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 3; }	//	] ==X==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 3; }	//	] ==X==[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 1; }	//	] XX=XX[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 2; }	//	] ==X==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 4; }	//	]===X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 5; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 15) {			// Cross B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]     =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]===X==[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 0; }	//	]===X==[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 1; }	//	] XX=XX[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 3; }	//	]===X==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]===X==[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 16) {			// Cross C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]==X===[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 3; }	//	]==X== [
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]XX=XX [
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 2; }	//	]==X== [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==X== [
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]==    [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 17) {			// Cross D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 2; }	//	]== ===[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 3; }	//	]==X== [
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]XX=XX [
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	]XX=XX [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]==X== [
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 4; }	//	]===== [
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-            else if (place[randPlace] == 8) { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-    else if (type == 18) {			// Cross E
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 2; }	//	]  == =[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 0; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 3; }	//	]=X==X [
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 4; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 0; }	//	]==XX==[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 3; }
-            else if (place[randPlace] == 8) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 2; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+	else if (type == 20) {			// Cross A
+        places.push_back( make_pair( 1, 3 ) );  //	] ==X==[
+        places.push_back( make_pair( 2, 3 ) );  //	] ==X==[
+        places.push_back( make_pair( 3, 1 ) );  //	] XX=XX[
+        places.push_back( make_pair( 3, 2 ) );  //	] ==X==[
+        places.push_back( make_pair( 3, 4 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 5 ) );  //	]==    [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 21) {			// Cross B
+        places.push_back( make_pair( 1, 2 ) );  //	]     =[
+        places.push_back( make_pair( 2, 2 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 0 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 1 ) );  //	] XX=XX[
+        places.push_back( make_pair( 3, 3 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 4 ) );  //	]===X==[
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
+	else if (type == 22) {			// Cross C
+        places.push_back( make_pair( 0, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 1, 3 ) );  //	]==X== [
+        places.push_back( make_pair( 2, 1 ) );  //	]XX=XX [
+        places.push_back( make_pair( 2, 2 ) );  //	]==X== [
+        places.push_back( make_pair( 2, 4 ) );  //	]==X== [
+        places.push_back( make_pair( 2, 5 ) );  //	]==    [
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
+	else if (type == 23) {			// Cross D
+        places.push_back( make_pair( 0, 2 ) );  //	]== ===[
+        places.push_back( make_pair( 0, 3 ) );  //	]==X== [
+        places.push_back( make_pair( 1, 2 ) );  //	]XX=XX [
+        places.push_back( make_pair( 1, 3 ) );  //	]XX=XX [
+        places.push_back( make_pair( 2, 1 ) );  //	]==X== [
+        places.push_back( make_pair( 2, 4 ) );  //	]===== [
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
+    else if (type == 24) {			// Cross E
+        places.push_back( make_pair( 1, 2 ) );  //	]  == =[
+        places.push_back( make_pair( 2, 0 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 3 ) );  //	]=X==X [
+        places.push_back( make_pair( 2, 4 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 0 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 2 ) );
+	}
+    else if (type == 25) {		// Cross F
+        places.push_back( make_pair( 1, 2 ) );  //	]   =X=[
+        places.push_back( make_pair( 2, 1 ) );  //	]  XX=X[
+        places.push_back( make_pair( 2, 3 ) );  //	]==X=X=[
+        places.push_back( make_pair( 2, 4 ) );  //	]=X=XX [
+        places.push_back( make_pair( 3, 2 ) );  //	]==X=  [
+        places.push_back( make_pair( 3, 4 ) );  //	]====  [
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 26) {		// Cross G
+        places.push_back( make_pair( 1, 4 ) );  //	] =X===[
+        places.push_back( make_pair( 2, 3 ) );  //	]=X=X =[
+        places.push_back( make_pair( 2, 5 ) );  //	]==X=X=[
+        places.push_back( make_pair( 3, 2 ) );  //	]=  X=X[
+        places.push_back( make_pair( 3, 4 ) );  //	]=  =X=[
+        places.push_back( make_pair( 4, 1 ) );  //	]===== [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 5, 2 ) );
+	}
 	// Gallery
-	else if (type == 19) {			// Gallery A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 2; }	//	]X====X[
-			else if (place[randPlace] == 2) { xPos = 0; yPos = 3; }	//	]X====X[
-			else if (place[randPlace] == 3) { xPos = 0; yPos = 4; }	//	]X====X[
-			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]X====X[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 20) {			// Gallery B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==XX==[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==XX==[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 21) {			// Gallery C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 4; }	//	]=XXXX=[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 4) { xPos = 3; yPos = 1; }	//	]=XXXX=[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 4; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 1; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 22) {			// Gallery D
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]======[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=X==X=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=X==X=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=X==X=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 1; }	//	]=X==X=[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 2; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+	else if (type == 27) {			// Gallery A
+        places.push_back( make_pair( 0, 1 ) );  //	]======[
+        places.push_back( make_pair( 0, 2 ) );  //	]X====X[
+        places.push_back( make_pair( 0, 3 ) );  //	]X====X[
+        places.push_back( make_pair( 0, 4 ) );  //	]X====X[
+        places.push_back( make_pair( 5, 1 ) );  //	]X====X[
+        places.push_back( make_pair( 5, 2 ) );  //	]======[
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 28) {			// Gallery B
+        places.push_back( make_pair( 2, 1 ) );  //	]======[
+        places.push_back( make_pair( 2, 2 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 3 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 4 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 2 ) );  //	]======[
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+	}
+	else if (type == 29) {			// Gallery C
+        places.push_back( make_pair( 1, 1 ) );  //	]======[
+        places.push_back( make_pair( 1, 4 ) );  //	]=XXXX=[
+        places.push_back( make_pair( 2, 1 ) );  //	]======[
+        places.push_back( make_pair( 2, 4 ) );  //	]======[
+        places.push_back( make_pair( 3, 1 ) );  //	]=XXXX=[
+        places.push_back( make_pair( 3, 4 ) );  //	]======[
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+	else if (type == 30) {			// Gallery D
+        places.push_back( make_pair( 1, 1 ) );  //	]======[
+        places.push_back( make_pair( 1, 2 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X==X=[
+        places.push_back( make_pair( 4, 1 ) );  //	]=X==X=[
+        places.push_back( make_pair( 4, 2 ) );  //	]======[
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+    else if (type == 31) {		// Gallery E
+        places.push_back( make_pair( 1, 2 ) );  //	]======[
+        places.push_back( make_pair( 1, 3 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 1 ) );  //	]=X==X=[
+        places.push_back( make_pair( 2, 4 ) );  //	]=X==X=[
+        places.push_back( make_pair( 3, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 3, 4 ) );  //	]======[
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
 	// Scattered
-	else if (type == 23) {			// Scattered A
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 2; yPos = 0; }	//	]===X==[
-			else if (place[randPlace] == 1)  { xPos = 2; yPos = 2; }	//	]==X=X=[
-			else if (place[randPlace] == 2)  { xPos = 2; yPos = 4; }	//	]===X=X[
-			else if (place[randPlace] == 3)  { xPos = 3; yPos = 1; }	//	]==X=X=[
-			else if (place[randPlace] == 4)  { xPos = 3; yPos = 3; }	//	]===X=X[
-			else if (place[randPlace] == 5)  { xPos = 3; yPos = 5; }	//	]==X=X=[
-			else if (place[randPlace] == 6)  { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 7)  { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 9)  { xPos = 5; yPos = 1; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 24) {			// Scattered B
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10,11 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 3; }	//	]X=X=X=[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]=X=X=X[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]X=X=X=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=X=X=X[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 3; }	//	]======[
-			else if (place[randPlace] == 5) { xPos = 2; yPos = 5; }	//	]======[
-			else if (place[randPlace] == 6) { xPos = 3; yPos = 2; }
-			else if (place[randPlace] == 7) { xPos = 3; yPos = 4; }
-			else if (place[randPlace] == 8) { xPos = 4; yPos = 3; }
-			else if (place[randPlace] == 9) { xPos = 4; yPos = 5; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 2; }
-			else if (place[randPlace] == 11) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 25) {			// Scattered C
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 0; yPos = 4; }	//	]   X==[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 1; }	//	]X=X=X=[
-			else if (place[randPlace] == 2)  { xPos = 2; yPos = 2; }	//	]=X=X=X[
-			else if (place[randPlace] == 3)  { xPos = 2; yPos = 4; }	//	]==X=X [
-			else if (place[randPlace] == 4)  { xPos = 3; yPos = 1; }	//	]===X= [
-			else if (place[randPlace] == 5)  { xPos = 3; yPos = 3; }	//	]====X [
-			else if (place[randPlace] == 6)  { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7)  { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 9)  { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 26) {			// Scattered D
-		vector<int> place = { 0,1,2,3,4,5,6,7,8,9,10 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0)  { xPos = 1; yPos = 3; } //	] X=X==[
-			else if (place[randPlace] == 1)  { xPos = 1; yPos = 5; } //	] =X=X=[
-			else if (place[randPlace] == 2)  { xPos = 2; yPos = 2; } //	]=X=X=X[
-			else if (place[randPlace] == 3)  { xPos = 2; yPos = 4; } //	]==X=X=[
-			else if (place[randPlace] == 4)  { xPos = 3; yPos = 1; } //	]===X=X[
-			else if (place[randPlace] == 5)  { xPos = 3; yPos = 3; } //	]====  [
-			else if (place[randPlace] == 6)  { xPos = 3; yPos = 5; }
-			else if (place[randPlace] == 7)  { xPos = 4; yPos = 2; }
-			else if (place[randPlace] == 8)  { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 9)  { xPos = 5; yPos = 1; }
-            else if (place[randPlace] == 10) { xPos = 5; yPos = 3; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
+	else if (type == 32) {			// Scattered A
+        places.push_back( make_pair( 2, 0 ) );  //	]===X==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==X=X=[
+        places.push_back( make_pair( 2, 4 ) );  //	]===X=X[
+        places.push_back( make_pair( 3, 1 ) );  //	]==X=X=[
+        places.push_back( make_pair( 3, 3 ) );  //	]===X=X[
+        places.push_back( make_pair( 3, 5 ) );  //	]==X=X=[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 33) {			// Scattered B
+        places.push_back( make_pair( 0, 3 ) );  //	]X=X=X=[
+        places.push_back( make_pair( 0, 5 ) );  //	]=X=X=X[
+        places.push_back( make_pair( 1, 2 ) );  //	]X=X=X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X=X=X[
+        places.push_back( make_pair( 2, 3 ) );  //	]======[
+        places.push_back( make_pair( 2, 5 ) );  //	]======[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 34) {			// Scattered C
+        places.push_back( make_pair( 0, 4 ) );  //	]   X==[
+        places.push_back( make_pair( 1, 1 ) );  //	]X=X=X=[
+        places.push_back( make_pair( 2, 2 ) );  //	]=X=X=X[
+        places.push_back( make_pair( 2, 4 ) );  //	]==X=X [
+        places.push_back( make_pair( 3, 1 ) );  //	]===X= [
+        places.push_back( make_pair( 3, 3 ) );  //	]====X [
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+	else if (type == 35) {			// Scattered D
+        places.push_back( make_pair( 1, 3 ) );  //	] X=X==[
+        places.push_back( make_pair( 1, 5 ) );  //	] =X=X=[
+        places.push_back( make_pair( 2, 2 ) );  //	]=X=X=X[
+        places.push_back( make_pair( 2, 4 ) );  //	]==X=X=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===X=X[
+        places.push_back( make_pair( 3, 3 ) );  //	]====  [
+        places.push_back( make_pair( 3, 5 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 3 ) );
+	}
+    else if (type == 36) {			// Scattered E
+        places.push_back( make_pair( 0, 5 ) );  //	]X=X=X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X=X=X[
+        places.push_back( make_pair( 2, 3 ) );  //	]==X=X=[
+        places.push_back( make_pair( 2, 5 ) );  //	] ==X=X[
+        places.push_back( make_pair( 3, 2 ) );  //	]====X=[
+        places.push_back( make_pair( 3, 4 ) );  //	]== ==X[
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 37) {		// Scattered F
+        places.push_back( make_pair( 0, 4 ) );  //	]=X= ==[
+        places.push_back( make_pair( 1, 3 ) );  //	]X=X===[
+        places.push_back( make_pair( 1, 5 ) );  //	]=X=X= [
+        places.push_back( make_pair( 2, 2 ) );  //	] =X=X=[
+        places.push_back( make_pair( 2, 4 ) );  //	]===X=X[
+        places.push_back( make_pair( 3, 1 ) );  //	]== =X=[
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
 	// Layers
-	else if (type == 27) {			// Layers A
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 1; yPos = 1; }	//	]= ==X=[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 2; }	//	]=X==X=[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 3; }	//	]=X==X=[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 4; }	//	]=X==X=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 2; }	//	]=X== =[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]=    =[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 4; }
-			else if (place[randPlace] == 7) { xPos = 4; yPos = 5; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 28) {			// Layers B
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 3; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 3; yPos = 2; }	//	]===X=X[
-			else if (place[randPlace] == 2) { xPos = 3; yPos = 3; }	//	]===X=X[
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]===X=X[
-			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]===X=X[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 29) {			// Layers C
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 2; yPos = 1; }	//	]    ==[
-			else if (place[randPlace] == 1) { xPos = 2; yPos = 2; }	//	]==X==X[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 3; }	//	]==X==X[
-			else if (place[randPlace] == 3) { xPos = 2; yPos = 4; }	//	]==X==X[
-			else if (place[randPlace] == 4) { xPos = 5; yPos = 1; }	//	]==X==X[
-			else if (place[randPlace] == 5) { xPos = 5; yPos = 2; }	//	]=     [
-			else if (place[randPlace] == 6) { xPos = 5; yPos = 3; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 4; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 30) {			// Layers D
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 4; }	//	]X=====[
-			else if (place[randPlace] == 1) { xPos = 0; yPos = 5; }	//	]X=====[
-			else if (place[randPlace] == 2) { xPos = 1; yPos = 2; }	//	]=X====[
-			else if (place[randPlace] == 3) { xPos = 1; yPos = 3; }	//	] X====[
-			else if (place[randPlace] == 4) { xPos = 2; yPos = 1; }	//	]==XX==[
-			else if (place[randPlace] == 5) { xPos = 3; yPos = 1; }	//	]== =XX[
-			else if (place[randPlace] == 6) { xPos = 4; yPos = 0; }
-			else if (place[randPlace] == 7) { xPos = 5; yPos = 0; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else if (type == 31) {			// Layers E
-		vector<int> place = { 0,1,2,3,4,5,6,7 };
-		while (amt > 0 && !place.empty()) {
-			int randPlace = rand() % place.size();
-			if      (place[randPlace] == 0) { xPos = 0; yPos = 5; }	//	]XX= ==[
-			else if (place[randPlace] == 1) { xPos = 1; yPos = 5; }	//	]==XX==[
-			else if (place[randPlace] == 2) { xPos = 2; yPos = 4; }	//	]====X [
-			else if (place[randPlace] == 3) { xPos = 3; yPos = 4; }	//	]====X=[
-			else if (place[randPlace] == 4) { xPos = 4; yPos = 2; }	//	]=====X[
-			else if (place[randPlace] == 5) { xPos = 4; yPos = 3; }	//	]=====X[
-            else if (place[randPlace] == 6) { xPos = 5; yPos = 0; }
-            else if (place[randPlace] == 7) { xPos = 5; yPos = 1; }
-			if (xPos != -1 && yPos != -1) {
-				map[xPos][yPos].state = 1;
-				remove(place.begin(), place.end(), place[randPlace]);
-				amt--; }
-	}	}
-	else { generateFloor(amt, 0); }
+	else if (type == 38) {			// Layers A
+        places.push_back( make_pair( 1, 1 ) );  //	]= ==X=[
+        places.push_back( make_pair( 1, 2 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 3 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X==X=[
+        places.push_back( make_pair( 4, 2 ) );  //	]=X== =[
+        places.push_back( make_pair( 4, 3 ) );  //	]=    =[
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+	}
+	else if (type == 39) {			// Layers B
+        places.push_back( make_pair( 3, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 3, 2 ) );  //	]===X=X[
+        places.push_back( make_pair( 3, 3 ) );  //	]===X=X[
+        places.push_back( make_pair( 3, 4 ) );  //	]===X=X[
+        places.push_back( make_pair( 5, 1 ) );  //	]===X=X[
+        places.push_back( make_pair( 5, 2 ) );//	]=     [
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 40) {			// Layers C
+        places.push_back( make_pair( 2, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==X==X[
+        places.push_back( make_pair( 2, 3 ) );  //	]==X==X[
+        places.push_back( make_pair( 2, 4 ) );  //	]==X==X[
+        places.push_back( make_pair( 5, 1 ) );  //	]==X==X[
+        places.push_back( make_pair( 5, 2 ) );  //	]=     [
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+	else if (type == 41) {			// Layers D
+        places.push_back( make_pair( 0, 4 ) );  //	]X=====[
+        places.push_back( make_pair( 0, 5 ) );  //	]X=====[
+        places.push_back( make_pair( 1, 2 ) );  //	]X=====[
+        places.push_back( make_pair( 1, 3 ) );  //	]=X====[
+        places.push_back( make_pair( 2, 1 ) );  //	] X====[
+        places.push_back( make_pair( 3, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 4, 0 ) );  //	]== =XX[
+        places.push_back( make_pair( 5, 0 ) );
+	}
+	else if (type == 42) {			// Layers E
+        places.push_back( make_pair( 0, 5 ) );  //	]XX= ==[
+        places.push_back( make_pair( 1, 5 ) );  //	]==XX==[
+        places.push_back( make_pair( 2, 4 ) );  //	]====X [
+        places.push_back( make_pair( 3, 4 ) );  //	]====X=[
+        places.push_back( make_pair( 4, 2 ) );  //	]=====X[
+        places.push_back( make_pair( 4, 3 ) );  //	]=====X[
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
+    else if (type == 43) {			// Layers F
+        places.push_back( make_pair( 1, 2 ) );  //	] ==X==[
+        places.push_back( make_pair( 1, 3 ) );  //	] ==X==[
+        places.push_back( make_pair( 2, 0 ) );  //	]=X==X=[
+        places.push_back( make_pair( 2, 1 ) );  //	]=X==X=[
+        places.push_back( make_pair( 3, 4 ) );  //	]==X== [
+        places.push_back( make_pair( 3, 5 ) );  //	]==X== [
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+	}
+    else { generateFloor( amt, 0 ); return; }
+
+    while (amt > 0 && !places.empty()) {
+		int randPlace = rand() % places.size();
+        xPos = places[randPlace].first;
+        yPos = places[randPlace].second;
+		if (xPos != -1 && yPos != -1) {
+			map[xPos][yPos].state = 1;
+            remove( places.begin(), places.end(), places[randPlace] );
+			amt--;
+        }
+	}
 }
 
 void App::test() {
@@ -5302,24 +5384,9 @@ void App::test() {
         map[1][i].boxHP = 5;
         map[2][i].boxHP = 5;    map[2][i].state = 1;
         map[4][i].boxHP = 3;    map[4][i].item = 1;     map[4][i].boxType = 2;
-        map[5][i].boxHP = 3;    map[5][i].item = 1;     map[5][i].boxType = 2;
+        map[5][i].boxHP = 3;    map[5][i].item = 2;     map[5][i].boxType = 2;
+        map[i][0].item = -1;
     }
+    map[4][0].item = -1;    map[5][0].item = -1;
     map[2][4].state = 0;
-}
-void App::test2() {
-	int x = -1, y = -1, z = -1;
-	while (x < 0 || x > 31 || y < 0) {
-		cout << "Level Type: ";
-		cin >> x;
-		cout << "Level: ";
-		cin >> y;
-		cout << "Difficulty: ";
-		cin >> z;
-		cout << endl;
-	}
-	reset();
-	clearFloor();
-	level = y;
-	player.energy = 10000;
-	generateLevel(x, z);
 }
