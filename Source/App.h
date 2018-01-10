@@ -52,11 +52,27 @@ class Player {
 public:
 	Player();
 	int x, y;			// Coordinate position
-	int facing;			// Facing Direction		// 0 = Up		// 1 = Left		// 2 = Down		// 3 = Right
+    int x2, y2;         // Previous Coordinate position
+    int xOffset, yOffset;   // Drawing Character parameters
+    int hp;             // HP for NPCs        // Players do not have HP
+    int timesHit;       // Records how many times Players hit an NPC
+	int facing;			// Facing Direction		// 1 = Left		// 3 = Right
 	bool moving, turning;
 	int moveDir;		// Moving Direction		// 0 = Up		// 1 = Left		// 2 = Down		// 3 = Right
 	int energy;			// Player Resource - Used for attacking with swords
-    int type;           // 0 = Megaman      // 1 = Protoman
+    int type;           // 0 = Megaman      // 1 = Protoman     // 2 = Tomahawkman      // 3 = Colonel      // 4 = Slashman
+    bool npc;           // Whether or not the character is the player or an NPC
+    
+    float animationDisplayAmt;	// Used for Animation timing
+    float deathDisplayAmt;      // Used for animating defeated Characters
+    float currentSwordAtkTime;	// Used for Sword attack display
+    float hurtDisplayAmt;       // Used for showing that Characters got hit
+    float npcActionTimer;       // NPCs wait a moment after Players act
+
+	int animationType;			// -1 = Trapped    // 0 = Movement    // 1 = Attack    // 2 = Special Invalid movement    // 3,4 = Level Transition
+	int selSwordAnimation;		// Select which sword attack is being Animated
+    
+    int energyDisplayed, energyDisplayed2;        // Shown amount of energy
 	
 	void reset();
 };
@@ -68,23 +84,28 @@ public:
 	int item;		// 0 = No Energy (Resource)			// 1 = 100 Energy
 	int boxHP;		// 0 = No Rock
 	int boxType;	// 0, 1 = Rock		    // 2 = Ice Rock w/ Item
+    bool bigBoxDeath;   // Used for special Rock death animation
+    bool isPurple;        // Used to determine which color sprite sheet to use
 	float boxAtkInd;	// Used for Indicating that a Rock got Attacked and damaged
+    float upgradeInd;   // Used for Indicating that an Item got Upgraded
 	int prevDmg;
 };
 
-class DelayedHpLoss {		// Class used for displaying a Delayed HP Loss of a Rock
+class DelayedHpLoss {		// Class used for displaying a Delayed HP Loss of a Rock or Character
 public:
 	DelayedHpLoss();
-    DelayedHpLoss( int dmgAmt, int x, int y, float delayTime );
+    DelayedHpLoss( int dmgAmt, int x, int y, float delayTime, bool isNpc = false );
 	int dmg;
 	int xPos, yPos;
 	float delay;
+    int npc;        // Whether or not the damage was from an NPC
 };
 
 class DelayedSound {
 public:
 	DelayedSound();
-    DelayedSound( string name, float time );
+    DelayedSound( string name, float time, bool isNpc = false );
+    bool npc;
 	string soundName;
 	float delay;
 };
@@ -110,71 +131,74 @@ public:
 	void checkKeys();			// Reads keyboard inputs
 
 	Tile map[6][6];				// The current map
-	Player player;
+	Player player1;             // You, the player
+    vector<Player> npcList;     // Potential NPC's
 	bool done;					// If the current game is Over or not
     bool menuDisplay, quitMenuOn, resetMenuOn, diffSelMenuOn, trainMenuOn, menuSel;
     int charSel;
-    int energyDisplayed, energyDisplayed2;        // Shown amount of energy
 	int level, levelType;		// Level Types
 	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
+    int lvlsWithoutBoss;
 	int currentEnergyGain;		// Current Player Energy gain for this Level
 	float chargeDisplayPlusAmt;	// Used for showing that the Player picked up some Energy resource
 	float chargeDisplayMinusAmt;// Used for showing that the Player spent Energy
-	float animationDisplayAmt;	// Used for Animation timing
 	float itemAnimationAmt, bgAnimationAmt;		// Used for idle item animations		// Used for background animations
-	float currentSwordAtkTime;	// Used for Sword attack display
-	int animationType;			// -1 = Trapped    // 0 = Movement    // 1 = Attack    // 2 = Special Invalid movement    // 3,4 = Level Transition
-	int selSwordAnimation;		// Select which sword attack is being Animated
+    bool npcAbleToAct;          // Whether or not the NPCs can do an Action
 
 	int musicSel;					// Selects different music tracks
     bool musicMuted;
 	float musicSwitchDisplayAmt;
 
-	void face(int dir);			// 0 = up		// 1 = left		// 2 = down		// 3 = right
-	void move(int dir);			// 0 = up		// 1 = left		// 2 = down		// 3 = right
-	void move2(int dir);		// Move two Squares in the Facing Direction
+    // Player functions
+    void aiAction( Player &player );
+
+	void face( Player &player, int dir);		// 0 = up		// 1 = left		// 2 = down		// 3 = right
+    bool move( Player &player, int dir);		// 0 = up		// 1 = left		// 2 = down		// 3 = right
+	void move2(Player &player, int dir);		// Move two Squares in the Facing Direction
 
     // swordAtk:		Damages Rocks based on selected Sword and Direction
     // swordDisplay:	Animates a Sword Attack Sprite
-	void swordAtk(int dir);			void swordDisplay(int dir);
-	void longAtk(int dir);			void longDisplay(int dir);
-	void wideAtk(int dir);			void wideDisplay(int dir);
-	void crossAtk(int dir);			void crossDisplay(int dir);
-	void spinAtk(int dir);			void spinDisplay(int dir);
-	void stepAtk(int dir);			void stepDisplay(int dir);
-	void lifeAtk(int dir);			void lifeDisplay(int dir);
+	bool swordAtk(Player &player);		void swordDisplay(const Player &player);
+    bool longAtk(Player &player);		void longDisplay( const Player &player);
+    bool wideAtk(Player &player);		void wideDisplay( const Player &player);
+    bool crossAtk(Player &player);		void crossDisplay( const Player &player);
+    bool spinAtk(Player &player);		void spinDisplay( const Player &player);
+    bool stepAtk(Player &player);		void stepDisplay( const Player &player);
+    bool lifeAtk(Player &player);		void lifeDisplay( const Player &player);
 
-    void heroAtk(int dir);          void heroDisplay(int dir);
-    void protoAtk(int dir);         void protoDisplay(int dir);
+    bool heroAtk(Player &player);        void heroDisplay( const Player &player);
+    bool protoAtk(Player &player);       void protoDisplay( const Player &player);
 
-    void vDivideAtk(int dir);       void vDivideDisplay(int dir);
-    void upDivideAtk(int dir);      void upDivideDisplay(int dir);
-    void downDivideAtk(int dir);    void downDivideDisplay(int dir);
-    void xDivideAtk(int dir);       void xDivideDisplay(int dir);
-    void zDivideAtk(int dir);       void zDivideDisplay(int dir);
+    bool vDivideAtk(Player &player);     void vDivideDisplay( const Player &player);
+    bool upDivideAtk(Player &player);    void upDivideDisplay( const Player &player);
+    bool downDivideAtk(Player &player);  void downDivideDisplay( const Player &player);
+    bool xDivideAtk(Player &player);     void xDivideDisplay( const Player &player);
+    bool zDivideAtk(Player &player);     void zDivideDisplay( const Player &player);
 
-    void tomaAtkA1(int dir);        void tomaDisplayA1(int dir);
-    void tomaAtkA2(int dir);        void tomaDisplayA2(int dir);
-    void tomaAtkB1(int dir);        void tomaDisplayB1(int dir);
-    void tomaAtkB2(int dir);        void tomaDisplayB2(int dir);
-    void eTomaAtk(int dir);         void eTomaDisplay(int xPos, int yPos, float animationTime);
+    bool tomaAtkA1(Player &player);      void tomaDisplayA1( const Player &player);
+    bool tomaAtkA2(Player &player);      void tomaDisplayA2( const Player &player);
+    bool tomaAtkB1(Player &player);      void tomaDisplayB1( const Player &player);
+    bool tomaAtkB2(Player &player);      void tomaDisplayB2( const Player &player);
+    bool eTomaAtk(Player &player);       void eTomaDisplay(int xPos, int yPos, float animationTime);
 
-                                    void longSlashDisplay(int dir);
-                                    void wideSlashDisplay(int dir);
-    void stepCrossAtk(int dir);     void stepCrossDisplay(int dir);
-    void spinSlashAtk(int dir);
+                                         void longSlashDisplay(const Player &player);
+                                         void wideSlashDisplay(const Player &player);
+    bool stepCrossAtk(Player &player);   void stepCrossDisplay(const Player &player);
+    bool spinSlashAtk(Player &player);
 
-	void hitBox(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
-	void hitBoxDelay(int xPos, int yPos, float delay, int dmg = 1);		// Delayed Damage to a Rock
+	void hitTile(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
 
 	void clearFloor();						// Resets all Tiles
-	bool isTileValid(int xPos, int yPos);	// Checks if a specific tile allows the Player to walk on it
+	bool isTileValid(int xPos, int yPos, bool npc = false);	    // Checks if a specific tile allows the Player to walk on it
 
 	void loadLevel(int num);
+    void generateBossLevel(int type);
 	void generateLevel(int type, int num = -1);		// Generates a Level using the Generate Functions below		// "num != -1" for defined difficulty
 	void generateItems(int amt, int type, int trapAmt = 0);			// Randomly places Energy and Trapped Energy on the map
 	void generateBoxes(int amt, int type);			// Randomly places Rocks on the map
 	void generateFloor(int amt, int type);			// Randomly damages the floor (Cracked floors or Broken floors)
+    void spawnRandomItem(int xPos, int yPos);       // Spawns an item at a random location around (xPos, yPos)
+    void upgradeItems();                     // Randomly Upgrades an Amount of Energy: Green into Blue, and Red into Green
 	void reset();		// Restarts from level 0
     void test();        // Training Room
 	void next();		// Goes to next level if completed
@@ -193,13 +217,16 @@ public:
     void drawDiffSelMenu();
     void drawTrainMenu();
     void drawTabMenuCtrl();
-	void drawPlayer();
-    void drawSwordAtks();
+    void drawTextUI();
+    void displayMusic();        // Displays music track Number and Name
+
+	void drawPlayer(Player &player);
+    void drawSwordAtks(const Player &player);
+    void drawNpcHp();
 	void drawFloor();
 	void drawBoxes(int row);
 	void drawItems(int row);
-	void drawTextUI();
-    void displayMusic();        // Displays music track Number and Name
+    void drawItemUpgrading(int row);
 
 	vector<DelayedHpLoss> delayedHpList;
 	vector<DelayedSound> delayedSoundList;
@@ -213,16 +240,22 @@ public:
 	GLuint megamanMoveSheet,  megamanAtkSheet,                  megamanHurtSheet,
            protoMoveSheet,    protoAtkSheet,                    protoHurtSheet,
            colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,
-           tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,  tmanHurtSheet,
-           slashmanMoveSheet, slashmanAtkSheet,                 slashmanHurtSheet,
+           tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,
+           slashmanMoveSheet, slashmanAtkSheet,
+           
+           darkMegamanMoveSheet,  darkMegamanAtkSheet,                     darkMegamanHurtSheet,
+           darkProtoMoveSheet,    darkProtoAtkSheet,                       darkProtoHurtSheet,
+           darkColonelMoveSheet,  darkColonelAtkSheet,                     darkColonelHurtSheet,
+           darkTmanMoveSheet,     darkTmanAtkSheet1,    darkTmanAtkSheet2,
+           darkSlashmanMoveSheet, darkSlashmanAtkSheet,
            
            lvBarPic, healthBoxPic,
-           rockSheet, rockSheetItem, rockSheetItem2, rockSheetTrappedItem, rockDeathSheet,
+           rockSheet, rockSheetItem, rockSheetItem2, rockSheetTrappedItem, rockDeathSheet, darkDeathSheet,
            floorSheet, floorMoveSheet, floorBottomPic1, floorBottomPic2,
-           energySheet, energySheet2, trappedEnergySheet,
+           energySheet, energySheet2, trappedEnergySheet, recoverSheet,
            
            textSheet1A, textSheet1B, textSheet1C, textSheet2A, textSheet2B, textSheet2C,
-           bgA, bgB, bgC,
+           bgA, bgB, bgC, bgD,
            dimScreenPic,
            menuPic0, menuPic1, menuPic2, menuPic3, menuPic4,
            musicDisplayPic, tabMenuCtrlSheet,
@@ -257,7 +290,8 @@ public:
 
 	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *eTomaSound, *spinSlashSound,
               
-	          *itemSound,       *itemSound2,      *trapItemSound,
+	          *itemSound,       *itemSound2,      *hurtSound,    *deletedSound,     *recoverSound,
+              *bossAppearSound, *bossDeathSound,
               *rockBreakSound,  *panelBreakSound,
               
 	          *menuOpenSound,   *menuCloseSound,
