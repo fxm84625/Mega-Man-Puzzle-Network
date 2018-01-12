@@ -566,6 +566,7 @@ void App::updateGame(float elapsed) {
         player1.animationType = 3;
         player1.animationDisplayAmt = moveAnimationTime * 3;
         npcAbleToAct = false;
+        for ( int i = 0; i < npcList.size(); i++ ) { npcList[i].npcActionTimer = 0; }
     }
 	// Reload default parameters when nothing is happening or being animated
 	else if ( player1.animationDisplayAmt <= 0) {
@@ -580,6 +581,7 @@ void App::updateGame(float elapsed) {
 		next();
         player1.animationType = 4;
         npcAbleToAct = false;
+        for ( int i = 0; i < npcList.size(); i++ ) { npcList[i].npcActionTimer = 0; }
 	}
 	
     // Handles NPC actions
@@ -606,7 +608,7 @@ void App::updateGame(float elapsed) {
         // else if ( npcList[i].x != 8 && npcList[i].animationDisplayAmt <= 0 && npcAbleToAct && npcList[i].npcActionTimer <= 0 )
         else if ( npcList[i].x != 8 && npcList[i].animationDisplayAmt <= 0 && npcList[i].npcActionTimer > 0 ) {
             npcList[i].npcActionTimer -= elapsed;
-            if ( npcList[i].npcActionTimer <= 0 ) aiAction( npcList[i] );
+            if ( npcList[i].npcActionTimer <= 0 ) { aiAction( npcList[i] ); }
         }
         else if ( npcList[i].x == 6 && npcList[i].y == 5 && npcList[i].animationDisplayAmt < 0 ) {
             npcList[i].animationType = 3;
@@ -699,6 +701,10 @@ void App::updateGame(float elapsed) {
 }
 void App::checkKeys() {
     // Check keys for Player Actions
+
+    // Player can't act until NPCs have finished acting
+    for ( int i = 0; i < npcList.size(); i++ ) {
+        if ( npcList[i].animationDisplayAmt > 0 ) { return; } }
 
 	// Menu Controls
 	while (SDL_PollEvent(&event)) {
@@ -810,10 +816,6 @@ void App::checkKeys() {
             }
 	    }
     }
-
-    // Player can't act until NPCs have finished acting
-    for ( int i = 0; i < npcList.size(); i++ ) {
-        if ( npcList[i].animationDisplayAmt > 0 ) { return; } }
 
     // Player Movement and Attacks
     if ( player1.animationDisplayAmt <= 0 && player1.hp > 0 && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn ) {
@@ -1941,12 +1943,15 @@ void App::drawNpcHp() {
         glLoadIdentity();
         glOrtho( orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0 );
         glTranslatef( 0.5 + npcList[i].xOffset, 0.7 + npcList[i].yOffset, 0.0 );
+
         GLuint texture = textSheet1A;
+        if ( npcList[i].hurtDisplayAmt > 0 || npcList[i].hp == 0 ) { texture = textSheet1C; }
+
         glTranslatef( npcList[i].x * scaleX, npcList[i].y * scaleY, 0 );
         if ( npcList[i].hp >= 10 )   { glTranslatef( -0.08 * 1.5 / 2, 0, 0 ); }
         if ( npcList[i].hp >= 100 )  { glTranslatef( -0.08 * 1.5 / 2, 0, 0 ); }
         if ( npcList[i].hp >= 1000 ) { glTranslatef( -0.08 * 1.5 / 2, 0, 0 ); }
-        if ( npcList[i].hp >= 0 )    { drawText( texture, to_string( npcList[i].hp ), 0.08 * 1.5, 0.16 * 1.5, 0.00 ); }
+        if ( npcList[i].hp >= 0 ) { drawText( texture, to_string( npcList[i].hp ), 0.08 * 1.5, 0.16 * 1.5, 0.00 ); }
     }
 }
 
@@ -2587,6 +2592,7 @@ void App::face( Player &player, int dir ) {
     }
 }
 bool App::move(Player &player, int dir) {
+    bool acted = false;
     if ( dir == 0 ) {			// Move Up			// Can't move out of map, onto a box, or onto a hole in the floor
         if ( isTileValid( player.x, player.y + 1, player.npc ) ) {
             if ( map[player.x][player.y].state == 1 && !player.npc ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
@@ -2630,12 +2636,14 @@ bool App::move(Player &player, int dir) {
                 map[player.x][player.y].item = 0;
             }
             if ( !player.npc ) npcAbleToAct = true;
-            return true;
+            acted = true;
         }
     }
     else if ( dir == 1 ) {	// Move Left
         if ( player.facing != 1 ) {
-            face( player, 1 ); }
+            face( player, 1 );
+            acted = true;
+        }
         if ( isTileValid( player.x - 1, player.y, player.npc ) ) {
             // Walk off Cracked tile -> Cracked tile becomes a Hole
             if ( map[player.x][player.y].state == 1 && !( player.x == 0 && player.y == 0 ) && !player.npc ) {
@@ -2680,7 +2688,7 @@ bool App::move(Player &player, int dir) {
             }
             if ( !player.npc && player.x == -1 && player.y == 0 ) npcAbleToAct = false;
             else if ( !player.npc ) npcAbleToAct = true;
-            return true;
+            acted = true;
         }
     }
     else if ( dir == 2 ) {	// Move Down
@@ -2726,12 +2734,14 @@ bool App::move(Player &player, int dir) {
                 map[player.x][player.y].item = 0;
             }
             if ( !player.npc ) npcAbleToAct = true;
-            return true;
+            acted = true;
         }
     }
     else if ( dir == 3 ) {	// Move Right
         if ( player.facing != 3 ) {
-            face( player, 3 ); }
+            face( player, 3 );
+            acted = true;
+        }
         if ( isTileValid( player.x + 1, player.y, player.npc ) ) {
             if ( map[player.x][player.y].state == 1 && !player.npc ) { 		// Walk off Cracked tile -> Cracked tile becomes a Hole
                 map[player.x][player.y].state = 2;
@@ -2775,10 +2785,10 @@ bool App::move(Player &player, int dir) {
             }
             if ( !player.npc && player.x == 6 && player.y == 5 ) npcAbleToAct = false;
             else if ( !player.npc ) npcAbleToAct = true;
-            return true;
+            acted = true;
         }
     }
-    return false;
+    return acted;
 }
 void App::move2(Player &player, int dir) {		// Move Two Tiles
 	if ( dir == 0 ) {			// Move Up			// Can't move out of map, onto a box, or onto a hole in the floor
@@ -3756,12 +3766,19 @@ void App::hitTile( int xPos, int yPos, int dmg ) {
         else if ( xPos == player1.x && yPos == player1.y ) {
             player1.energy -= dmg * 100;
             currentEnergyGain -= dmg * 100;
+            chargeDisplayPlusAmt = 0;
+            chargeDisplayMinusAmt = iconDisplayTime;
             player1.hurtDisplayAmt = hurtAnimationTime;
             if ( player1.energy <= 0 ) {
-                player1.hp = 0; }
+                player1.hp = 0;
+            }
             else if ( player1.animationType == 0 ) {
                 player1.animationType = -1;
                 player1.animationDisplayAmt += 0.1125;
+            }
+            else if ( player1.animationType == -2 ) {
+                player1.animationType = -1;
+                player1.animationDisplayAmt = pauseAnimationTime;
             }
             Mix_PlayChannel( 1, hurtSound, 0 );
         }
@@ -3769,14 +3786,18 @@ void App::hitTile( int xPos, int yPos, int dmg ) {
         else {
             for ( int i = 0; i < npcList.size(); i++ ) {
                 if ( xPos == npcList[i].x && yPos == npcList[i].y ) {
-                    if ( npcList[i].animationType == 0 ) {
-                        npcList[i].animationType = -1;
-                        npcList[i].animationDisplayAmt += 0.1125;
-                    }
                     npcList[i].hp -= dmg;
                     npcList[i].timesHit++;
                     npcList[i].hurtDisplayAmt = hurtAnimationTime;
                     spawnRandomItem( npcList[i].x, npcList[i].y );
+                    if ( npcList[i].animationType == 0 ) {
+                        npcList[i].animationType = -1;
+                        npcList[i].animationDisplayAmt += 0.1125;
+                    }
+                    else if ( npcList[i].animationType == -2 ) {
+                        npcList[i].animationType = -1;
+                        npcList[i].animationDisplayAmt = pauseAnimationTime;
+                    }
                     Mix_PlayChannel( 1, hurtSound, 0 );
                 }
             }
@@ -3797,18 +3818,20 @@ bool App::isTileValid(int xPos, int yPos, bool npc) {	// Checks if a specific ti
 	return true;
 }
 void App::clearFloor() {		// Clears all tiles
-	for (int i = 0; i < 6; i++) {
-		for (int j = 0; j < 6; j++) {
+    for ( int i = 0; i < 6; i++ ) {
+        for ( int j = 0; j < 6; j++ ) {
             map[i][j].bigBoxDeath = false;
             map[i][j].boxAtkInd = 0;
             map[i][j].boxHP = 0;
             map[i][j].boxType = 0;
             map[i][j].isPurple = false;
-			map[i][j].item = 0;
-			map[i][j].prevDmg = 0;
+            map[i][j].item = 0;
+            map[i][j].prevDmg = 0;
             map[i][j].upgradeInd = 0;
             map[i][j].state = 0;
-}	}	}
+        }
+    }
+}
 void Player::reset() {
     x = 0;		y = 0;      x2 = 0;     y2 = 0;
     facing = 3;
@@ -3849,7 +3872,6 @@ void App::test() {
 	level = -1;
 	player1.energy = player1.energyDisplayed = 10000;
 	
-    //for ( int i = 0; i < 6; i++ ) { map[i][5].state = 3; }
     for ( int i = 1; i < 5; i++ ) {
         map[0][i].boxHP = 5;
         map[1][i].boxHP = 5;
@@ -3865,6 +3887,9 @@ void App::next() {
     player1.x = 0;		player1.y = 0;
     player1.x2 = 0;     player1.y2 = 0;
 
+    for ( int i = 0; i < npcList.size(); i++ ) {
+        npcList[i].animationDisplayAmt = 0; }
+
     if ( level >= 1 ) {
 	    level++;
 	    loadLevel(level);
@@ -3873,10 +3898,10 @@ void App::next() {
         level--;
         if ( level <= -12 ) {
             level = -1;
+            npcList.clear();
             test();
             return;
         }
-        npcList.clear();
         player1.energy = 10000;
         generateBossLevel( -2 - level );
     }
@@ -3889,7 +3914,7 @@ void App::next() {
 }
 void App::loadLevel(int num) {
     if ( level == 1 ) { generateLevel( 0, 0 ); }
-	else { generateLevel( getRand( 44 ) ); }
+	else { generateLevel( getRand( 46 ) ); }
 }
 
 void App::generateBossLevel( int type ) {
@@ -3938,30 +3963,31 @@ void App::generateBossLevel( int type ) {
     else { generateBossLevel( 0 ); return; }
 }
 void App::generateLevel(int type, int num) {        // (levelType, difficulty)          // difficulty -1 = randomly generated difficulty
-	if (num <= -1) { num = rand() % 100; }				// Random number between 0 and 99, inclusive - used to determine difficulty
-	int x = level;		if ( x > 50 ) { x = 50; }
-	int bound2 = 120 - x * 3 / 2;						// Bounds used in determining difficulty - based on current level number
-	if (level >=  75) { bound2 = 40; }
-	if (level >= 100) { bound2 = 35; }
-	int bound1 = bound2 - 30;
+    
+    if ( num <= -1 ) { num = rand() % 100; }				// Random number between 0 and 99, inclusive - used to determine difficulty
+    int x = level;		if ( x > 50 ) { x = 50; }
+    int bound2 = 120 - x * 3 / 2;						// Bounds used in determining difficulty - based on current level number
+    if ( level >= 75 ) { bound2 = 40; }
+    if ( level >= 100 ) { bound2 = 35; }
+    int bound1 = bound2 - 30;
     bool boss = false;
-	int diff = 0;				// difficulty 0, 1, 2 = easy, medium, hard			// level		easy   medium	hard
-	if (num > bound1 && num <= bound2) { diff = 1; }								//   0			90%		10%		0%
-	else if (num > bound2) { diff = 2; }											//  10			75%		25%		0%
+    int diff = 0;				// difficulty 0, 1, 2 = easy, medium, hard			// level		easy   medium	hard
+    if ( num > bound1 && num <= bound2 ) { diff = 1; }								//   0			90%		10%		0%
+    else if ( num > bound2 ) { diff = 2; }											//  10			75%		25%		0%
     lvlDiff = diff;																    //  20			60%		30%		10%
-																					//  30			45%		30%		25%
-																					//  40			30%		30%		40%
-																					//  50			15%		30%		55%
-																					//  75			10%		30%		60%
-																					// 100			 5%		30%		65%
+                                                                                    //  30			45%		30%		25%
+                                                                                    //  40			30%		30%		40%
+                                                                                    //  50			15%		30%		55%
+                                                                                    //  75			10%		30%		60%
+                                                                                    // 100			 5%		30%		65%
     int gain = 0;       // Gain determines avg "profit" per level
-    if      ( currentGameDiff == 0 ) { gain =  2 - diff * 9; }      //  2  -07  -16
-    else if ( currentGameDiff == 1 ) { gain =  0 - diff * 9; }      //  0  -09  -18
+    if ( currentGameDiff == 0 ) { gain = 2 - diff * 9; }      //  2  -07  -16
+    else if ( currentGameDiff == 1 ) { gain = 0 - diff * 9; }      //  0  -09  -18
     else if ( currentGameDiff == 2 ) { gain = -2 - diff * 9; }      // -2  -11  -20
     else if ( currentGameDiff == 3 ) { gain = -4 - diff * 9; }      // -4  -13  -22
     else if ( currentGameDiff == 4 ) { gain = -6 - diff * 9; }      // -6  -15  -24
-	int extraBoxes = 0, extraItems = 0, floorDmgs = 0, trappedItems = 0;		// Number of things per floor based on level number and difficulty
-
+    int extraBoxes = 0, extraItems = 0, floorDmgs = 0, trappedItems = 0;		// Number of things per floor based on level number and difficulty
+    
 	// Map types
     {
 	// Rooms
@@ -3992,12 +4018,13 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 	else if (type == 2) {		// Rooms C
 		map[0][2].state = 3;	map[2][0].state = 3;
 		map[3][5].state = 3;	map[5][3].state = 3;							//	]=== ==[
-		map[4][4].boxHP = 1;													//	]=OO=O=[
-		for (int i = 0; i < 2; i++) {											//	]=OO== [
-			map[1][i + 3].boxHP = 1;		map[2][i + 3].boxHP = 1;			//	] ==OO=[
+		map[2][2].boxHP = 1;	map[3][3].boxHP = 1;							//	]=OO===[
+		for (int i = 0; i < 2; i++) {											//	]=OOO= [
+			map[1][i + 3].boxHP = 1;		map[2][i + 3].boxHP = 1;			//	] =OOO=[
 			map[3][i + 1].boxHP = 1;		map[4][i + 1].boxHP = 1; }			//	]===OO=[
-		extraBoxes = 3 + x / 5 + diff * 2;										//	]== ===[
-		extraItems = 9 + extraBoxes + gain;
+                                                                                //	]== ===[
+		extraBoxes = 3 + x / 5 + diff * 2;
+		extraItems = 10 + extraBoxes + gain;
 		floorDmgs = rand() % 2 + 1 + diff * 2;		// 1-2	// 3-4	// 5-6
 	}
 	else if (type == 3) {		// Rooms D
@@ -4029,7 +4056,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
                                                                                 //	]==O== [
 		extraBoxes = 4 + x / 5 + diff * 2;
 		extraItems = 12 + extraBoxes + gain;
-		floorDmgs = rand() % 4 + 1 + diff * 4;		// 1-4	// 5-8	// 9-12
+		floorDmgs = rand() % 5 + 2 + diff * 4;		// 2-6	// 6-10	// 10-14
 	}
 	// Plus
 	else if (type == 6) {		// Plus A
@@ -4105,7 +4132,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		map[3][3].boxHP = 1;	map[1][1].state = 3;							// ]===== [
 		extraBoxes = 4 + x / 5 + diff * 2;
 		extraItems = 13 + extraBoxes + gain;
-		floorDmgs = rand() % 5 + diff * 2;		    // 0-4	// 2-6	// 4-8
+		floorDmgs = rand() % 5 + diff * 3;		    // 0-4	// 3-7	// 6-10
 	}
 	// Paths
 	else if (type == 13) {		// Paths A
@@ -4151,26 +4178,26 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
     else if (type == 17) {		// Paths E
-		for ( int i = 0; i < 2; i++ ) {														//	]===OO=[
+		for ( int i = 0; i < 2; i++ ) {														//	]  =OO=[
 			map[1][i + 2].boxHP = 1;	map[3][i].boxHP = 1;	map[3][i + 4].boxHP = 1;	//	]===OO=[
 			map[2][i + 2].boxHP = 1;	map[4][i].boxHP = 1;	map[4][i + 4].boxHP = 1;	//	]=OO= =[
-			map[1][i].state = 3;	    map[4][i + 2].state = 3; }	                        //	]=OO= =[
+			map[1][i].state = 3;	    map[4][i + 2].state = 3;    map[i][5].state = 3; }  //	]=OO= =[
 		                    																//	]= =OO=[
 															                                //	]= =OO=[
         extraBoxes = 4 + x / 5 + diff * 2;
 		extraItems = 12 + extraBoxes + gain;
-		floorDmgs = rand() % 4 + diff * 2;	    // 0-3	// 2-5	// 4-7
+		floorDmgs = rand() % 5 + diff * 2 + 1;      // 1-5	// 3-7	// 5-9
 	}
     else if (type == 18) {		// Paths F
-		for ( int i = 0; i < 2; i++ ) {														//	] OO= =[
-			map[1][i].boxHP = 1;	map[1][i + 4].boxHP = 1;	map[3][i + 2].boxHP = 1;	//	] OO= =[
-			map[2][i].boxHP = 1;	map[2][i + 4].boxHP = 1;	map[4][i + 2].boxHP = 1;	//	]===OO=[
-			map[0][i + 4].state = 3;	map[4][i].state = 3;    map[4][i + 4].state = 3; }  //	]===OO=[
+		for ( int i = 0; i < 2; i++ ) {														//	]=OO= =[
+			map[1][i].boxHP = 1;	map[1][i + 4].boxHP = 1;	map[3][i + 2].boxHP = 1;	//	]=OO= =[
+			map[2][i].boxHP = 1;	map[2][i + 4].boxHP = 1;	map[4][i + 2].boxHP = 1;	//	]= =OO=[
+			map[1][i + 2].state = 3;	map[4][i].state = 3;    map[4][i + 4].state = 3; }  //	]= =OO=[
 		                    																//	]=OO= =[
 															                                //	]=OO= =[
         extraBoxes = 4 + x / 5 + diff * 2;
 		extraItems = 12 + extraBoxes + gain;
-		floorDmgs = rand() % 3 + diff * 2;	    // 0-2	// 2-4	// 4-6
+		floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
     else if (type == 19) {		// Paths G
 		for ( int i = 0; i < 2; i++ ) {									//	] =OO==[
@@ -4181,34 +4208,42 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
         map[0][5].state = 3;    map[5][0].state = 3;                    //	]==OO= [
         extraBoxes = 5 + x / 5 + diff * 2;
 		extraItems = 16 + extraBoxes + gain;
-		floorDmgs = rand() % 5 + diff * 2;	    // 0-4	// 2-6	// 4-8
+		floorDmgs = rand() % 9 + diff * 4;	    // 0-8	// 4-12	// 8-16
 	}
 	// Cross
 	else if (type == 20) {		// Cross A
-		for (int i = 0; i < 4; i++ ) {											//	] O===O[
-			map[0][i + 2].state = 3;	map[i + 2][0].state = 3;	}			//	] =O=O=[
-		map[1][1].boxHP = 1;	map[2][4].boxHP = 1;	map[4][4].boxHP = 1;	//	] ==O==[
-		map[1][5].boxHP = 1;	map[3][3].boxHP = 1;	map[5][1].boxHP = 1;	//	] =O=O=[
-		map[2][2].boxHP = 1;	map[4][2].boxHP = 1;	map[5][5].boxHP = 1;	//	]=O===O[
-		extraBoxes = 3 + x / 5 + diff * 2;										//	]==    [
-		extraItems = 9 + extraBoxes + gain;
+        for ( int i = 0; i < 3; i++ ) {                                         //	]=== ==[
+            map[i][i + 2].boxHP = 1;        map[i][4 - i].boxHP = 1;            //	]O=OO=O[
+            map[i + 3][i + 2].boxHP = 1;    map[i + 3][4 - i].boxHP = 1; }      //	]=O==O=[
+        map[3][0].state = 3;    map[3][1].state = 3;    map[3][5].state = 3;    //	]O=OO=O[
+                                                                                //	]=== ==[
+                                                                                //	]=== ==[
+		extraBoxes = 3 + x / 5 + diff * 2;										
+		extraItems = 10 + extraBoxes + gain;
 		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8
 	}
 	else if (type == 21) {		// Cross B
-        for ( int i = 0; i < 5; i++ ) {                                                             //	]     =[
-            map[i][5].state = 3;    map[i + 1][i].boxHP = 1;    map[i + 1][4 - i].boxHP = 1; }      //	]=O===O[
-        map[0][2].state = 3;                                                                        //	]==O=O=[
-		extraBoxes = 3 + x / 5 + diff * 2;															//	] ==O==[
-		extraItems = 9 + extraBoxes + gain;														    //	]==O=O=[
-		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8							    //	]=O===O[
+        for ( int i = 0; i < 3; i++ ) {                                         //	]==O=O=[
+            map[i + 2][i].boxHP = 1;        map[i + 2][i + 3].boxHP = 1;        //	]===O==[
+            map[i + 2][2 - i].boxHP = 1;    map[i + 2][5 - i].boxHP = 1; }      //	]  O=O [
+        map[0][3].state = 3;    map[1][3].state = 3;    map[5][3].state = 3;    //	]==O=O=[
+                                                                                //	]===O==[
+                                                                                //	]==O=O=[
+		extraBoxes = 3 + x / 5 + diff * 2;										
+		extraItems = 10 + extraBoxes + gain;
+		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8
 	}
 	else if (type == 22) {		// Cross C
-        for ( int i = 0; i < 5; i++ ) {                                                         //	]O===O=[
-            map[i][i + 1].boxHP = 1;    map[i][5 - i].boxHP = 1;    map[5][i].state = 3; }      //	]=O=O= [
-        map[2][0].state = 3;    map[3][0].state = 3;    map[4][0].state = 3;                    //	]==O== [
-		extraBoxes = 3 + x / 5 + diff * 2;                                                      //	]=O=O= [
-		extraItems = 9 + extraBoxes + gain;                                                     //	]O===O [
-		floorDmgs = rand() % 3 + 2 + diff * 2;	// 2-4	// 4-6	// 6-8                          //	]==    [
+        for ( int i = 0; i < 2; i++ ) {
+            map[1][i].boxHP = 1;    map[1][i + 4].boxHP = 1;    map[2][i + 2].boxHP = 1;        //	]=O=O==[
+            map[3][i].boxHP = 1;    map[3][i + 4].boxHP = 1;                                    //	]=O=O==[
+            map[0][i + 2].state = 3;    map[4][i + 2].state = 3;    map[5][i + 2].state = 3; }  //	] =O=  [
+                                                                                                //	] =O=  [
+                                                                                                //	]=O=O==[
+                                                                                                //	]=O=O==[
+		extraBoxes = 3 + x / 5 + diff * 2;
+		extraItems = 9 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 2;	// 0-4	// 2-6	// 4-8
 	}
 	else if (type == 23) {		// Cross D
         for ( int i = 0; i < 2; i++ ) {                                                         // ]== ===[
@@ -4231,12 +4266,12 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
         floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
 	}
     else if (type == 25) {		// Cross F
-        for ( int i = 0; i < 3; i++ ) {                                         // ]   O=O[
-            map[i][5].state = 3;    map[5][i].state = 3;                        // ]  ==O=[
+        for ( int i = 0; i < 3; i++ ) {                                         // ] ==O=O[
+                                                                                // ] = =O=[
             map[i + 1][i + 1].boxHP = 1;    map[3 - i][i + 1].boxHP = 1;        // ]=O=O=O[
-            map[i + 3][i + 3].boxHP = 1;    map[5 - i][i + 3].boxHP = 1; }      // ]==O== [
-        map[0][4].state = 3;    map[4][0].state = 3;                            // ]=O=O  [
-        map[1][4].state = 3;    map[4][1].state = 3;                            // ]====  [
+            map[i + 3][i + 3].boxHP = 1;    map[5 - i][i + 3].boxHP = 1; }      // ]==O= =[
+        map[0][4].state = 3;    map[0][5].state = 3;    map[2][4].state = 3;    // ]=O=O==[
+        map[4][0].state = 3;    map[4][2].state = 3;    map[5][0].state = 3;    // ]====  [
 		extraBoxes = 3 + x / 5 + diff * 2;
 		extraItems = 9 + extraBoxes + gain;
         floorDmgs = rand() % 5 + diff * 3;	    // 0-4	// 3-7	// 6-10
@@ -4296,8 +4331,19 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 16 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8          
 	}
+    else if (type == 32) {		// Gallery F
+        for ( int i = 0; i < 2; i++ ) {                                     // ]OO====[
+            map[0][i + 4].boxHP = 1;    map[1][i + 4].boxHP = 1;            // ]OO=OO=[
+            map[1][i + 1].boxHP = 1;    map[2][i + 1].boxHP = 1;            // ]===OO=[
+            map[3][i + 3].boxHP = 1;    map[4][i + 3].boxHP = 1;            // ]=OO===[
+            map[4][i].boxHP = 1;        map[5][i].boxHP = 1; }              // ]=OO=OO[
+                                                                            // ]====OO[
+		extraBoxes = 5 + x / 5 + diff * 2;
+		extraItems = 16 + extraBoxes + gain;
+		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8          
+	}
 	// Scattered
-	else if (type == 32) {		// Scattered A
+	else if (type == 33) {		// Scattered A
 		for (int i = 0; i < 6; i += 2) {										//	]==O=O=[
 			map[2][i + 1].boxHP = 1;											//	]===O=O[
 			map[3][i].boxHP = 1;												//	]==O=O=[
@@ -4307,7 +4353,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 9 + diff * 4;		// 2-6	// 6-10	// 8-12
 	}
-	else if (type == 33) {		// Scattered B
+	else if (type == 34) {		// Scattered B
 		for (int i = 0; i < 4; i++) {
 			map[    i % 2][2 + i].boxHP = 1;									//	]=O=O=O[
 			map[2 + i % 2][2 + i].boxHP = 1;									//	]O=O=O=[
@@ -4316,7 +4362,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;									//	]======[
 		floorDmgs = rand() % 5 + 2 + diff * 3;	// 2-6	// 5-9	// 8-12			//	]======[
 	}
-	else if (type == 34) {		// Scattered C
+	else if (type == 35) {		// Scattered C
         for ( int i = 0; i < 3; i++ ) {                                         // ]   =O=[
             map[i][5].state = 3;    map[5][i].state = 3; }                      // ]=O=O=O[
         for ( int i = 0; i < 4; i++ ) {                                         // ]O=O=O=[
@@ -4326,7 +4372,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
 	}
-	else if (type == 35) {		// Scattered D
+	else if (type == 36) {		// Scattered D
         for ( int i = 1; i <= 5; i += 2 ) {
             map[i][2].boxHP = 1;    map[i][4].boxHP = 1;                    // ] =O=O=[
             map[2][i].boxHP = 1;    map[4][i].boxHP = 1; }                  // ] O=O=O[
@@ -4336,7 +4382,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;                                // ]====  [
         floorDmgs = rand() % 4 + 2 + diff * 3;	// 2-5	// 5-8	// 8-11
 	}
-    else if (type == 36) {		// Scattered E
+    else if (type == 37) {		// Scattered E
         for ( int i = 0; i < 5; i++ ) { map[i + 1][5 - i].boxHP = 1; }  // ]=O=O==[
         for ( int i = 0; i < 3; i++ ) { map[i + 3][5 - i].boxHP = 1; }  // ]O=O=O=[
         for ( int i = 0; i < 2; i++ ) {                                 // ]=O=O=O[
@@ -4347,7 +4393,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;
         floorDmgs = rand() % 5 + 2 + diff * 3;	// 2-6	// 5-9	// 8-12
 	}
-    else if (type == 37) {		// Scattered F
+    else if (type == 38) {		// Scattered F
         for ( int i = 0; i < 6; i++ ) { map[i + 0][5 - i].boxHP = 1; }  // ]O=O ==[
         for ( int i = 0; i < 4; i++ ) { map[i + 2][5 - i].boxHP = 1; }  // ]=O=O==[
         map[0][3].boxHP = 1;    map[3][0].boxHP = 1;                    // ]O=O=O [
@@ -4359,7 +4405,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
         floorDmgs = rand() % 5 + 2 + diff * 2;	// 2-6	// 4-8	// 6-10
 	}
 	// Layers
-	else if (type == 38) {		// Layers A
+	else if (type == 39) {		// Layers A
         map[1][0].state = 3;    map[2][0].state = 3;    map[4][0].state = 3;
         map[1][5].state = 3;    map[3][0].state = 3;    map[4][1].state = 3;    //	]= OO==[
 		for (int yPos = 1; yPos < 6; yPos++) {									//	]==OO==[
@@ -4368,7 +4414,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 10 + extraBoxes + gain;									//	]==OO =[
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8			//	]=    =[
 	}
-	else if (type == 39) {		// Layers B
+	else if (type == 40) {		// Layers B
 		map[5][0].state = 3;													//	]    ==[
 		for (int i = 0; i < 4; i++) {											//	]=OO=O=[
 			map[1][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]=OO=O=[
@@ -4378,7 +4424,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 40) {		// Layers C
+	else if (type == 41) {		// Layers C
 		map[5][0].state = 3;													//	]    ==[
 		for (int i = 0; i < 4; i++) {											//	]=O=OO=[
 			map[1][i + 1].boxHP = 1;	map[4][i + 1].boxHP = 1;				//	]=O=OO=[
@@ -4388,7 +4434,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;
 		floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 41) {		// Layers D
+	else if (type == 42) {		// Layers D
         for ( int i = 0; i < 2; i++ ) {                                                         //	]=OO===[
             map[i + 1][5].boxHP = 1;    map[i + 2][3].boxHP = 1;    map[i + 4][2].boxHP = 1;    //	]=OO===[
             map[i + 1][4].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[i + 4][1].boxHP = 1; }  //	]==OO==[
@@ -4397,7 +4443,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;                                                    //	]== ===[
         floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-	else if (type == 42) {		// Layers E
+	else if (type == 43) {		// Layers E
         for ( int i = 0; i < 2; i++ ) {                                                         // ]=== ==[
             map[i][3].boxHP = 1;    map[i + 2][3].boxHP = 1;    map[i + 3][1].boxHP = 1;        // ]OO====[
             map[i][4].boxHP = 1;    map[i + 2][2].boxHP = 1;    map[i + 3][0].boxHP = 1; }      // ]OOOO= [
@@ -4406,16 +4452,27 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
 		extraItems = 12 + extraBoxes + gain;                                                    // ]===OO=[
         floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
 	}
-    else if (type == 43) {		// Layers F
-        for ( int i = 0; i < 2; i++ ) {                                                         // ] OO===[
-            map[1][i + 4].boxHP = 1;    map[2][i + 2].boxHP = 1;    map[3][i].boxHP = 1;        // ] OO===[
-            map[2][i + 4].boxHP = 1;    map[3][i + 2].boxHP = 1;    map[4][i].boxHP = 1;        // ]==OO==[
-            map[0][i + 4].state = 3;    map[5][i].state = 3;                             }      // ]==OO==[
-                                                                                                // ]===OO [
-                                                                                                // ]===OO [
+    else if (type == 44) {		// Layers F
+        for ( int i = 0; i < 4; i++ ) {                             // ]    ==[
+            map[2][i + 1].boxHP = 1;    map[i + 1][0].state = 3;    // ]==OOO=[
+            map[3][i + 1].boxHP = 1;    map[i][5].state = 3;        // ]==OOO=[
+            map[4][i + 1].boxHP = 1;    }                           // ]==OOO=[
+        map[5][0].state = 3;                                        // ]==OOO=[
+                                                                    // ]=     [
 		extraBoxes = 4 + x / 5 + diff * 2;
 		extraItems = 12 + extraBoxes + gain;
         floorDmgs = rand() % 5 + diff * 2;		// 0-4	// 2-6	// 4-8
+	}
+    else if (type == 45) {		// Layers G
+        for ( int i = 0; i < 3; i++ ) {                                 // ]   ===[
+            map[i + 1][4].boxHP = 1;    map[i + 2][2].boxHP = 1;        // ] OOO= [
+            map[i + 1][3].boxHP = 1;    map[i + 2][1].boxHP = 1;        // ] OOO= [
+            map[0][i + 1].state = 3;    map[i + 3][0].state = 3;        // ] =OOO [
+            map[i][5].state = 3;        map[5][i + 1].state = 3;      } // ] =OOO [
+        map[0][4].state = 3;    map[5][4].state = 3;                    // ]===   [
+		extraBoxes = 4 + x / 5 + diff * 2;
+		extraItems = 12 + extraBoxes + gain;
+        floorDmgs = rand() % 3 + diff * 1;		// 0-2	// 1-3	// 2-4
 	}
 	else { generateLevel(0, 100); return; }
     }
@@ -4439,7 +4496,6 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
                 else if ( isTileValid( 4, 3 ) ) { xPos = 4;   yPos = 3; }
                 else if ( isTileValid( 5, 4 ) ) { xPos = 5;   yPos = 4; }
                 else if ( isTileValid( 4, 4 ) ) { xPos = 4;   yPos = 4; }
-                else if ( isTileValid( 5, 5 ) ) { xPos = 5;   yPos = 5; }
                 else if ( isTileValid( 4, 5 ) ) { xPos = 4;   yPos = 5; }
                 else if ( isTileValid( 3, 1 ) ) { xPos = 3;   yPos = 1; }
                 else if ( isTileValid( 3, 2 ) ) { xPos = 3;   yPos = 2; }
@@ -4466,8 +4522,7 @@ void App::generateLevel(int type, int num) {        // (levelType, difficulty)  
         ||   ( ( diff >= 1 ) && ( rand() % 10 == 0 ) ) )
         {
             int xPos = -1, yPos = -1;
-            if      ( isTileValid( 5, 5 ) ) { xPos = 5;   yPos = 5; }
-            else if ( isTileValid( 5, 4 ) ) { xPos = 5;   yPos = 4; }
+            if      ( isTileValid( 5, 4 ) ) { xPos = 5;   yPos = 4; }
             else if ( isTileValid( 5, 3 ) ) { xPos = 5;   yPos = 3; }
             else if ( isTileValid( 5, 2 ) ) { xPos = 5;   yPos = 2; }
             else if ( isTileValid( 5, 1 ) ) { xPos = 5;   yPos = 1; }
@@ -4511,6 +4566,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
     vector<pair<int,int>> places;
+    {
 	// Rooms
 	if (type == 0) {			// Rooms A
         places.push_back( make_pair( 1, 2 ) );  //	] +====[
@@ -4537,14 +4593,14 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 5, 2 ) );
 	}
 	else if (type == 2)  {		// Rooms C
-        places.push_back( make_pair( 0, 3 ) );  //	]=== ==[
-        places.push_back( make_pair( 0, 4 ) );  //	]++====[
-        places.push_back( make_pair( 1, 3 ) );  //	]++=== [
-        places.push_back( make_pair( 1, 4 ) );  //	] ===++[
-        places.push_back( make_pair( 4, 1 ) );  //	]====++[
-        places.push_back( make_pair( 4, 2 ) );  //	]== ===[
+        places.push_back( make_pair( 0, 4 ) );  //	]++= ==[
+        places.push_back( make_pair( 0, 5 ) );  //	]++====[
+        places.push_back( make_pair( 1, 4 ) );  //	]===== [
+        places.push_back( make_pair( 1, 5 ) );  //	] =====[
+        places.push_back( make_pair( 4, 0 ) );  //	]====++[
+        places.push_back( make_pair( 4, 1 ) );  //	]== =++[
+        places.push_back( make_pair( 5, 0 ) );
         places.push_back( make_pair( 5, 1 ) );
-        places.push_back( make_pair( 5, 2 ) );
 	}
 	else if (type == 3) {		// Rooms D
         places.push_back( make_pair( 0, 3 ) );  //	]+    =[
@@ -4708,7 +4764,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 5, 4 ) );
 	}
     else if (type == 17) {		// Paths E
-        places.push_back( make_pair( 2, 2 ) );  //	]====+=[
+        places.push_back( make_pair( 2, 2 ) );  //	]  ==+=[
         places.push_back( make_pair( 2, 3 ) );  //	]====+=[
         places.push_back( make_pair( 3, 0 ) );  //	]==+= =[
         places.push_back( make_pair( 3, 1 ) );  //	]==+= =[
@@ -4718,14 +4774,14 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 5 ) );
 	}
     else if (type == 18) {		// Paths F
-        places.push_back( make_pair( 1, 4 ) );  //	] ++= =[
-        places.push_back( make_pair( 1, 5 ) );  //	] ++= =[
-        places.push_back( make_pair( 2, 0 ) );  //	]====+=[
-        places.push_back( make_pair( 2, 1 ) );  //	]====+=[
-        places.push_back( make_pair( 2, 4 ) );  //	]==+= =[
-        places.push_back( make_pair( 2, 5 ) );  //	]==+= =[
-        places.push_back( make_pair( 4, 2 ) );
-        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 1, 0 ) );  //	]=++= =[
+        places.push_back( make_pair( 1, 1 ) );  //	]=++= =[
+        places.push_back( make_pair( 1, 4 ) );  //	]= ====[
+        places.push_back( make_pair( 1, 5 ) );  //	]= ====[
+        places.push_back( make_pair( 2, 0 ) );  //	]=++= =[
+        places.push_back( make_pair( 2, 1 ) );  //	]=++= =[
+        places.push_back( make_pair( 2, 4 ) );
+        places.push_back( make_pair( 2, 5 ) );
 	}
     else if (type == 19) {		// Paths G
         places.push_back( make_pair( 0, 2 ) );  //	] =++==[
@@ -4739,34 +4795,34 @@ void App::generateItems(int amt, int type, int trapAmt) {
 	}
 	// Cross
 	else if (type == 20) {		// Cross A
-        places.push_back( make_pair( 1, 1 ) );  //	] +====[
-        places.push_back( make_pair( 1, 5 ) );  //	] =+=+=[
-        places.push_back( make_pair( 2, 2 ) );  //	] ==+==[
-        places.push_back( make_pair( 2, 4 ) );  //	] =+=+=[
-        places.push_back( make_pair( 3, 3 ) );  //	]=+===+[
-        places.push_back( make_pair( 4, 2 ) );  //	]==    [
-        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 0, 4 ) );  //	]+++ ==[
+        places.push_back( make_pair( 0, 5 ) );  //	]+=====[
+        places.push_back( make_pair( 1, 5 ) );  //	]======[
+        places.push_back( make_pair( 2, 5 ) );  //	]======[
+        places.push_back( make_pair( 4, 0 ) );  //	]=== ++[
+        places.push_back( make_pair( 4, 1 ) );  //	]=== ++[
+        places.push_back( make_pair( 5, 0 ) );
         places.push_back( make_pair( 5, 1 ) );
 	}
 	else if (type == 21) {		// Cross B
-        places.push_back( make_pair( 1, 0 ) );  //	]     =[
-        places.push_back( make_pair( 1, 4 ) );  //	]=+====[
-        places.push_back( make_pair( 2, 1 ) );  //	]==+=+=[
-        places.push_back( make_pair( 2, 3 ) );  //	] ==+==[
-        places.push_back( make_pair( 3, 2 ) );  //	]==+=+=[
-        places.push_back( make_pair( 4, 1 ) );  //	]=+===+[
-        places.push_back( make_pair( 4, 3 ) );
-        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 0, 4 ) );  //	]++====[
+        places.push_back( make_pair( 0, 5 ) );  //	]++====[
+        places.push_back( make_pair( 1, 4 ) );  //	]  === [
+        places.push_back( make_pair( 1, 5 ) );  //	]=====+[
+        places.push_back( make_pair( 4, 0 ) );  //	]=====+[
+        places.push_back( make_pair( 5, 0 ) );  //	]====++[
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 2 ) );
 	}
 	else if (type == 22) {		// Cross C
-        places.push_back( make_pair( 0, 1 ) );  //	]+=====[
-        places.push_back( make_pair( 0, 5 ) );  //	]=+=+= [
-        places.push_back( make_pair( 1, 2 ) );  //	]==+== [
-        places.push_back( make_pair( 1, 4 ) );  //	]=+=+= [
-        places.push_back( make_pair( 2, 3 ) );  //	]+===+ [
-        places.push_back( make_pair( 3, 2 ) );  //	]==    [
-        places.push_back( make_pair( 3, 4 ) );
-        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 0, 4 ) );  //	]++====[
+        places.push_back( make_pair( 0, 5 ) );  //	]++====[
+        places.push_back( make_pair( 1, 4 ) );  //	] ===  [
+        places.push_back( make_pair( 1, 5 ) );  //	] ===  [
+        places.push_back( make_pair( 4, 0 ) );  //	]====++[
+        places.push_back( make_pair( 4, 1 ) );  //	]====++[
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
 	}
 	else if (type == 23) {		// Cross D
         places.push_back( make_pair( 0, 1 ) );  //	]++ ===[
@@ -4789,11 +4845,11 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 5, 1 ) );
 	}
     else if (type == 25) {		// Cross F
-        places.push_back( make_pair( 1, 1 ) );  //	]   +==[
-        places.push_back( make_pair( 1, 3 ) );  //	]  ==+=[
+        places.push_back( make_pair( 1, 1 ) );  //	] ==+==[
+        places.push_back( make_pair( 1, 3 ) );  //	] = =+=[
         places.push_back( make_pair( 2, 2 ) );  //	]=+=+=+[
-        places.push_back( make_pair( 3, 1 ) );  //	]==+== [
-        places.push_back( make_pair( 3, 3 ) );  //	]=+=+  [
+        places.push_back( make_pair( 3, 1 ) );  //	]==+= =[
+        places.push_back( make_pair( 3, 3 ) );  //	]=+=+==[
         places.push_back( make_pair( 3, 5 ) );  //	]====  [
         places.push_back( make_pair( 4, 4 ) );
         places.push_back( make_pair( 5, 3 ) );
@@ -4898,8 +4954,26 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
+    else if (type == 32) {		// Gallery F
+        places.push_back( make_pair( 0, 4 ) );  //	]++====[
+        places.push_back( make_pair( 0, 5 ) );  //	]++=++=[
+        places.push_back( make_pair( 1, 1 ) );  //	]===++=[
+        places.push_back( make_pair( 1, 2 ) );  //	]=++===[
+        places.push_back( make_pair( 1, 4 ) );  //	]=++=++[
+        places.push_back( make_pair( 1, 5 ) );  //	]====++[
+        places.push_back( make_pair( 2, 1 ) );
+        places.push_back( make_pair( 2, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
     // Scattered
-	else if (type == 32) {		// Scattered A
+	else if (type == 33) {		// Scattered A
         places.push_back( make_pair( 2, 1 ) );  //	]==+===[
         places.push_back( make_pair( 2, 3 ) );  //	]===+==[
         places.push_back( make_pair( 2, 5 ) );  //	]==+=+=[
@@ -4911,7 +4985,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 5, 0 ) );
         places.push_back( make_pair( 5, 2 ) );
 	}
-	else if (type == 33) {		// Scattered B
+	else if (type == 34) {		// Scattered B
         places.push_back( make_pair( 0, 2 ) );  //	]=+=+==[
         places.push_back( make_pair( 0, 4 ) );  //	]+=+===[
         places.push_back( make_pair( 1, 3 ) );  //	]=+=+=+[
@@ -4923,7 +4997,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 2 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
-	else if (type == 34) {		// Scattered C
+	else if (type == 35) {		// Scattered C
         places.push_back( make_pair( 0, 3 ) );  //	]   ===[
         places.push_back( make_pair( 1, 2 ) );  //	]=+=+==[
         places.push_back( make_pair( 1, 4 ) );  //	]+=+=+=[
@@ -4935,7 +5009,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 1 ) );
         places.push_back( make_pair( 4, 3 ) );
 	}
-	else if (type == 35) {		// Scattered D
+	else if (type == 36) {		// Scattered D
         places.push_back( make_pair( 1, 2 ) );  //	] =+===[
         places.push_back( make_pair( 1, 4 ) );  //	] +=+==[
         places.push_back( make_pair( 2, 1 ) );  //	]==+=+=[
@@ -4947,7 +5021,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 5, 2 ) );
 	}
-    else if (type == 36) {		// Scattered E
+    else if (type == 37) {		// Scattered E
         places.push_back( make_pair( 0, 4 ) );  //	]=+====[
         places.push_back( make_pair( 1, 3 ) );  //	]+=+===[
         places.push_back( make_pair( 1, 5 ) );  //	]=+=+==[
@@ -4958,7 +5032,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 2 ) );
         places.push_back( make_pair( 5, 1 ) );
 	}
-    else if (type == 37) {		// Scattered F
+    else if (type == 38) {		// Scattered F
         places.push_back( make_pair( 0, 3 ) );  //	]+=+ ==[
         places.push_back( make_pair( 0, 5 ) );  //	]=+====[
         places.push_back( make_pair( 1, 4 ) );  //	]+=+== [
@@ -4971,7 +5045,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 5, 2 ) );
 	}
 	// Layers
-	else if (type == 38) {		// Layers A
+	else if (type == 39) {		// Layers A
         places.push_back( make_pair( 2, 1 ) );  //	]= ++==[
         places.push_back( make_pair( 2, 2 ) );  //	]==++==[
         places.push_back( make_pair( 2, 3 ) );  //	]==++==[
@@ -4983,7 +5057,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 3, 4 ) );
         places.push_back( make_pair( 3, 5 ) );
 	}
-	else if (type == 39) {		// Layers B
+	else if (type == 40) {		// Layers B
         places.push_back( make_pair( 2, 1 ) );  //	]    ==[
         places.push_back( make_pair( 2, 2 ) );  //	]==+=+=[
         places.push_back( make_pair( 2, 3 ) );  //	]==+=+=[
@@ -4993,7 +5067,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 4, 4 ) );
 	}
-	else if (type == 40) {		// Layers C
+	else if (type == 41) {		// Layers C
         places.push_back( make_pair( 3, 1 ) );  //	]    ==[
         places.push_back( make_pair( 3, 2 ) );  //	]===++=[
         places.push_back( make_pair( 3, 3 ) );  //	]===++=[
@@ -5003,7 +5077,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 4, 4 ) );
 	}
-	else if (type == 41) {		// Layers D
+	else if (type == 42) {		// Layers D
         places.push_back( make_pair( 1, 4 ) );  //	]=+====[
         places.push_back( make_pair( 1, 5 ) );  //	]=+====[
         places.push_back( make_pair( 2, 2 ) );  //	]==+===[
@@ -5012,7 +5086,7 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 1 ) );  //	]== ===[
         places.push_back( make_pair( 5, 1 ) );
 	}
-	else if (type == 42) {		// Layers E
+	else if (type == 43) {		// Layers E
         places.push_back( make_pair( 0, 4 ) );  //	]=== ==[
         places.push_back( make_pair( 1, 4 ) );  //	]++====[
         places.push_back( make_pair( 2, 3 ) );  //	]==++= [
@@ -5021,17 +5095,28 @@ void App::generateItems(int amt, int type, int trapAmt) {
         places.push_back( make_pair( 4, 0 ) );  //	]====+=[
         places.push_back( make_pair( 4, 1 ) );
 	}
-    else if (type == 43) {		// Layers F
-        places.push_back( make_pair( 1, 4 ) );  //	] ++===[
-        places.push_back( make_pair( 1, 5 ) );  //	] +====[
-        places.push_back( make_pair( 2, 3 ) );  //	]==+===[
-        places.push_back( make_pair( 2, 5 ) );  //	]===+==[
-        places.push_back( make_pair( 3, 0 ) );  //	]====+ [
-        places.push_back( make_pair( 3, 2 ) );  //	]===++ [
-        places.push_back( make_pair( 4, 0 ) );
+    else if (type == 44) {		// Layers F
+        places.push_back( make_pair( 3, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 3, 2 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 3 ) );  //	]===++=[
+        places.push_back( make_pair( 3, 4 ) );  //	]===++=[
+        places.push_back( make_pair( 4, 1 ) );  //	]===++=[
+        places.push_back( make_pair( 4, 2 ) );  //	]=     [
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+    else if (type == 45) {		// Layers G
+        places.push_back( make_pair( 1, 3 ) );  //	]   ===[
+        places.push_back( make_pair( 1, 4 ) );  //	] ++== [
+        places.push_back( make_pair( 2, 3 ) );  //	] ++== [
+        places.push_back( make_pair( 2, 4 ) );  //	] ==++ [
+        places.push_back( make_pair( 3, 1 ) );  //	] ==++ [
+        places.push_back( make_pair( 3, 2 ) );  //	]===   [
         places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
 	}
     else { generateItems( amt, 0, 0 ); return; }
+    }
 
     for ( int i = 0; i < amt; i += itemWorth ) {
         if ( !places.empty() ) {
@@ -5069,6 +5154,7 @@ void App::generateBoxes(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
     vector<pair<int, int>> places;
+    {
 	// Rooms
     if ( type == 0 ) {			// Rooms A
         places.push_back( make_pair( 2, 2 ) );  //	] =O=O=[
@@ -5098,14 +5184,15 @@ void App::generateBoxes(int amt, int type) {
 	}
 	else if (type == 2) {		// Rooms C
         places.push_back( make_pair( 1, 3 ) );  //	]=== ==[
-        places.push_back( make_pair( 1, 4 ) );  //	]=OO=O=[
-        places.push_back( make_pair( 2, 3 ) );  //	]=OO== [
-        places.push_back( make_pair( 2, 4 ) );  //	] ==OO=[
-        places.push_back( make_pair( 3, 1 ) );  //	]===OO=[
-        places.push_back( make_pair( 3, 2 ) );  //	]== ===[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO===[
+        places.push_back( make_pair( 2, 2 ) );  //	]=OOO= [
+        places.push_back( make_pair( 2, 3 ) );  //	] =OOO=[
+        places.push_back( make_pair( 2, 4 ) );  //	]===OO=[
+        places.push_back( make_pair( 3, 1 ) );  //	]== ===[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
         places.push_back( make_pair( 4, 1 ) );
         places.push_back( make_pair( 4, 2 ) );
-        places.push_back( make_pair( 4, 4 ) );
 	}
 	else if (type == 3) {		// Rooms D
         places.push_back( make_pair( 0, 2 ) );  //	]=    =[
@@ -5309,7 +5396,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 4 ) );
 	}
     else if (type == 17) {		// Paths E
-        places.push_back( make_pair( 1, 2 ) );  //	]===OO=[
+        places.push_back( make_pair( 1, 2 ) );  //	]  =OO=[
         places.push_back( make_pair( 1, 3 ) );  //	]===OO=[
         places.push_back( make_pair( 2, 2 ) );  //	]=OO= =[
         places.push_back( make_pair( 2, 3 ) );  //	]=OO= =[
@@ -5323,10 +5410,10 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 4, 5 ) );
 	}
     else if (type == 18) {		// Paths F
-        places.push_back( make_pair( 1, 0 ) );  //	] OO= =[
-        places.push_back( make_pair( 1, 1 ) );  //	] OO= =[
-        places.push_back( make_pair( 1, 4 ) );  //	]===OO=[
-        places.push_back( make_pair( 1, 5 ) );  //	]===OO=[
+        places.push_back( make_pair( 1, 0 ) );  //	]=OO= =[
+        places.push_back( make_pair( 1, 1 ) );  //	]=OO= =[
+        places.push_back( make_pair( 1, 4 ) );  //	]= =OO=[
+        places.push_back( make_pair( 1, 5 ) );  //	]= =OO=[
         places.push_back( make_pair( 2, 0 ) );  //	]=OO= =[
         places.push_back( make_pair( 2, 1 ) );  //	]=OO= =[
         places.push_back( make_pair( 2, 4 ) );
@@ -5356,37 +5443,40 @@ void App::generateBoxes(int amt, int type) {
 	}
 	// Cross
 	else if (type == 20) {		// Cross A
-        places.push_back( make_pair( 1, 1 ) );  //	] O===O[
-        places.push_back( make_pair( 1, 5 ) );  //	] =O=O=[
-        places.push_back( make_pair( 2, 2 ) );  //	] ==O==[
-        places.push_back( make_pair( 2, 4 ) );  //	] =O=O=[
-        places.push_back( make_pair( 3, 3 ) );  //	]=O===O[
-        places.push_back( make_pair( 4, 2 ) );  //	]==    [
-        places.push_back( make_pair( 4, 4 ) );
-        places.push_back( make_pair( 5, 1 ) );
-        places.push_back( make_pair( 5, 5 ) );
-	}
-	else if (type == 21) {		// Cross B
-        places.push_back( make_pair( 1, 0 ) );  //	]     =[
-        places.push_back( make_pair( 1, 4 ) );  //	]=O===O[
-        places.push_back( make_pair( 2, 1 ) );  //	]==O=O=[
-        places.push_back( make_pair( 2, 3 ) );  //	] ==O==[
-        places.push_back( make_pair( 3, 2 ) );  //	]==O=O=[
-        places.push_back( make_pair( 4, 1 ) );  //	]=O===O[
+        places.push_back( make_pair( 0, 2 ) );  //	]=== ==[
+        places.push_back( make_pair( 0, 4 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 1, 3 ) );  //	]=O==O=[
+        places.push_back( make_pair( 2, 2 ) );  //	]O=OO=O[
+        places.push_back( make_pair( 2, 4 ) );  //	]=== ==[
+        places.push_back( make_pair( 3, 2 ) );  //	]=== ==[
+        places.push_back( make_pair( 3, 4 ) );
         places.push_back( make_pair( 4, 3 ) );
-        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-	else if (type == 22) {		// Cross C
-        places.push_back( make_pair( 0, 1 ) );  //	]O===O=[
-        places.push_back( make_pair( 0, 5 ) );  //	]=O=O= [
-        places.push_back( make_pair( 1, 2 ) );  //	]==O== [
-        places.push_back( make_pair( 1, 4 ) );  //	]=O=O= [
-        places.push_back( make_pair( 2, 3 ) );  //	]O===O [
-        places.push_back( make_pair( 3, 2 ) );  //	]==    [
-        places.push_back( make_pair( 3, 4 ) );
-        places.push_back( make_pair( 4, 1 ) );
+	else if (type == 21) {		// Cross B
+        places.push_back( make_pair( 2, 0 ) );  //	]==O=O=[
+        places.push_back( make_pair( 2, 2 ) );  //	]===O==[
+        places.push_back( make_pair( 2, 3 ) );  //	]  O=O [
+        places.push_back( make_pair( 2, 5 ) );  //	]==O=O=[
+        places.push_back( make_pair( 3, 1 ) );  //	]===O==[
+        places.push_back( make_pair( 3, 4 ) );  //	]==O=O=[
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 4, 5 ) );
+	}
+	else if (type == 22) {		// Cross C
+        places.push_back( make_pair( 1, 0 ) );  //	]=O=O==[
+        places.push_back( make_pair( 1, 1 ) );  //	]=O=O==[
+        places.push_back( make_pair( 1, 4 ) );  //	] =O=  [
+        places.push_back( make_pair( 1, 5 ) );  //	] =O=  [
+        places.push_back( make_pair( 2, 2 ) );  //	]=O=O==[
+        places.push_back( make_pair( 2, 3 ) );  //	]=O=O==[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
 	}
 	else if (type == 23) {		// Cross D
         places.push_back( make_pair( 0, 1 ) );  // ]== ===[
@@ -5413,11 +5503,11 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 4, 4 ) );
 	}
     else if (type == 25) {		// Cross F
-        places.push_back( make_pair( 1, 1 ) );  //	]   O=O[
-        places.push_back( make_pair( 1, 3 ) );  //	]  ==O=[
+        places.push_back( make_pair( 1, 1 ) );  //	] ==O=O[
+        places.push_back( make_pair( 1, 3 ) );  //	] = =O=[
         places.push_back( make_pair( 2, 2 ) );  //	]=O=O=O[
-        places.push_back( make_pair( 3, 1 ) );  //	]==O== [
-        places.push_back( make_pair( 3, 3 ) );  //	]=O=O  [
+        places.push_back( make_pair( 3, 1 ) );  //	]==O= =[
+        places.push_back( make_pair( 3, 3 ) );  //	]=O=O==[
         places.push_back( make_pair( 3, 5 ) );  //	]====  [
         places.push_back( make_pair( 4, 4 ) );
         places.push_back( make_pair( 5, 3 ) );
@@ -5525,8 +5615,26 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
+    else if (type == 32) {		// Gallery F
+        places.push_back( make_pair( 0, 4 ) );  //	]OO====[
+        places.push_back( make_pair( 0, 5 ) );  //	]OO=OO=[
+        places.push_back( make_pair( 1, 1 ) );  //	]===OO=[
+        places.push_back( make_pair( 1, 2 ) );  //	]=OO===[
+        places.push_back( make_pair( 1, 4 ) );  //	]=OO=OO[
+        places.push_back( make_pair( 1, 5 ) );  //	]====OO[
+        places.push_back( make_pair( 2, 1 ) );
+        places.push_back( make_pair( 2, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 5, 0 ) );
+        places.push_back( make_pair( 5, 1 ) );
+	}
 	// Scattered
-	else if (type == 32) {		// Scattered A
+	else if (type == 33) {		// Scattered A
         places.push_back( make_pair( 2, 1 ) );  //	]==O=O=[
         places.push_back( make_pair( 2, 3 ) );  //	]===O=O[
         places.push_back( make_pair( 2, 5 ) );  //	]==O=O=[
@@ -5540,7 +5648,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-	else if (type == 33) {		// Scattered B
+	else if (type == 34) {		// Scattered B
         places.push_back( make_pair( 0, 2 ) );  //	]=O=O=O[
         places.push_back( make_pair( 0, 4 ) );  //	]O=O=O=[
         places.push_back( make_pair( 1, 3 ) );  //	]=O=O=O[
@@ -5554,7 +5662,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 3 ) );
         places.push_back( make_pair( 5, 5 ) );
 	}
-	else if (type == 34) {		// Scattered C
+	else if (type == 35) {		// Scattered C
         places.push_back( make_pair( 0, 3 ) );  //	]   =O=[
         places.push_back( make_pair( 1, 2 ) );  //	]=O=O=O[
         places.push_back( make_pair( 1, 4 ) );  //	]O=O=O=[
@@ -5568,7 +5676,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 4, 5 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-	else if (type == 35) {		// Scattered D
+	else if (type == 36) {		// Scattered D
         places.push_back( make_pair( 1, 2 ) );  //	] =O=O=[
         places.push_back( make_pair( 1, 4 ) );  //	] O=O=O[
         places.push_back( make_pair( 2, 1 ) );  //	]==O=O=[
@@ -5582,7 +5690,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-    else if (type == 36) {		// Scattered E
+    else if (type == 37) {		// Scattered E
         places.push_back( make_pair( 0, 4 ) );  //	]=O=O==[
         places.push_back( make_pair( 1, 3 ) );  //	]O=O=O=[
         places.push_back( make_pair( 1, 5 ) );  //	]=O=O=O[
@@ -5596,7 +5704,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 1 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
-    else if (type == 37) {		// Scattered F
+    else if (type == 38) {		// Scattered F
         places.push_back( make_pair( 0, 3 ) );  //	]O=O ==[
         places.push_back( make_pair( 0, 5 ) );  //	]=O=O==[
         places.push_back( make_pair( 1, 4 ) );  //	]O=O=O [
@@ -5611,7 +5719,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
 	}
 	// Layers
-	else if (type == 38) {		// Layers A
+	else if (type == 39) {		// Layers A
         places.push_back( make_pair( 2, 1 ) );  //	]= OO==[
         places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
         places.push_back( make_pair( 2, 3 ) );  //	]==OO==[
@@ -5623,7 +5731,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 3, 4 ) );
         places.push_back( make_pair( 3, 5 ) );
 	}
-	else if (type == 39) {		// Layers B
+	else if (type == 40) {		// Layers B
         places.push_back( make_pair( 1, 1 ) );  //	]    ==[
         places.push_back( make_pair( 1, 2 ) );  //	]=OO=O=[
         places.push_back( make_pair( 1, 3 ) );  //	]=OO=O=[
@@ -5637,7 +5745,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 4, 4 ) );
 	}
-	else if (type == 40) {		// Layers C
+	else if (type == 41) {		// Layers C
         places.push_back( make_pair( 1, 1 ) );  //	]    ==[
         places.push_back( make_pair( 1, 2 ) );  //	]=O=OO=[
         places.push_back( make_pair( 1, 3 ) );  //	]=O=OO=[
@@ -5651,7 +5759,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 4, 4 ) );
 	}
-	else if (type == 41) {		// Layers D
+	else if (type == 42) {		// Layers D
         places.push_back( make_pair( 1, 4 ) );  //	]=OO===[
         places.push_back( make_pair( 1, 5 ) );  //	]=OO===[
         places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
@@ -5665,7 +5773,7 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 5, 1 ) );
         places.push_back( make_pair( 5, 2 ) );
 	}
-	else if (type == 42) {		// Layers E
+	else if (type == 43) {		// Layers E
         places.push_back( make_pair( 0, 3 ) );  //	]=== ==[
         places.push_back( make_pair( 0, 4 ) );  //	]OO====[
         places.push_back( make_pair( 1, 3 ) );  //	]OOOO= [
@@ -5679,21 +5787,36 @@ void App::generateBoxes(int amt, int type) {
         places.push_back( make_pair( 4, 0 ) );
         places.push_back( make_pair( 4, 1 ) );
 	}
-    else if (type == 43) {		// Layers F
-        places.push_back( make_pair( 1, 4 ) );  //	] OO===[
-        places.push_back( make_pair( 1, 5 ) );  //	] OO===[
-        places.push_back( make_pair( 2, 2 ) );  //	]==OO==[
-        places.push_back( make_pair( 2, 3 ) );  //	]==OO==[
-        places.push_back( make_pair( 2, 4 ) );  //	]===OO [
-        places.push_back( make_pair( 2, 5 ) );  //	]===OO [
-        places.push_back( make_pair( 3, 0 ) );
+    else if (type == 44) {		// Layers F
+        places.push_back( make_pair( 2, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 2, 2 ) );  //	]==OOO=[
+        places.push_back( make_pair( 2, 3 ) );  //	]==OOO=[
+        places.push_back( make_pair( 2, 4 ) );  //	]==OOO=[
+        places.push_back( make_pair( 3, 1 ) );  //	]==OOO=[
+        places.push_back( make_pair( 3, 2 ) );  //	]=     [
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 4, 4 ) );
+	}
+    else if (type == 45) {		// Layers G
+        places.push_back( make_pair( 1, 3 ) );  //	]   ===[
+        places.push_back( make_pair( 1, 4 ) );  //	] OOO= [
+        places.push_back( make_pair( 2, 1 ) );  //	] OOO= [
+        places.push_back( make_pair( 2, 2 ) );  //	] =OOO [
+        places.push_back( make_pair( 2, 3 ) );  //	] =OOO [
+        places.push_back( make_pair( 2, 4 ) );  //	]===   [
         places.push_back( make_pair( 3, 1 ) );
         places.push_back( make_pair( 3, 2 ) );
         places.push_back( make_pair( 3, 3 ) );
-        places.push_back( make_pair( 4, 0 ) );
+        places.push_back( make_pair( 3, 4 ) );
         places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 2 ) );
 	}
     else { generateBoxes( amt, 0 ); return; }
+    }
 
     while ( amt > 0 && !places.empty() ) {
         int randPlace = rand() % places.size();
@@ -5723,6 +5846,7 @@ void App::generateFloor(int amt, int type) {
 	if (amt <= 0) { return; }
 	int xPos = -1, yPos = -1;
     vector<pair<int, int>> places;
+    {
 	// Rooms
 	if (type == 0) {				// Rooms A
         places.push_back( make_pair( 3, 0 ) );  //	] ==X==[
@@ -5741,12 +5865,12 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 3, 2 ) );  //	]===X==[
 	}
 	else if (type == 2) {			// Rooms C
-        places.push_back( make_pair( 1, 2 ) );  //	]=== ==[
-        places.push_back( make_pair( 2, 1 ) );  //	]===X==[
-        places.push_back( make_pair( 2, 2 ) );  //	]===XX [
-        places.push_back( make_pair( 3, 3 ) );  //	] XX===[
-        places.push_back( make_pair( 3, 4 ) );  //	]==X===[
-        places.push_back( make_pair( 4, 3 ) );  //	]== ===[
+        places.push_back( make_pair( 0, 5 ) );  //	]X== ==[
+        places.push_back( make_pair( 1, 2 ) );  //	]===X==[
+        places.push_back( make_pair( 2, 1 ) );  //	]====X [
+        places.push_back( make_pair( 3, 4 ) );  //	] X====[
+        places.push_back( make_pair( 4, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 5, 0 ) );  //	]== ==X[
 	}
 	else if (type == 3) {			// Rooms D
         places.push_back( make_pair( 1, 2 ) );  //	]=    =[
@@ -5772,17 +5896,19 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 4 ) );
 	}
     else if (type == 5) {			// Rooms F
-        places.push_back( make_pair( 0, 2 ) );  //	]==X===[
-        places.push_back( make_pair( 1, 1 ) );  //	]=X==X=[
-        places.push_back( make_pair( 1, 4 ) );  //	]==XX=X[
-        places.push_back( make_pair( 2, 2 ) );  //	]X=XX==[
-        places.push_back( make_pair( 2, 3 ) );  //	]=X==X=[
-        places.push_back( make_pair( 2, 5 ) );  //	]===X==[
+        places.push_back( make_pair( 0, 2 ) );  //	] =X=X=[
+        places.push_back( make_pair( 1, 0 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 1 ) );  //	]==XX=X[
+        places.push_back( make_pair( 1, 4 ) );  //	]X=XX==[
+        places.push_back( make_pair( 2, 2 ) );  //	]=X==X=[
+        places.push_back( make_pair( 2, 3 ) );  //	]=X=X= [
+        places.push_back( make_pair( 2, 5 ) );
         places.push_back( make_pair( 3, 0 ) );
         places.push_back( make_pair( 3, 2 ) );
         places.push_back( make_pair( 3, 3 ) );
         places.push_back( make_pair( 4, 1 ) );
         places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
 	// Plus
@@ -5850,12 +5976,14 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 4, 2 ) );
 	}
     else if (type == 12) {			// Plus G
-        places.push_back( make_pair( 1, 3 ) );  //	]  =x==[
-        places.push_back( make_pair( 2, 3 ) );  //	]===x==[
-        places.push_back( make_pair( 3, 1 ) );  //	]=xx=xx[
-        places.push_back( make_pair( 3, 2 ) );  //	]===x==[
-        places.push_back( make_pair( 3, 4 ) );  //	]= =x= [
-        places.push_back( make_pair( 3, 5 ) );  //	]===== [
+        places.push_back( make_pair( 0, 3 ) );
+        places.push_back( make_pair( 1, 3 ) );  //	]  =X==[
+        places.push_back( make_pair( 2, 3 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 0 ) );  //	]XXX=XX[
+        places.push_back( make_pair( 3, 1 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 2 ) );  //	]= =X= [
+        places.push_back( make_pair( 3, 4 ) );  //	]===X= [
+        places.push_back( make_pair( 3, 5 ) );
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
@@ -5901,62 +6029,76 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
 	}
     else if (type == 17) {		// Paths E
-        places.push_back( make_pair( 1, 4 ) );  //	]==X===[
-        places.push_back( make_pair( 2, 4 ) );  //	]=XX===[
-        places.push_back( make_pair( 2, 5 ) );  //	]===X X[
-        places.push_back( make_pair( 3, 2 ) );  //	]===X X[
-        places.push_back( make_pair( 3, 3 ) );  //	]= ====[
-        places.push_back( make_pair( 5, 2 ) );  //	]= ====[
+        places.push_back( make_pair( 1, 4 ) );  //	]  X===[
+        places.push_back( make_pair( 2, 0 ) );  //	]=XX===[
+        places.push_back( make_pair( 2, 1 ) );  //	]===X X[
+        places.push_back( make_pair( 2, 4 ) );  //	]===X X[
+        places.push_back( make_pair( 2, 5 ) );  //	]= X===[
+        places.push_back( make_pair( 3, 2 ) );  //	]= X===[
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
     else if (type == 18) {		// Paths F
-        places.push_back( make_pair( 1, 2 ) );  //	] === =[
-        places.push_back( make_pair( 1, 3 ) );  //	] ==X =[
-        places.push_back( make_pair( 2, 2 ) );  //	]=XX===[
-        places.push_back( make_pair( 2, 3 ) );  //	]=XX===[
-        places.push_back( make_pair( 3, 1 ) );  //	]===X =[
-        places.push_back( make_pair( 3, 4 ) );  //	]==== =[
+        places.push_back( make_pair( 0, 1 ) );  //	]===X =[
+        places.push_back( make_pair( 0, 2 ) );  //	]X==X =[
+        places.push_back( make_pair( 0, 3 ) );  //	]X X===[
+        places.push_back( make_pair( 0, 4 ) );  //	]X X===[
+        places.push_back( make_pair( 2, 2 ) );  //	]X==X =[
+        places.push_back( make_pair( 2, 3 ) );  //	]===X =[
+        places.push_back( make_pair( 3, 0 ) );
+        places.push_back( make_pair( 3, 1 ) );
+        places.push_back( make_pair( 3, 4 ) );
+        places.push_back( make_pair( 3, 5 ) );
 	}
     else if (type == 19) {		// Paths G
-        places.push_back( make_pair( 1, 1 ) );  //	] =====[
-        places.push_back( make_pair( 1, 4 ) );  //	]=X==X=[
-        places.push_back( make_pair( 2, 2 ) );  //	]==XX==[
-        places.push_back( make_pair( 2, 3 ) );  //	]==XX==[
-        places.push_back( make_pair( 3, 2 ) );  //	]=X==X=[
-        places.push_back( make_pair( 3, 3 ) );  //	]===== [
+        places.push_back( make_pair( 0, 1 ) );  //	] X==X=[
+        places.push_back( make_pair( 0, 4 ) );  //	]XX==XX[
+        places.push_back( make_pair( 1, 0 ) );  //	]==XX==[
+        places.push_back( make_pair( 1, 1 ) );  //	]==XX==[
+        places.push_back( make_pair( 1, 4 ) );  //	]XX==XX[
+        places.push_back( make_pair( 1, 5 ) );  //	]=X==X [
+        places.push_back( make_pair( 2, 2 ) );
+        places.push_back( make_pair( 2, 3 ) );
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 3, 3 ) );
+        places.push_back( make_pair( 4, 0 ) );
         places.push_back( make_pair( 4, 1 ) );
         places.push_back( make_pair( 4, 4 ) );
+        places.push_back( make_pair( 4, 5 ) );
+        places.push_back( make_pair( 5, 1 ) );
+        places.push_back( make_pair( 5, 4 ) );
 	}
 	// Cross
 	else if (type == 20) {			// Cross A
-        places.push_back( make_pair( 1, 3 ) );  //	] ==X==[
-        places.push_back( make_pair( 2, 3 ) );  //	] ==X==[
-        places.push_back( make_pair( 3, 1 ) );  //	] XX=XX[
-        places.push_back( make_pair( 3, 2 ) );  //	] ==X==[
-        places.push_back( make_pair( 3, 4 ) );  //	]===X==[
-        places.push_back( make_pair( 3, 5 ) );  //	]==    [
-        places.push_back( make_pair( 4, 3 ) );
+        places.push_back( make_pair( 0, 3 ) );  //	]=== ==[
+        places.push_back( make_pair( 1, 2 ) );  //	]=X==X=[
+        places.push_back( make_pair( 1, 4 ) );  //	]X=XX=X[
+        places.push_back( make_pair( 2, 3 ) );  //	]=X==X=[
+        places.push_back( make_pair( 3, 3 ) );  //	]=== ==[
+        places.push_back( make_pair( 4, 2 ) );  //	]=== ==[
+        places.push_back( make_pair( 4, 4 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
 	else if (type == 21) {			// Cross B
-        places.push_back( make_pair( 1, 2 ) );  //	]     =[
-        places.push_back( make_pair( 2, 2 ) );  //	]===X==[
+        places.push_back( make_pair( 2, 1 ) );  //	]===X==[
+        places.push_back( make_pair( 2, 4 ) );  //	]==X=X=[
         places.push_back( make_pair( 3, 0 ) );  //	]===X==[
-        places.push_back( make_pair( 3, 1 ) );  //	] XX=XX[
-        places.push_back( make_pair( 3, 3 ) );  //	]===X==[
-        places.push_back( make_pair( 3, 4 ) );  //	]===X==[
-        places.push_back( make_pair( 4, 2 ) );
-        places.push_back( make_pair( 5, 2 ) );
+        places.push_back( make_pair( 3, 2 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 3 ) );  //	]==X=X=[
+        places.push_back( make_pair( 3, 5 ) );  //	]===X==[
+        places.push_back( make_pair( 4, 1 ) );
+        places.push_back( make_pair( 4, 4 ) );
 	}
 	else if (type == 22) {			// Cross C
-        places.push_back( make_pair( 0, 3 ) );  //	]==X===[
-        places.push_back( make_pair( 1, 3 ) );  //	]==X== [
-        places.push_back( make_pair( 2, 1 ) );  //	]XX=XX [
-        places.push_back( make_pair( 2, 2 ) );  //	]==X== [
-        places.push_back( make_pair( 2, 4 ) );  //	]==X== [
-        places.push_back( make_pair( 2, 5 ) );  //	]==    [
+        places.push_back( make_pair( 1, 2 ) );  //	]==X===[
+        places.push_back( make_pair( 1, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 2, 0 ) );  //	] X=X  [
+        places.push_back( make_pair( 2, 1 ) );  //	] X=X  [
+        places.push_back( make_pair( 2, 4 ) );  //	]==X===[
+        places.push_back( make_pair( 2, 5 ) );  //	]==X===[
+        places.push_back( make_pair( 3, 2 ) );
         places.push_back( make_pair( 3, 3 ) );
-        places.push_back( make_pair( 4, 3 ) );
 	}
 	else if (type == 23) {			// Cross D
         places.push_back( make_pair( 0, 2 ) );  //	]== ===[
@@ -5983,13 +6125,13 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 4, 2 ) );
 	}
     else if (type == 25) {		// Cross F
-        places.push_back( make_pair( 1, 2 ) );  //	]   =X=[
-        places.push_back( make_pair( 2, 1 ) );  //	]  XX=X[
+        places.push_back( make_pair( 1, 2 ) );  //	] =X=X=[
+        places.push_back( make_pair( 2, 1 ) );  //	] = X=X[
         places.push_back( make_pair( 2, 3 ) );  //	]==X=X=[
-        places.push_back( make_pair( 2, 4 ) );  //	]=X=XX [
-        places.push_back( make_pair( 3, 2 ) );  //	]==X=  [
+        places.push_back( make_pair( 2, 5 ) );  //	]=X=X =[
+        places.push_back( make_pair( 3, 2 ) );  //	]==X=X=[
         places.push_back( make_pair( 3, 4 ) );  //	]====  [
-        places.push_back( make_pair( 4, 2 ) );
+        places.push_back( make_pair( 4, 1 ) );
         places.push_back( make_pair( 4, 3 ) );
         places.push_back( make_pair( 4, 5 ) );
         places.push_back( make_pair( 5, 4 ) );
@@ -6055,8 +6197,18 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 4, 2 ) );
         places.push_back( make_pair( 4, 3 ) );
 	}
+    else if (type == 32) {		// Gallery F
+        places.push_back( make_pair( 1, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 2, 3 ) );  //	]==X===[
+        places.push_back( make_pair( 2, 4 ) );  //	]=XX===[
+        places.push_back( make_pair( 2, 5 ) );  //	]===XX=[
+        places.push_back( make_pair( 3, 0 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 1 ) );  //	]===X==[
+        places.push_back( make_pair( 3, 2 ) );
+        places.push_back( make_pair( 4, 2 ) );
+	}
 	// Scattered
-	else if (type == 32) {			// Scattered A
+	else if (type == 33) {			// Scattered A
         places.push_back( make_pair( 2, 0 ) );  //	]===X==[
         places.push_back( make_pair( 2, 2 ) );  //	]==X=X=[
         places.push_back( make_pair( 2, 4 ) );  //	]===X=X[
@@ -6069,7 +6221,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 1 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
-	else if (type == 33) {			// Scattered B
+	else if (type == 34) {			// Scattered B
         places.push_back( make_pair( 0, 3 ) );  //	]X=X=X=[
         places.push_back( make_pair( 0, 5 ) );  //	]=X=X=X[
         places.push_back( make_pair( 1, 2 ) );  //	]X=X=X=[
@@ -6083,7 +6235,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-	else if (type == 34) {			// Scattered C
+	else if (type == 35) {			// Scattered C
         places.push_back( make_pair( 0, 4 ) );  //	]   X==[
         places.push_back( make_pair( 1, 1 ) );  //	]X=X=X=[
         places.push_back( make_pair( 2, 2 ) );  //	]=X=X=X[
@@ -6096,7 +6248,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 4, 4 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
-	else if (type == 35) {			// Scattered D
+	else if (type == 36) {			// Scattered D
         places.push_back( make_pair( 1, 3 ) );  //	] X=X==[
         places.push_back( make_pair( 1, 5 ) );  //	] =X=X=[
         places.push_back( make_pair( 2, 2 ) );  //	]=X=X=X[
@@ -6109,7 +6261,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 1 ) );
         places.push_back( make_pair( 5, 3 ) );
 	}
-    else if (type == 36) {			// Scattered E
+    else if (type == 37) {			// Scattered E
         places.push_back( make_pair( 0, 5 ) );  //	]X=X=X=[
         places.push_back( make_pair( 1, 4 ) );  //	]=X=X=X[
         places.push_back( make_pair( 2, 3 ) );  //	]==X=X=[
@@ -6123,7 +6275,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 2 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-    else if (type == 37) {		// Scattered F
+    else if (type == 38) {		// Scattered F
         places.push_back( make_pair( 0, 4 ) );  //	]=X= ==[
         places.push_back( make_pair( 1, 3 ) );  //	]X=X===[
         places.push_back( make_pair( 1, 5 ) );  //	]=X=X= [
@@ -6136,7 +6288,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 1 ) );
 	}
 	// Layers
-	else if (type == 38) {			// Layers A
+	else if (type == 39) {			// Layers A
         places.push_back( make_pair( 1, 1 ) );  //	]= ==X=[
         places.push_back( make_pair( 1, 2 ) );  //	]=X==X=[
         places.push_back( make_pair( 1, 3 ) );  //	]=X==X=[
@@ -6146,7 +6298,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 4, 4 ) );
         places.push_back( make_pair( 4, 5 ) );
 	}
-	else if (type == 39) {			// Layers B
+	else if (type == 40) {			// Layers B
         places.push_back( make_pair( 3, 1 ) );  //	]    ==[
         places.push_back( make_pair( 3, 2 ) );  //	]===X=X[
         places.push_back( make_pair( 3, 3 ) );  //	]===X=X[
@@ -6156,7 +6308,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 3 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-	else if (type == 40) {			// Layers C
+	else if (type == 41) {			// Layers C
         places.push_back( make_pair( 2, 1 ) );  //	]    ==[
         places.push_back( make_pair( 2, 2 ) );  //	]==X==X[
         places.push_back( make_pair( 2, 3 ) );  //	]==X==X[
@@ -6166,7 +6318,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 3 ) );
         places.push_back( make_pair( 5, 4 ) );
 	}
-	else if (type == 41) {			// Layers D
+	else if (type == 42) {			// Layers D
         places.push_back( make_pair( 0, 4 ) );  //	]X=====[
         places.push_back( make_pair( 0, 5 ) );  //	]X=====[
         places.push_back( make_pair( 1, 2 ) );  //	]X=====[
@@ -6176,7 +6328,7 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 4, 0 ) );  //	]== =XX[
         places.push_back( make_pair( 5, 0 ) );
 	}
-	else if (type == 42) {			// Layers E
+	else if (type == 43) {			// Layers E
         places.push_back( make_pair( 0, 5 ) );  //	]XX= ==[
         places.push_back( make_pair( 1, 5 ) );  //	]==XX==[
         places.push_back( make_pair( 2, 4 ) );  //	]====X [
@@ -6186,17 +6338,26 @@ void App::generateFloor(int amt, int type) {
         places.push_back( make_pair( 5, 0 ) );
         places.push_back( make_pair( 5, 1 ) );
 	}
-    else if (type == 43) {			// Layers F
-        places.push_back( make_pair( 1, 2 ) );  //	] ==X==[
-        places.push_back( make_pair( 1, 3 ) );  //	] ==X==[
-        places.push_back( make_pair( 2, 0 ) );  //	]=X==X=[
-        places.push_back( make_pair( 2, 1 ) );  //	]=X==X=[
-        places.push_back( make_pair( 3, 4 ) );  //	]==X== [
-        places.push_back( make_pair( 3, 5 ) );  //	]==X== [
-        places.push_back( make_pair( 4, 2 ) );
-        places.push_back( make_pair( 4, 3 ) );
+    else if (type == 44) {			// Layers F
+        places.push_back( make_pair( 1, 1 ) );  //	]    ==[
+        places.push_back( make_pair( 1, 2 ) );  //	]=X===X[
+        places.push_back( make_pair( 1, 3 ) );  //	]=X===X[
+        places.push_back( make_pair( 1, 4 ) );  //	]=X===X[
+        places.push_back( make_pair( 5, 1 ) );  //	]=X===X[
+        places.push_back( make_pair( 5, 2 ) );  //	]=     [
+        places.push_back( make_pair( 5, 3 ) );
+        places.push_back( make_pair( 5, 4 ) );
+	}
+    else if (type == 45) {			// Layers G
+        places.push_back( make_pair( 1, 1 ) );  //	]   ===[
+        places.push_back( make_pair( 1, 2 ) );  //	] ===X [
+        places.push_back( make_pair( 4, 3 ) );  //	] ===X [
+        places.push_back( make_pair( 4, 4 ) );  //	] X=== [
+                                                //	] X=== [
+                                                //	]===   [
 	}
     else { generateFloor( amt, 0 ); return; }
+    }
 
     while (amt > 0 && !places.empty()) {
 		int randPlace = rand() % places.size();
