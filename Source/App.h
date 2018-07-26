@@ -46,163 +46,95 @@
 #include <random>
 #include <time.h>
 #include <utility>
+#include "Player.h"
+#include "Panel.h"
+#include "Board.h"
+#include "DelayedEffects.h"
 using namespace std;
-
-class Player {
-public:
-	Player();
-	int x, y;			// Coordinate position
-    int x2, y2;         // Previous Coordinate position
-    int xOffset, yOffset;   // Drawing Character parameters
-    int hp;             // HP for NPCs        // Players do not have HP
-    int timesHit;       // Records how many times Players hit an NPC
-	int facing;			// Facing Direction		// 1 = Left		// 3 = Right
-	bool moving, turning;
-	int moveDir;		// Moving Direction		// 0 = Up		// 1 = Left		// 2 = Down		// 3 = Right
-	int energy;			// Player Resource - Used for attacking with swords
-    int type;           // 0 = Megaman      // 1 = Protoman     // 2 = Tomahawkman      // 3 = Colonel      // 4 = Slashman
-    bool npc;           // Whether or not the character is the player or an NPC
-    
-    float animationDisplayAmt;	// Used for Animation timing
-    float deathDisplayAmt;      // Used for animating defeated Characters
-    float currentSwordAtkTime;	// Used for Sword attack display
-    float hurtDisplayAmt;       // Used for showing that Characters got hit
-    float npcActionTimer;       // NPCs wait a moment after Players act
-
-	int animationType;			// -1 = Trapped    // 0 = Movement    // 1 = Attack    // 2 = Special Invalid movement    // 3,4 = Level Transition
-	int selSwordAnimation;		// Select which sword attack is being Animated
-    
-    int energyDisplayed, energyDisplayed2;        // Shown amount of energy
-	
-	void reset();
-};
-
-class Tile {
-public:
-	Tile();
-	int state;		// 0 = Solid Ground		// 1 = Cracked Floor			// 2 = Cracked Hole			// 3 = Hole
-	int item;		// 0 = No Energy (Resource)			// 1 = 100 Energy
-	int boxHP;		// 0 = No Rock
-	int boxType;	// 0, 1 = Rock		    // 2 = Ice Rock w/ Item
-    bool bigBoxDeath;   // Used for special Rock death animation
-    bool isPurple;        // Used to determine which color sprite sheet to use
-	float boxAtkInd;	// Used for Indicating that a Rock got Attacked and damaged
-    float upgradeInd;   // Used for Indicating that an Item got Upgraded
-	int prevDmg;
-};
-
-class DelayedHpLoss {		// Class used for displaying a Delayed HP Loss of a Rock or Character
-public:
-	DelayedHpLoss();
-    DelayedHpLoss( int dmgAmt, int x, int y, float delayTime, bool isNpc = false );
-	int dmg;
-	int xPos, yPos;
-	float delay;
-    int npc;        // Whether or not the damage was from an NPC
-};
-
-class DelayedSound {
-public:
-	DelayedSound();
-    DelayedSound( string name, float time, bool isNpc = false );
-    bool npc;
-	string soundName;
-	float delay;
-};
-
-class DelayedETomaDisplay {
-public:
-    DelayedETomaDisplay();
-    DelayedETomaDisplay( int x, int y, float time );
-    int xPos, yPos;
-    float delay;
-    float animationTimer;
-};
 
 class App {
 public:
 	App();
 	~App();
+    bool UpdateAndRender();
+private:
 	void Init();
 	void Update(float &elapsed);
 	void FixedUpdate();
 	void Render();
-	bool UpdateAndRender();
 	void checkKeys();			// Reads keyboard inputs
 
-	Tile map[6][6];				// The current map
-	Player player1;             // You, the player
-    vector<Player> npcList;     // Potential NPC's
+    Board board;    			// The current map
+	Player *player1;            // You, the player
+    vector<Player*> npcList;        // Potential NPC's
+    vector<Player*> nextNpcList;    // NPC's that entered the next level - to be loaded in the next level
 	bool done;					// If the current game is Over or not
     bool menuDisplay, quitMenuOn, resetMenuOn, diffSelMenuOn, trainMenuOn, menuSel;
     int charSel;
 	int level, levelType;		// Level Types
 	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
     int lvlsWithoutBoss;
-	int currentEnergyGain;		// Current Player Energy gain for this Level
-	float chargeDisplayPlusAmt;	// Used for showing that the Player picked up some Energy resource
-	float chargeDisplayMinusAmt;// Used for showing that the Player spent Energy
-	float itemAnimationAmt, bgAnimationAmt;		// Used for idle item animations		// Used for background animations
-    bool npcAbleToAct;          // Whether or not the NPCs can do an Action
+    bool reloadedTutorial;
+	int currentEnergyGain;		    // Current Player Energy gain for this Level
+	float chargeDisplayPlusAmt;	    // Used for showing that the Player picked up some Energy resource
+	float chargeDisplayMinusAmt;    // Used for showing that the Player spent Energy
+	float itemAnimationAmt, bgAnimationAmt, poisonAnimationAmt, holyAnimationAmt;		// Used for item, panel, and background animations
+    bool npcAbleToAct;              // Whether or not the NPCs can do an Action
 
 	int musicSel;					// Selects different music tracks
     bool musicMuted;
 	float musicSwitchDisplayAmt;
 
     // Player functions
-    void aiAction( Player &player );
+    void aiAction( Player* const player );              // Generate a move for the AI
+    bool attack( Player* const player, int atkNum );
+	void face( Player* const player, int dir);		// -1 = left	// 1 = right
+    bool move( Player* const player, int dir);		// 0 = up		// 1 = left		// 2 = down		// 3 = right
+	void move2(Player* const player, int dir);		// Move two Squares
+    
+    // Display functions: Animates Sword attack trail Sprites
+    void swordDisplay( Player* const player );
+    void longDisplay( Player* const player );
+    void wideDisplay( Player* const player );
+    void crossDisplay( Player* const player );
+    void spinDisplay( Player* const player );
+    void stepDisplay( Player* const player );
+    void lifeDisplay( Player* const player );
 
-	void face( Player &player, int dir);		// 0 = up		// 1 = left		// 2 = down		// 3 = right
-    bool move( Player &player, int dir);		// 0 = up		// 1 = left		// 2 = down		// 3 = right
-	void move2(Player &player, int dir);		// Move two Squares in the Facing Direction
+    void heroDisplay( Player* const player );
+    void protoDisplay( Player* const player );
 
-    // swordAtk:		Damages Rocks based on selected Sword and Direction
-    // swordDisplay:	Animates a Sword Attack Sprite
-	bool swordAtk(Player &player);		void swordDisplay(const Player &player);
-    bool longAtk(Player &player);		void longDisplay( const Player &player);
-    bool wideAtk(Player &player);		void wideDisplay( const Player &player);
-    bool crossAtk(Player &player);		void crossDisplay( const Player &player);
-    bool spinAtk(Player &player);		void spinDisplay( const Player &player);
-    bool stepAtk(Player &player);		void stepDisplay( const Player &player);
-    bool lifeAtk(Player &player);		void lifeDisplay( const Player &player);
+    void vDivideDisplay( Player* const player );
+    void upDivideDisplay( Player* const player );
+    void downDivideDisplay( Player* const player );
+    void xDivideDisplay( Player* const player );
+    void zDivideDisplay( Player* const player );
 
-    bool heroAtk(Player &player);        void heroDisplay( const Player &player);
-    bool protoAtk(Player &player);       void protoDisplay( const Player &player);
+    void tomaDisplayA1( Player* const player );
+    void tomaDisplayA2( Player* const player );
+    void tomaDisplayB1( Player* const player );
+    void tomaDisplayB2( Player* const player );
+    void eTomaDisplay( int xPos, int yPos, float animationTime );
 
-    bool vDivideAtk(Player &player);     void vDivideDisplay( const Player &player);
-    bool upDivideAtk(Player &player);    void upDivideDisplay( const Player &player);
-    bool downDivideAtk(Player &player);  void downDivideDisplay( const Player &player);
-    bool xDivideAtk(Player &player);     void xDivideDisplay( const Player &player);
-    bool zDivideAtk(Player &player);     void zDivideDisplay( const Player &player);
+    void longSlashDisplay( Player* const player );
+    void wideSlashDisplay( Player* const player );
+    void stepCrossDisplay( Player* const player );
 
-    bool tomaAtkA1(Player &player);      void tomaDisplayA1( const Player &player);
-    bool tomaAtkA2(Player &player);      void tomaDisplayA2( const Player &player);
-    bool tomaAtkB1(Player &player);      void tomaDisplayB1( const Player &player);
-    bool tomaAtkB2(Player &player);      void tomaDisplayB2( const Player &player);
-    bool eTomaAtk(Player &player);       void eTomaDisplay(int xPos, int yPos, float animationTime);
+	void hitPanel(int xPos, int yPos, int dmg = 1);					// Deal Damage to a Panel at a specific position
 
-                                         void longSlashDisplay(const Player &player);
-                                         void wideSlashDisplay(const Player &player);
-    bool stepCrossAtk(Player &player);   void stepCrossDisplay(const Player &player);
-    bool spinSlashAtk(Player &player);
+	bool isPanelValid(int xPos, int yPos, bool npc = false);	    // Checks if a specific panel allows the Player to walk on it
 
-	void hitTile(int xPos, int yPos, int dmg = 1);						// Damage a Rock at a specific position
-
-	void clearFloor();						// Resets all Tiles
-	bool isTileValid(int xPos, int yPos, bool npc = false);	    // Checks if a specific tile allows the Player to walk on it
-
-	void loadLevel(int num);
-    void generateBossLevel(int type);
-	void generateLevel(int type, int num = -1);		// Generates a Level using the Generate Functions below		// "num != -1" for defined difficulty
-	void generateItems(int amt, int type, int trapAmt = 0);			// Randomly places Energy and Trapped Energy on the map
-	void generateBoxes(int amt, int type);			// Randomly places Rocks on the map
-	void generateFloor(int amt, int type);			// Randomly damages the floor (Cracked floors or Broken floors)
+    void loadBossLevel(int type);
+    void loadLevel(int num = -1);		            // Generates a Level based on Level Templates		// "num != -1" for defined difficulty
+    void loadTutorialLevel( bool reload = false );  // Loads a training level   // Special cases where reload == true: So that Players cannot fail a Tutorial
+    void loadPrevNpc(int diff, int gain);           // Loads NPC's that have entered the next level
     void spawnRandomItem(int xPos, int yPos);       // Spawns an item at a random location around (xPos, yPos)
-    void upgradeItems();                     // Randomly Upgrades an Amount of Energy: Green into Blue, and Red into Green
-	void reset();		// Restarts from level 0
-    void test();        // Training Room
-	void next();		// Goes to next level if completed
+    void upgradeItems();                            // Randomly Upgrades an Amount of Energy: Green into Blue, and Red into Green
+	void reset();		            // Restarts from level 0
+    void tutorial(int type = 1);    // Training Room
+	void next();		            // Goes to next level if completed
 	void updateGame(float elapsed);
+    void updatePlayer(float elapsed);
 
     // Music Functions
     void changeMusic( int track = -1 );
@@ -211,50 +143,63 @@ public:
 	// Display Functions
 	void drawBg();
     void drawDimScreen();
+
 	void drawMenu();
     void drawQuitMenu();
     void drawResetMenu();
     void drawDiffSelMenu();
     void drawTrainMenu();
     void drawTabMenuCtrl();
+
     void drawTextUI();
     void displayMusic();        // Displays music track Number and Name
+    void drawPrevEnergy();      // Displays Previous Energy changes at their locations
 
-	void drawPlayer(Player &player);
-    void drawSwordAtks(const Player &player);
-    void drawNpcHp();
+	void drawPlayer(Player* const player);
+    void drawSwordAtks(Player* const player);
+    void drawStepShadow(Player* const player, int amt);
+    void drawHp(Player* const player);
 	void drawFloor();
-	void drawBoxes(int row);
+	void drawRocks(int row);
 	void drawItems(int row);
     void drawItemUpgrading(int row);
 
 	vector<DelayedHpLoss> delayedHpList;
 	vector<DelayedSound> delayedSoundList;
     vector<DelayedETomaDisplay> delayedETomaDisplayList;
+    vector<DelayedEnergyDisplay> delayedPrevEnergyList;
 	
 	SDL_Event event;
 	float timeLeftOver;
 	float lastFrameTicks;
 	float fixedElapsed;
 
-	GLuint megamanMoveSheet,  megamanAtkSheet,                  megamanHurtSheet,
-           protoMoveSheet,    protoAtkSheet,                    protoHurtSheet,
-           colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,
+    // Character Sprite Sheets
+	GLuint megamanMoveSheet,  megamanAtkSheet,                  megamanHurtSheet,   megamanStepSheet,
+           protoMoveSheet,    protoAtkSheet,                    protoHurtSheet,     protoStepSheet,
+           colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,   colonelStepSheet,
            tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,
-           slashmanMoveSheet, slashmanAtkSheet,
+           slashmanMoveSheet, slashmanAtkSheet,                                     slashmanStepSheet,
            
-           darkMegamanMoveSheet,  darkMegamanAtkSheet,                     darkMegamanHurtSheet,
-           darkProtoMoveSheet,    darkProtoAtkSheet,                       darkProtoHurtSheet,
-           darkColonelMoveSheet,  darkColonelAtkSheet,                     darkColonelHurtSheet,
+           darkMegamanMoveSheet,  darkMegamanAtkSheet,                     darkMegamanHurtSheet,    darkMegamanStepSheet,
+           darkProtoMoveSheet,    darkProtoAtkSheet,                       darkProtoHurtSheet,      darkProtoStepSheet,
+           darkColonelMoveSheet,  darkColonelAtkSheet,                     darkColonelHurtSheet,    darkColonelStepSheet,
            darkTmanMoveSheet,     darkTmanAtkSheet1,    darkTmanAtkSheet2,
-           darkSlashmanMoveSheet, darkSlashmanAtkSheet,
-           
-           lvBarPic, healthBoxPic,
+           darkSlashmanMoveSheet, darkSlashmanAtkSheet,                                             darkSlashmanStepSheet;
+    
+    // Menu, UI, and Game Elements Sprites
+    GLuint lvBarPic, healthRockPic,
            rockSheet, rockSheetItem, rockSheetItem2, rockSheetTrappedItem, rockDeathSheet, darkDeathSheet,
-           floorSheet, floorMoveSheet, floorBottomPic1, floorBottomPic2,
-           energySheet, energySheet2, trappedEnergySheet, recoverSheet,
            
-           textSheet1A, textSheet1B, textSheet1C, textSheet2A, textSheet2B, textSheet2C,
+           floorSheet, floorMoveSheet, floorPoisonSheet, floorHolySheet,
+           floorBottomPic1, floorBottomPic2, floorAtkIndPic,
+           
+           energySheet, energySheet2, trappedEnergySheet, recoverSheet, energyGetSheet,
+           
+           textSheetWhite,  textSheetGreen,  textSheetRed,
+           textSheetWhite2, textSheetGreen2, textSheetRed2,
+           textSheetRedTrap, textSheetPoison, textSheetPurpleNPC,
+           
            bgA, bgB, bgC, bgD,
            dimScreenPic,
            menuPic0, menuPic1, menuPic2, menuPic3, menuPic4,
@@ -264,7 +209,7 @@ public:
            quitPicY, quitPicN,
            trainPic0, trainPic1, trainPic2, trainPic3, trainPic4;
 
-    // Sprites for Sword Attack Animations
+    // Sword Attack Animation Sprite Sheets
 	GLuint swordAtkSheet1, swordAtkSheet3,
 		   longAtkSheet1,  longAtkSheet3,
 		   wideAtkSheet1,  wideAtkSheet3,
