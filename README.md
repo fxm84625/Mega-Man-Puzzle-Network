@@ -35,3 +35,5 @@ Mega Man Puzzle Network
  	Keep the \Pics folder and other .dll items in the same folder as the EXE in order to run.
 -----
 https://imgur.com/gallery/qcZ9X
+
+https://frankyxm.itch.io/mega-man-puzzle-network
