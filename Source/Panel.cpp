@@ -2,7 +2,7 @@
 
 Panel::Panel()
   : state( 0 ),
-    item( -1 ),
+    item( 0 ),
     rockHP( 0 ),
     rockType( 0 ),
     rockAtkInd( 0.0 ),

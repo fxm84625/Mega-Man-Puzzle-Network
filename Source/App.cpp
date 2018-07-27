@@ -58,7 +58,8 @@ const float iceSlipAnimationTime = 0.1; // Time for the Player to slip on one Ic
 const float hurtAnimationTime = 0.5;    // Time to display a Player's hurt indicator
 const float poisonHurtTime = 0.25;
 const float pauseAnimationTime = 0.25;  // Short delay of inaction after being hit
-const float menuExitTime = 0.2;         // Delay after coming out of a Menu
+const float menuExitTime = 0.2;         // Slight Delay after coming out of a Menu
+const float menuChooseTime = 0.1;       // Slight Delay when navigating the Menu
 
 const float preAtkTime          = 0.10;
 const float preAtkTimeToma      = 0.20;
@@ -82,7 +83,12 @@ const float itemScale = 1.1;
 const float uiScaleX = 0.25;
 const float uiScaleY = 1 / 2.7;
 
-enum { MEGAMAN, PROTOMAN, TOMAHAWKMAN, COLONEL, SLASHMAN };
+const float mainVolScale = 10.0;    // Main sounds Volume Scaling - Attacking, Being Defeated, NPC Appearing
+const float miscVolScale = 6.0;     // Misc. sounds Volume Scaling
+const float musicVolScale = 2.0;    // Music Volume Scaling
+
+enum playerTypes { MEGAMAN, PROTOMAN, TOMAHAWKMAN, COLONEL, SLASHMAN };
+enum menuTypes { MAIN_MENU, NEW_RUN_MENU, TUTORIAL_MENU, CONTROLS_MENU, OPTIONS_MENU, EXIT };
 
 GLuint loadTexture(const char *image_path) {
 	SDL_Surface *surface = IMG_Load(image_path);
@@ -149,7 +155,7 @@ void drawText(GLuint fontTexture, string text, float sizeX, float sizeY, float s
 		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 float lerp(float& v0, float& v1, float& t) {
-	return (1.0 - t)*v0 + t*v1;
+    return ( 1.0 - t ) * v0 + t * v1;
 }
 float easeIn(float& from, float& to, float& time) {
 	float tVal = time*time*time*time*time;
@@ -157,16 +163,14 @@ float easeIn(float& from, float& to, float& time) {
 }
 float easeOut(float& from, float& to, float& time) {
 	float oneMinusT = 1.0f - time;
-	float tVal = 1.0f - (oneMinusT * oneMinusT * oneMinusT *
-		oneMinusT * oneMinusT);
+	float tVal = 1.0f - (oneMinusT * oneMinusT * oneMinusT * oneMinusT * oneMinusT);
 	return (1.0f - tVal)*from + tVal*to;
 }
 float easeInOut(float& from, float& to, float& time) {
 	float tVal;
 	if (time > 0.5) {
 		float oneMinusT = 1.0f - ((0.5f - time)*-2.0f);
-		tVal = 1.0f - ((oneMinusT * oneMinusT * oneMinusT * oneMinusT *
-			oneMinusT) * 0.5f);
+		tVal = 1.0f - ((oneMinusT * oneMinusT * oneMinusT * oneMinusT * oneMinusT) * 0.5f);
 	}
 	else {
 		time *= 2.0;
@@ -188,9 +192,8 @@ long getRand(long num) {
 }
 
 App::App() : done(false), timeLeftOver(0.0), fixedElapsed(0.0), lastFrameTicks(0.0),
-			 menuDisplay(true), quitMenuOn(false), resetMenuOn(false), diffSelMenuOn(false), trainMenuOn(false), menuSel(true), charSel(0),
-             level(1), currentEnergyGain(0), gameDiffSel(2), currentGameDiff(2), npcAbleToAct(false), lvlsWithoutBoss(0), reloadedTutorial(false),
-			 musicSel(1), musicMuted(true),
+			 menuNum(MAIN_MENU), menuSel(0), charSel(0), gameDiffSel(2), musicSel(0), gameVol(5), musicVol(0), showInfobox(true),
+             level(0), currentEnergyGain(0), currentGameDiff(2), npcAbleToAct(false), lvlsWithoutBoss(0), reloadedTutorial(false),
 			 chargeDisplayPlusAmt(0.0), chargeDisplayMinusAmt(0.0),
 			 itemAnimationAmt(0.0), bgAnimationAmt(0.0), poisonAnimationAmt(0.0), holyAnimationAmt(0.0), musicSwitchDisplayAmt(0.0)
 {
@@ -207,16 +210,27 @@ void App::Init() {
 	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
-	textSheetWhite      = loadTexture("Pics\\Texts - White.png");
-	textSheetGreen      = loadTexture("Pics\\Texts - Green.png");
-	textSheetRed        = loadTexture("Pics\\Texts - Red.png");
-	textSheetWhite2     = loadTexture("Pics\\Texts - White 2.png");
-	textSheetGreen2     = loadTexture("Pics\\Texts - Green 2.png");
-	textSheetRed2       = loadTexture("Pics\\Texts - Red 2.png");
-    textSheetRedTrap    = loadTexture("Pics\\Texts - Red Trap.png");
-    textSheetPoison     = loadTexture("Pics\\Texts - Purple Poison.png");
-    textSheetPurpleNPC  = loadTexture("Pics\\Texts - Purple NPC.png");
+    player1 = new MegaMan();
+    player1->npc = false;
+    player1->hp = 1;
 
+    // Texts and UI
+    {
+	textSheetWhite      = loadTexture("Pics\\Texts\\Texts - White.png");
+	textSheetGreen      = loadTexture("Pics\\Texts\\Texts - Green.png");
+	textSheetRed        = loadTexture("Pics\\Texts\\Texts - Red.png");
+	textSheetWhite2     = loadTexture("Pics\\Texts\\Texts - White 2.png");
+	textSheetGreen2     = loadTexture("Pics\\Texts\\Texts - Green 2.png");
+	textSheetRed2       = loadTexture("Pics\\Texts\\Texts - Red 2.png");
+    textSheetRedTrap    = loadTexture("Pics\\Texts\\Texts - Red Trap.png");
+    textSheetPoison     = loadTexture("Pics\\Texts\\Texts - Purple Poison.png");
+    textSheetPurpleNPC  = loadTexture("Pics\\Texts\\Texts - Purple NPC.png");
+
+    healthBoxPic        = loadTexture( "Pics\\Texts\\Health Box.png" );
+    lvBarPic            = loadTexture( "Pics\\Texts\\Level Bar.png" );
+    musicDisplayBox     = loadTexture( "Pics\\Texts\\MusicDisplay.png" );
+    overheadSheet       = loadTexture( "Pics\\Texts\\Overhead.png" );
+    }
     // Character Textures
     {
 	megamanMoveSheet    = loadTexture("Pics\\Characters\\0 Mega Man Move Sheet.png");
@@ -260,7 +274,7 @@ void App::Init() {
     // Game Textures
     {
 	rockSheet               = loadTexture("Pics\\Rocks\\Rock Sheet 1.png");
-	rockSheetItem           = loadTexture("Pics\\Rocks\\Rock Sheet 2.png");
+	rockSheetItem           = loadTexture("Pics\\Rocks\\Rock Sheet 2-1.png");
     rockSheetItem2          = loadTexture("Pics\\Rocks\\Rock Sheet 2-2.png");
     rockSheetTrappedItem    = loadTexture("Pics\\Rocks\\Rock Sheet 2-3.png");
 	rockDeathSheet          = loadTexture("Pics\\Rocks\\Death Sheet.png");
@@ -280,38 +294,130 @@ void App::Init() {
     recoverSheet            = loadTexture("Pics\\Energy\\Recover Sheet.png");
     energyGetSheet          = loadTexture("Pics\\Energy\\Energy Get Sheet.png");
 
-	bgA                     = loadTexture("Pics\\Background A.png");
-	bgB                     = loadTexture("Pics\\Background B.png");
-	bgC                     = loadTexture("Pics\\Background C.png");
-    bgD                     = loadTexture("Pics\\Background D.png");
-    dimScreenPic            = loadTexture("Pics\\DimScreen.png");
-    menuPic0                = loadTexture("Pics\\Menu0-B.png");
-	menuPic1                = loadTexture("Pics\\Menu1-B.png");
-    menuPic2                = loadTexture("Pics\\Menu2-B.png");
-    menuPic3                = loadTexture("Pics\\Menu3-B.png");
-    menuPic4                = loadTexture("Pics\\Menu4-B.png");
-	lvBarPic                = loadTexture("Pics\\Level Bar.png");
-	healthRockPic           = loadTexture("Pics\\Health Box.png");
-    musicDisplayPic         = loadTexture("Pics\\MusicDisplay.png");
-    tabMenuCtrlSheet        = loadTexture("Pics\\TabMenuControlSheet.png");
-    quitPicY                = loadTexture("Pics\\QuitY.png");
-    quitPicN                = loadTexture("Pics\\QuitN.png");
-    resetPic0               = loadTexture("Pics\\Reset 0.png");
-    resetPic1               = loadTexture("Pics\\Reset 1.png");
-    resetPic2               = loadTexture("Pics\\Reset 2.png");
-    resetPic3               = loadTexture("Pics\\Reset 3.png");
-    resetPic4               = loadTexture("Pics\\Reset 4.png");
-    diffPic1                = loadTexture("Pics\\Difficulty1.png");
-    diffPic2                = loadTexture("Pics\\Difficulty2.png");
-    diffPic3                = loadTexture("Pics\\Difficulty3.png");
-    diffPic4                = loadTexture("Pics\\Difficulty4.png");
-    diffPic5                = loadTexture("Pics\\Difficulty5.png");
-    trainPic0               = loadTexture("Pics\\Training 0.png");
-    trainPic1               = loadTexture("Pics\\Training 1.png");
-    trainPic2               = loadTexture("Pics\\Training 2.png");
-    trainPic3               = loadTexture("Pics\\Training 3.png");
-    trainPic4               = loadTexture("Pics\\Training 4.png");
+	bgA                     = loadTexture("Pics\\Backgrounds\\Background A.png");
+	bgB                     = loadTexture("Pics\\Backgrounds\\Background B.png");
+	bgC                     = loadTexture("Pics\\Backgrounds\\Background C.png");
+    bgD                     = loadTexture("Pics\\Backgrounds\\Background D.png");
+    bgMain                  = loadTexture("Pics\\Backgrounds\\Background Main.png");
     }
+    // Menu Textures
+    dimScreenPic            = loadTexture( "Pics\\Menus\\DimScreen.png" );
+    generalInfoboxPic       = loadTexture( "Pics\\Menus\\Options Infobox.png" );
+    // Main Menu
+    {
+    mainMenuPic             = loadTexture( "Pics\\Menus\\0 Main Menu\\Main Menu Text.png" );
+    mainSelPic0             = loadTexture( "Pics\\Menus\\0 Main Menu\\Menu Select 0 - New Run.png" );
+    mainSelPic1             = loadTexture( "Pics\\Menus\\0 Main Menu\\Menu Select 1 - Tutorial.png" );
+    mainSelPic2             = loadTexture( "Pics\\Menus\\0 Main Menu\\Menu Select 2 - Controls.png" );
+    mainSelPic3             = loadTexture( "Pics\\Menus\\0 Main Menu\\Menu Select 3 - Options.png" );
+    mainSelPic4             = loadTexture( "Pics\\Menus\\0 Main Menu\\Menu Select 4 - Exit.png" );
+    }
+    // New Run Menu
+    {
+    newRunMenuPic           = loadTexture( "Pics\\Menus\\1 New Run\\New Run - Empty Menu.png" );
+    newRunSelPic0           = loadTexture( "Pics\\Menus\\1 New Run\\Menu Select 0 - Character.png" );
+    newRunSelPic1           = loadTexture( "Pics\\Menus\\1 New Run\\Menu Select 1 - Difficulty.png" );
+    newRunSelPic2           = loadTexture( "Pics\\Menus\\1 New Run\\Menu Select 2 - Start.png" );
+    charSelPic0             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 0 - MegaMan.png" );
+    charSelPic1             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 1 - ProtoMan.png" );
+    charSelPic2             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 2 - TomahawkMan.png" );
+    charSelPic3             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 3 - Colonel.png" );
+    charSelPic4             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 4 - SlashMan.png" );
+    chipPic0                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 0 - MegaMan.png" );
+    chipPic1                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 1 - ProtoMan.png" );
+    chipPic2                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 2 - Tomahawk Man.png" );
+    chipPic3                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 3 - Colonel.png" );
+    chipPic4                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 4 - SlashMan.png" );
+    diffSelPic0             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 0.png" );
+    diffSelPic1             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 1.png" );
+    diffSelPic2             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 2.png" );
+    diffSelPic3             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 3.png" );
+    diffSelPic4             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 4.png" );
+    movesetPic0             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 0 - MegaMan.png" );
+    movesetPic1             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 1 - ProtoMan.png" );
+    movesetPic2             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 2 - TomahawkMan.png" );
+    movesetPic3             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 3 - Colonel.png" );
+    movesetPic4             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 4 - SlashMan.png" );
+    }
+    // Tutorial Menu
+    {
+    tutorialMenuPic         = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Menu.png" );
+    tSelPic0                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 1.png" );
+    tSelPic1                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 2.png" );
+    tSelPic2                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 3.png" );
+    tSelPic3                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 4.png" );
+    tSelPic4                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 5.png" );
+    tSelPic5                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 6.png" );
+    tSelPic6                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 7.png" );
+    tSelPic7                = loadTexture( "Pics\\Menus\\2 Tutorial\\Tutorial Select 8.png" );
+    tInfoboxPic             = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\Tutorial Container.png" );
+    tInfoPic0               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\01 - Basics - Energy.png" );
+    tInfoPic1               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\02 - Basics - Attacking Vertically.png" );
+    tInfoPic2               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\03 - Basics - Step-Swords.png" );
+    tInfoPic3               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\04 - Panels - Cracked.png" );
+    tInfoPic4               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\05 - Panels - Poison and Ice.png" );
+    tInfoPic5               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\06 - Panels - Holy.png" );
+    tInfoPic6               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\07 - Training Room.png" );
+    tInfoPic7               = loadTexture( "Pics\\Menus\\2-2 Tutorial Level InfoBoxes\\08 - AI Training Room.png" );
+    }
+    controlMenuPic =        loadTexture( "Pics\\Menus\\3 Controls\\Controls Menu.png" );
+    // Options Menu
+    {
+    optionMenuPic           = loadTexture( "Pics\\Menus\\4 Options\\0 Heading.png" );
+    oSelPic0                = loadTexture( "Pics\\Menus\\4 Options\\Menu Select 0 - Infobox.png" );
+    oSelPic1                = loadTexture( "Pics\\Menus\\4 Options\\Menu Select 1 - Game Volume.png" );
+    oSelPic2                = loadTexture( "Pics\\Menus\\4 Options\\Menu Select 2 - Music Volume.png" );
+    oSelPic3                = loadTexture( "Pics\\Menus\\4 Options\\Menu Select 3 - Music Track.png" );
+    infoSelPic0             = loadTexture( "Pics\\Menus\\4 Options\\0 Infobox - 0 On.png" );
+    infoSelPic1             = loadTexture( "Pics\\Menus\\4 Options\\0 Infobox - 1 Off.png" );
+    {
+    gameVolSelPic0          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 0.png" );
+    gameVolSelPic1          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 1.png" );
+    gameVolSelPic2          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 2.png" );
+    gameVolSelPic3          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 3.png" );
+    gameVolSelPic4          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 4.png" );
+    gameVolSelPic5          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 5.png" );
+    gameVolSelPic6          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 6.png" );
+    gameVolSelPic7          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 7.png" );
+    gameVolSelPic8          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 8.png" );
+    gameVolSelPic9          = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 9.png" );
+    gameVolSelPic10         = loadTexture( "Pics\\Menus\\4 Options\\1 Game Volume - 10.png" );
+    }
+    {
+    musicVolSelPic0         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 0.png" );
+    musicVolSelPic1         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 1.png" );
+    musicVolSelPic2         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 2.png" );
+    musicVolSelPic3         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 3.png" );
+    musicVolSelPic4         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 4.png" );
+    musicVolSelPic5         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 5.png" );
+    musicVolSelPic6         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 6.png" );
+    musicVolSelPic7         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 7.png" );
+    musicVolSelPic8         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 8.png" );
+    musicVolSelPic9         = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 9.png" );
+    musicVolSelPic10        = loadTexture( "Pics\\Menus\\4 Options\\2 Music Volume - 10.png" );
+    }
+    {
+    musicSelPic1            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 1 Organization.png" );
+    musicSelPic2            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 2 An Incident.png" );
+    musicSelPic3            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 3 Blast Speed.png" );
+    musicSelPic4            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 4 Shark Panic.png" );
+    musicSelPic5            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 5 Battle Field.png" );
+    musicSelPic6            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 6 Doubt.png" );
+    musicSelPic7            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 7 Distortion.png" );
+    musicSelPic8            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 8 Surge of Power.png" );
+    musicSelPic9            = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 9 Digital Strider.png" );
+    musicSelPic10           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 10 Break the Storm.png" );
+    musicSelPic11           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 11 Evil Spirit.png" );
+    musicSelPic12           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 12 Hero.png" );
+    musicSelPic13           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 13 Danger Zone.png" );
+    musicSelPic14           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 14 Navi Customizer.png" );
+    musicSelPic15           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 15 Graveyard.png" );
+    musicSelPic16           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 16 The Count.png" );
+    musicSelPic17           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 17 Secret Base.png" );
+    musicSelPic18           = loadTexture( "Pics\\Menus\\4 Options\\3 Music Track - 18 Cybeasts.png" );
+    }
+    }
+
     // Sword Attack Trail Textures
     {
 	swordAtkSheet1      = loadTexture("Pics\\Sword Attacks\\Sword Sheet 1.png");
@@ -354,16 +460,19 @@ void App::Init() {
     wideSlashSheet3     = loadTexture("Pics\\Sword Attacks\\Wide Slash Sheet 3.png");
     }
 
+    // Sound Channels and Channel Volumes
+    {
     Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 4, 4096 );
     Mix_AllocateChannels( 8 );
-    Mix_Volume( 0, 48 );    // Player Sword Attack Sounds, Player Deleted Sound
-    Mix_Volume( 1, 32 );    // Item1 Sounds, Trapped Item Sounds, Item Upgrade Sounds
-    Mix_Volume( 2, 32 );    // Panel Break sounds
-    Mix_Volume( 3, 07 );    // Music
-    Mix_Volume( 4, 32 );    // Rock Break sounds
-    Mix_Volume( 5, 32 );    // Item2 Sounds
-    Mix_Volume( 6, 48 );    // NPC Appearing Sound, NPC Sword Attack Sounds, NPC Deleted Sound
-    Mix_Volume( 7, 32 );    // Menu Sounds
+    Mix_Volume( 0, gameVol * mainVolScale );    // Player Sword Attack Sounds, Player Deleted Sound
+    Mix_Volume( 1, gameVol * miscVolScale );    // Item1 Sounds, Trapped Item Sounds, Item Upgrade Sounds
+    Mix_Volume( 2, gameVol * miscVolScale );    // Panel Break sounds
+    Mix_Volume( 3, musicVol * musicVolScale );  // Music
+    Mix_Volume( 4, gameVol * miscVolScale );    // Rock Break sounds
+    Mix_Volume( 5, gameVol * miscVolScale );    // Item2 Sounds
+    Mix_Volume( 6, gameVol * mainVolScale );    // NPC Appearing Sound, NPC Sword Attack Sounds, NPC Deleted Sound
+    Mix_Volume( 7, gameVol * miscVolScale );    // Menu Sounds
+    }
 
     // Sounds
     {
@@ -384,12 +493,12 @@ void App::Init() {
 	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit.ogg" );
 	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack.ogg" );
 
-	menuOpenSound   = Mix_LoadWAV( "Sounds\\ChipDesc.ogg" );
-	menuCloseSound  = Mix_LoadWAV( "Sounds\\ChipDescClose.ogg" );
+    infoboxOpenSound  = Mix_LoadWAV( "Sounds\\ChipDesc.ogg" );
+    infoboxCloseSound = Mix_LoadWAV( "Sounds\\ChipDescClose.ogg" );
 
-    quitCancelSound = Mix_LoadWAV( "Sounds\\QuitCancel.ogg" );
-    quitChooseSound = Mix_LoadWAV( "Sounds\\QuitChoose.ogg" );
-    quitOpenSound   = Mix_LoadWAV( "Sounds\\QuitOpen.ogg" );
+    menuCancelSound = Mix_LoadWAV( "Sounds\\QuitCancel.ogg" );
+    menuChooseSound = Mix_LoadWAV( "Sounds\\QuitChoose.ogg" );
+    menuOpenSound   = Mix_LoadWAV( "Sounds\\QuitOpen.ogg" );
     }
     // Music Tracks
     {
@@ -412,13 +521,6 @@ void App::Init() {
     track17 = Mix_LoadWAV( "Music\\17 Secret Base.ogg" );
     track18 = Mix_LoadWAV( "Music\\18 Cybeasts.ogg" );
     }
-
-    player1 = new MegaMan();
-    player1->npc = false;
-    reset();
-    loadLevel();
-    resetMenuOn = true;
-    menuDisplay = true;
 }
 App::~App() {
     delete player1;
@@ -442,12 +544,12 @@ App::~App() {
 	Mix_FreeChunk( rockBreakSound );
 	Mix_FreeChunk( panelBreakSound );
 
-	Mix_FreeChunk( menuOpenSound );
-	Mix_FreeChunk( menuCloseSound );
+	Mix_FreeChunk( infoboxOpenSound );
+	Mix_FreeChunk( infoboxCloseSound );
 
-    Mix_FreeChunk( quitCancelSound );
-    Mix_FreeChunk( quitChooseSound );
-    Mix_FreeChunk( quitOpenSound );
+    Mix_FreeChunk( menuCancelSound );
+    Mix_FreeChunk( menuChooseSound );
+    Mix_FreeChunk( menuOpenSound );
 
 	Mix_FreeChunk( track01 );
     Mix_FreeChunk( track02 );
@@ -470,6 +572,7 @@ App::~App() {
 
 	SDL_Quit();
 }
+
 bool App::UpdateAndRender() {
 	float ticks = (float)SDL_GetTicks() / 2000.0f;
 	float elapsed = ticks - lastFrameTicks;
@@ -571,26 +674,26 @@ void App::updateGame(float elapsed) {
 	// Handles delayed Sounds
 	for ( int i = 0; i < delayedSoundList.size(); i++ ) {
 		delayedSoundList[i].delay -= elapsed;
-		if ( delayedSoundList[i].delay <= 0 ) {
-			if      ( delayedSoundList[i].soundName == "sword" )  {
-                if ( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, swordSound, 0 );
-                else if ( !npcList.empty() )    Mix_PlayChannel( 6, swordSound, 0 );
+		if( delayedSoundList[i].delay <= 0 ) {
+			if     ( delayedSoundList[i].soundName == "sword" )  {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, swordSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, swordSound, 0 );
             }
-			else if ( delayedSoundList[i].soundName == "life" )   {
-                if ( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, lifeSwordSound, 0 );
-                else if ( !npcList.empty() )    Mix_PlayChannel( 6, lifeSwordSound, 0 );
+			else if( delayedSoundList[i].soundName == "life" )   {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, lifeSwordSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, lifeSwordSound, 0 );
             }
-            else if ( delayedSoundList[i].soundName == "divide" ) {
-                if ( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, screenDivSound, 0 );
-                else if ( !npcList.empty() )    Mix_PlayChannel( 6, screenDivSound, 0 );
+            else if( delayedSoundList[i].soundName == "divide" ) {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, screenDivSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, screenDivSound, 0 );
             }
-            else if ( delayedSoundList[i].soundName == "toma" )   {
-                if ( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, tomahawkSound, 0 );
-                else if ( !npcList.empty() )    Mix_PlayChannel( 6, tomahawkSound, 0 );
+            else if( delayedSoundList[i].soundName == "toma" )   {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, tomahawkSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, tomahawkSound, 0 );
             }
-            else if ( delayedSoundList[i].soundName == "eToma" )  {
-                if ( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, eTomaSound, 0 );
-                else if ( !npcList.empty() )    Mix_PlayChannel( 6, eTomaSound, 0 );
+            else if( delayedSoundList[i].soundName == "eToma" )  {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, eTomaSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, eTomaSound, 0 );
             }
             delayedSoundList.erase( delayedSoundList.begin() + i );
             i--;
@@ -621,7 +724,7 @@ void App::updateGame(float elapsed) {
     if ( musicSwitchDisplayAmt < 0 ) { musicSwitchDisplayAmt = 0; }
 
     // Handle reloading Tutorial Level, so that Players cannot fail a Tutorial Level
-    if( -7 <= level && level <= -1 && player1->energy < player1->getAtkCost(0) && !reloadedTutorial ) loadTutorialLevel( true );
+    if( -7 <= level && level <= -1 && player1->x != -1 && player1->x != 6 && player1->energy < player1->getAtkCost( 0 ) && !reloadedTutorial ) { loadTutorialLevel( true ); }
 }
 void App::updatePlayer(float elapsed) {
     // Handle Collecting Energy Item Resources
@@ -825,153 +928,296 @@ void App::checkKeys() {
     }
 
 	// Menu Controls
-	while (SDL_PollEvent(&event)) {
-		if      ( event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE ) { done = true; }
-		else if ( event.type == SDL_KEYDOWN && player1->animationDisplayAmt <= 0 ) {		// Read Single Button presses
-            if      ( event.key.keysym.scancode == SDL_SCANCODE_C ) { changeMusic(); }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_V ) { toggleMusic(); }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_ESCAPE ) {
-                if      ( quitMenuOn )    { quitMenuOn    = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( resetMenuOn )   { resetMenuOn   = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( diffSelMenuOn ) { diffSelMenuOn = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( trainMenuOn )   { trainMenuOn   = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else                      { quitMenuOn    = true;  Mix_PlayChannel( 7, quitOpenSound, 0 ); menuSel = true; }
+    while( SDL_PollEvent( &event ) ) {
+        if( event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE ) { done = true; }
+        else if( event.type == SDL_KEYDOWN && player1->animationDisplayAmt <= 0 ) {
+            // Read Single Button presses
+            SDL_Scancode key = event.key.keysym.scancode;
+            switch( event.key.keysym.scancode ) {
+            case SDL_SCANCODE_ESCAPE:
+            case SDL_SCANCODE_BACKSPACE: {
                 player1->animationDisplayAmt = menuExitTime;
-            }
-            else if ( player1->animationDisplayAmt <= 0 && (event.key.keysym.scancode == SDL_SCANCODE_TAB || event.key.keysym.scancode == SDL_SCANCODE_F) ) {
-                if ( menuDisplay ) { menuDisplay = false; Mix_PlayChannel( 7, menuCloseSound, 0 ); }
-                else               { menuDisplay = true;  Mix_PlayChannel( 7, menuOpenSound, 0 ); }
-                player1->animationDisplayAmt = menuExitTime;
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_R ) {
-                if      ( resetMenuOn )   { resetMenuOn   = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( quitMenuOn )    { quitMenuOn    = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( diffSelMenuOn ) { diffSelMenuOn = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( trainMenuOn )   { trainMenuOn   = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else                      { resetMenuOn   = true;  Mix_PlayChannel( 7, quitOpenSound, 0 ); menuSel = true; }
-                player1->animationDisplayAmt = menuExitTime;
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_X ) {
-                if      ( trainMenuOn )   { trainMenuOn   = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( quitMenuOn )    { quitMenuOn    = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( resetMenuOn )   { resetMenuOn   = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else if ( diffSelMenuOn ) { diffSelMenuOn = false; Mix_PlayChannel( 7, quitCancelSound, 0 ); }
-                else                      { trainMenuOn   = true;  Mix_PlayChannel( 7, quitOpenSound, 0 ); menuSel = true; }
-                player1->animationDisplayAmt = menuExitTime;
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_W || event.key.keysym.scancode == SDL_SCANCODE_UP ) {
-                if ( resetMenuOn || trainMenuOn ) {
-                    if ( charSel > 1 ) {       charSel -= 2;      Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_S || event.key.keysym.scancode == SDL_SCANCODE_DOWN ) {
-                if ( resetMenuOn || trainMenuOn ) {
-                    if ( charSel < 3 ) {       charSel += 2;      Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_A || event.key.keysym.scancode == SDL_SCANCODE_LEFT ) {
-                if ( quitMenuOn ) {
-                    if ( !menuSel ) {          menuSel = true;    Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-                else if ( resetMenuOn || trainMenuOn ) {
-                    if ( charSel > 0 && charSel % 2 == 1) {
-                                               charSel--;         Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-                else if ( diffSelMenuOn ) {
-                    if ( gameDiffSel > 0 ) {   gameDiffSel--;     Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_D || event.key.keysym.scancode == SDL_SCANCODE_RIGHT ) {
-                if ( quitMenuOn ) {
-                    if ( menuSel ) {           menuSel = false;   Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-                else if ( resetMenuOn || trainMenuOn ) {
-                    if ( charSel < 3 && charSel % 2 == 0 ) {
-                                               charSel++;         Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-                else if ( diffSelMenuOn ) {
-                    if ( gameDiffSel < 4 ) {   gameDiffSel++;     Mix_PlayChannel( 7, quitChooseSound, 0 );   }   }
-            }
-            else if ( event.key.keysym.scancode == SDL_SCANCODE_1      || event.key.keysym.scancode == SDL_SCANCODE_KP_1 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_2      || event.key.keysym.scancode == SDL_SCANCODE_KP_2 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_3      || event.key.keysym.scancode == SDL_SCANCODE_KP_3 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_4      || event.key.keysym.scancode == SDL_SCANCODE_KP_4 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_5      || event.key.keysym.scancode == SDL_SCANCODE_KP_5 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_6      || event.key.keysym.scancode == SDL_SCANCODE_KP_6 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_7      || event.key.keysym.scancode == SDL_SCANCODE_KP_7 ||
-                      event.key.keysym.scancode == SDL_SCANCODE_RETURN || event.key.keysym.scancode == SDL_SCANCODE_KP_ENTER ) {
-                if ( quitMenuOn ) {
-                    if ( menuSel ) { done = true; }
-                    else {
-                        quitMenuOn = false;
-                        Mix_PlayChannel( 7, quitCancelSound, 0 );
-                        player1->animationDisplayAmt = menuExitTime; }
+                switch( menuNum ) {
+                case -1:        // If In-Game -> Open Main Menu
+                    menuNum = MAIN_MENU;
+                    menuSel = 0;
+                    Mix_PlayChannel( 7, menuOpenSound, 0 );
+                    break;
+                case MAIN_MENU: // Main Menu is already Open -> Close if In-Game, or select "Exit" if not
+                    level != 0 ? menuNum = -1 : menuSel = EXIT-1;
+                    Mix_PlayChannel( 7, menuCancelSound, 0 );
+                    break;
+                default:        // Other Menu is Open -> Return to Main Menu
+                    menuSel = menuNum - 1;
+                    menuNum = 0;
+                    Mix_PlayChannel( 7, menuCancelSound, 0 );
+                    break;
                 }
-                else if ( resetMenuOn ) { 
-                    if ( menuSel ) {
-                        resetMenuOn = false;
-                        diffSelMenuOn = true;
+                break;
+            }
+            case SDL_SCANCODE_TAB:
+            case SDL_SCANCODE_F: {
+                if( level == 0 ) break;
+                player1->animationDisplayAmt = menuExitTime;
+                if( showInfobox ) {
+                    showInfobox = false;
+                    Mix_PlayChannel( 7, infoboxCloseSound, 0 );
+                }
+                else {
+                    showInfobox = true;
+                    Mix_PlayChannel( 7, infoboxOpenSound, 0 );
+                }
+                break;
+            }
+            case SDL_SCANCODE_W:
+            case SDL_SCANCODE_UP: {
+                switch( menuNum ) {
+                case -1: break;
+                case TUTORIAL_MENU:
+                    player1->animationDisplayAmt = menuChooseTime;
+                    if( menuSel >= 3 ) menuSel -= 3;
+                    Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    break;
+                case CONTROLS_MENU: break;
+                default:
+                    player1->animationDisplayAmt = menuChooseTime;
+                    if( menuSel > 0 ) menuSel--;
+                    Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    break;
+                }
+                break;
+            }
+            case SDL_SCANCODE_S:
+            case SDL_SCANCODE_DOWN: {
+                switch( menuNum ) {
+                default: break;
+                case MAIN_MENU:
+                    if( menuSel < 4 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        menuSel++;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case NEW_RUN_MENU:
+                    if( menuSel < 2 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        menuSel++;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case TUTORIAL_MENU:
+                    if( menuSel <= 4 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        menuSel += 3;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case OPTIONS_MENU:
+                    if( menuSel < 3 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        menuSel++;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                }
+                break;
+            }
+            case SDL_SCANCODE_A:
+            case SDL_SCANCODE_LEFT: {
+                switch( menuNum ) {
+                default: break;
+                case NEW_RUN_MENU:
+                    if( menuSel == 0 && charSel > 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        charSel--;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    else if( menuSel == 1 && gameDiffSel > 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        gameDiffSel--;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case TUTORIAL_MENU:
+                    if( menuSel > 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        menuSel--;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case OPTIONS_MENU:
+                    if( menuSel == 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        showInfobox = !showInfobox;
+                        showInfobox ? Mix_PlayChannel( 7, infoboxOpenSound, 0 ) : Mix_PlayChannel( 7, infoboxCloseSound, 0 );
+                    }
+                    else if( menuSel == 1 && gameVol > 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        gameVol--;
+                        Mix_Volume( 0, gameVol * mainVolScale );
+                        Mix_Volume( 1, gameVol * miscVolScale );
+                        Mix_Volume( 2, gameVol * miscVolScale );
+                        Mix_Volume( 4, gameVol * miscVolScale );
+                        Mix_Volume( 5, gameVol * miscVolScale );
+                        Mix_Volume( 6, gameVol * mainVolScale );
+                        Mix_Volume( 7, gameVol * miscVolScale );
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    else if( menuSel == 2 && musicVol > 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        musicVol--;
+                        Mix_Volume( 3, musicVol * musicVolScale );
+                        if( musicVol == 0 ) Mix_Pause(3);
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    else if( menuSel == 3 && musicSel > 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        musicSel--;
+                        if( musicVol != 0 ) playMusic( musicSel );
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                }
+                break;
+            }
+            case SDL_SCANCODE_D:
+            case SDL_SCANCODE_RIGHT: {
+                switch( menuNum ) {
+                default: break;
+                case NEW_RUN_MENU:
+                    if( menuSel == 0 && charSel < 4 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        charSel++;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    else if( menuSel == 1 && gameDiffSel < 4 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        gameDiffSel++;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case TUTORIAL_MENU:
+                    if( menuSel < 7 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        menuSel++;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                case OPTIONS_MENU:
+                    if( menuSel == 0 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        showInfobox = !showInfobox;
+                        showInfobox ? Mix_PlayChannel( 7, infoboxOpenSound, 0 ) : Mix_PlayChannel( 7, infoboxCloseSound, 0 );
+                    }
+                    else if( menuSel == 1 && gameVol < 10 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        gameVol++;
+                        Mix_Volume( 0, gameVol * mainVolScale );
+                        Mix_Volume( 1, gameVol * miscVolScale );
+                        Mix_Volume( 2, gameVol * miscVolScale );
+                        Mix_Volume( 4, gameVol * miscVolScale );
+                        Mix_Volume( 5, gameVol * miscVolScale );
+                        Mix_Volume( 6, gameVol * mainVolScale );
+                        Mix_Volume( 7, gameVol * miscVolScale );
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    else if( menuSel == 2 && musicVol < 10 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        musicVol++;
+                        Mix_Volume( 3, musicVol * musicVolScale );
+                        if( musicVol == 1 ) playMusic( musicSel );
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    else if( menuSel == 3 && musicSel < 17 ) {
+                        player1->animationDisplayAmt = menuChooseTime;
+                        musicSel++;
+                        if( musicVol != 0 ) playMusic( musicSel );
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
+                    break;
+                }
+                break;
+            }
+            case SDL_SCANCODE_RETURN:
+            case SDL_SCANCODE_KP_ENTER: {
+                switch( menuNum ) {
+                case MAIN_MENU:
+                    if( menuSel == EXIT-1 ) {
+                        player1->animationDisplayAmt = menuExitTime;
+                        Mix_PlayChannel( 7, menuCancelSound, 0 );
+                        if( level != 0 ) menuNum = -1;
+                        else done = true;
+                    }
+                    else {
+                        player1->animationDisplayAmt = menuExitTime;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                        menuNum = menuSel+1;
+                        menuSel = 0;
+                        charSel = player1->type;
                         gameDiffSel = currentGameDiff;
-                        Mix_PlayChannel( 7, quitChooseSound, 0 ); }
-                    else {
-                        resetMenuOn = false;
-                        Mix_PlayChannel( 7, quitCancelSound, 0 ); }
+                        menuSel = 0;
+                    }
+                    break;
+                case NEW_RUN_MENU:
+                    if( menuSel != 2 ) break;
                     player1->animationDisplayAmt = menuExitTime;
-                }
-                else if ( diffSelMenuOn ) {
-                    diffSelMenuOn = false;
-                    delete player1;
+                    menuNum = -1;
+                    reset();
                     switch( charSel ) {
                     default:
-                    case 0: player1 = new MegaMan(); break;
-                    case 1: player1 = new ProtoMan(); break;
-                    case 2: player1 = new TomahawkMan(); break;
-                    case 3: player1 = new Colonel(); break;
-                    case 4: player1 = new SlashMan(); break;
+                    case MEGAMAN:       player1 = new MegaMan(); break;
+                    case PROTOMAN:      player1 = new ProtoMan(); break;
+                    case TOMAHAWKMAN:   player1 = new TomahawkMan(); break;
+                    case COLONEL:       player1 = new Colonel(); break;
+                    case SLASHMAN:      player1 = new SlashMan(); break;
                     }
-                    player1->type = charSel;
-                    currentGameDiff = gameDiffSel;
                     player1->npc = false;
-                    reset();
+                    currentGameDiff = gameDiffSel;
                     level = 1;
                     loadLevel();
-                    Mix_PlayChannel( 7, quitChooseSound, 0 );
+                    Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    break;
+                case TUTORIAL_MENU:
                     player1->animationDisplayAmt = menuExitTime;
-                }
-                else if ( trainMenuOn ) {
-                    trainMenuOn = false;
-                    delete player1;
-                    switch( charSel ) {
-                    default:
-                    case 0: player1 = new MegaMan(); break;
-                    case 1: player1 = new ProtoMan(); break;
-                    case 2: player1 = new TomahawkMan(); break;
-                    case 3: player1 = new Colonel(); break;
-                    case 4: player1 = new SlashMan(); break;
-                    }
-                    player1->type = charSel;
-                    player1->npc = false;
-                    tutorial();
-                    Mix_PlayChannel( 7, quitChooseSound, 0 );
+                    menuNum = -1;
+                    tutorial( menuSel+1 );
+                    Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    break;
+                default:
                     player1->animationDisplayAmt = menuExitTime;
+                    menuSel = menuNum-1;
+                    menuNum = MAIN_MENU;
+                    Mix_PlayChannel( 7, menuCancelSound, 0 );
+                    break;
                 }
+                break;
             }
-            else if ( ( event.key.keysym.scancode == SDL_SCANCODE_LSHIFT || event.key.keysym.scancode == SDL_SCANCODE_SPACE ) && 
-                        !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn && player1->animationDisplayAmt <= 0 && player1->hp > 0 ) {
-                face( player1, player1->facing * -1 );
+            case SDL_SCANCODE_LSHIFT:
+            case SDL_SCANCODE_SPACE: {
+                if( menuNum == -1 && player1->animationDisplayAmt <= 0 && player1->hp > 0 )
+                    face( player1, player1->facing * -1 );
+                break;
             }
-	    }
+            }
+        }
     }
 
     // Player Movement and Attacks
-    if ( player1->animationDisplayAmt <= 0 && player1->hp > 0 && !quitMenuOn && !resetMenuOn && !diffSelMenuOn && !trainMenuOn ) {
+    if( menuNum == -1 && player1->animationDisplayAmt <= 0 && player1->hp > 0 ) {
         // The player can't Move or Attack until after the previous Action is completed, or if a Menu is open
 
-	    const Uint8* keystates = SDL_GetKeyboardState(NULL);		// Read Multiple Button presses simultaneously
+        const Uint8* keystates = SDL_GetKeyboardState( NULL );		// Read Multiple Button presses simultaneously
 
-		// Move Up
-		if		(keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP]) { move(player1, 0); }
-		// Move Left
-		else if (keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT]) { move(player1, 1); }
-		// Move Down
-		else if (keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN]) { move(player1, 2); }
-		// Move Right
-		else if (keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT]) { move(player1, 3); }
+        // Move Up
+        if     ( keystates[SDL_SCANCODE_W] || keystates[SDL_SCANCODE_UP] )    move( player1, 0 );
+        // Move Left
+        else if( keystates[SDL_SCANCODE_A] || keystates[SDL_SCANCODE_LEFT] )  move( player1, 1 );
+        // Move Down
+        else if( keystates[SDL_SCANCODE_S] || keystates[SDL_SCANCODE_DOWN] )  move( player1, 2 );
+        // Move Right
+        else if( keystates[SDL_SCANCODE_D] || keystates[SDL_SCANCODE_RIGHT] ) move( player1, 3 );
 
-		// Sword Attacks
+        // Sword Attacks
         else if( keystates[SDL_SCANCODE_1] || keystates[SDL_SCANCODE_KP_1] ) attack( player1, 1 );
         else if( keystates[SDL_SCANCODE_2] || keystates[SDL_SCANCODE_KP_2] ) attack( player1, 2 );
         else if( keystates[SDL_SCANCODE_3] || keystates[SDL_SCANCODE_KP_3] ) attack( player1, 3 );
@@ -982,85 +1228,28 @@ void App::checkKeys() {
     }
 }
 
-void App::changeMusic( int track ) {
+void App::playMusic( int track ) {
     musicSwitchDisplayAmt = 1.5;
-
-    if (track == -1 ) {
-        if ( !musicMuted ) { musicSel++; }
-	    if ( musicSel > 18 ) { musicSel = 1; } }
-    else { musicSel = track; }
-
-    musicMuted = false;
 
     switch ( musicSel ) {
-    case 0:
-        Mix_Pause( 3 );
-        break;
-    case 1:
-        Mix_PlayChannel( 3, track01, -1 );
-        break;
-    case 2:
-        Mix_PlayChannel( 3, track02, -1 );
-        break;
-    case 3:
-        Mix_PlayChannel( 3, track03, -1 );
-        break;
-    case 4:
-        Mix_PlayChannel( 3, track04, -1 );
-        break;
-    case 5:
-        Mix_PlayChannel( 3, track05, -1 );
-        break;
-    case 6:
-        Mix_PlayChannel( 3, track06, -1 );
-        break;
-    case 7:
-        Mix_PlayChannel( 3, track07, -1 );
-        break;
-    case 8:
-        Mix_PlayChannel( 3, track08, -1 );
-        break;
-    case 9:
-        Mix_PlayChannel( 3, track09, -1 );
-        break;
-    case 10:
-        Mix_PlayChannel( 3, track10, -1 );
-        break;
-    case 11:
-        Mix_PlayChannel( 3, track11, -1 );
-        break;
-    case 12:
-        Mix_PlayChannel( 3, track12, -1 );
-        break;
-    case 13:
-        Mix_PlayChannel( 3, track13, -1 );
-        break;
-    case 14:
-        Mix_PlayChannel( 3, track14, -1 );
-        break;
-    case 15:
-        Mix_PlayChannel( 3, track15, -1 );
-        break;
-    case 16:
-        Mix_PlayChannel( 3, track16, -1 );
-        break;
-    case 17:
-        Mix_PlayChannel( 3, track17, -1 );
-        break;
-    case 18:
-        Mix_PlayChannel( 3, track18, -1 );
-        break;
-    }
-}
-void App::toggleMusic() {
-    musicSwitchDisplayAmt = 1.5;
-
-    if ( musicMuted ) {
-        changeMusic();
-    }
-    else {
-        musicMuted = true;
-        Mix_Pause( 3 );
+    case 0: Mix_PlayChannel( 3, track01, -1 ); break;
+    case 1: Mix_PlayChannel( 3, track02, -1 ); break;
+    case 2: Mix_PlayChannel( 3, track03, -1 ); break;
+    case 3: Mix_PlayChannel( 3, track04, -1 ); break;
+    case 4: Mix_PlayChannel( 3, track05, -1 ); break;
+    case 5: Mix_PlayChannel( 3, track06, -1 ); break;
+    case 6: Mix_PlayChannel( 3, track07, -1 ); break;
+    case 7: Mix_PlayChannel( 3, track08, -1 ); break;
+    case 8: Mix_PlayChannel( 3, track09, -1 ); break;
+    case 9: Mix_PlayChannel( 3, track10, -1 ); break;
+    case 10: Mix_PlayChannel( 3, track11, -1 ); break;
+    case 11: Mix_PlayChannel( 3, track12, -1 ); break;
+    case 12: Mix_PlayChannel( 3, track13, -1 ); break;
+    case 13: Mix_PlayChannel( 3, track14, -1 ); break;
+    case 14: Mix_PlayChannel( 3, track15, -1 ); break;
+    case 15: Mix_PlayChannel( 3, track16, -1 ); break;
+    case 16: Mix_PlayChannel( 3, track17, -1 ); break;
+    case 17: Mix_PlayChannel( 3, track18, -1 ); break;
     }
 }
 
@@ -1069,12 +1258,22 @@ void App::Render() {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glLoadIdentity();
 
+    if( level == 0 ) {
+        drawBg();
+        drawMenu();
+        SDL_GL_SwapWindow( displayWindow );
+        return;
+    }
+
 	drawBg();
 	drawFloor();
 
-    drawTabMenuCtrl();
-    if ( menuDisplay ) { drawMenu(); }
-    if ( musicSwitchDisplayAmt || menuDisplay ) { displayMusic(); }
+    drawOverhead();
+    if( showInfobox ) {
+        drawCharMoveset();
+        drawInfobox();
+    }
+    if( musicSwitchDisplayAmt || menuNum != -1 ) { displayMusic(); }
     drawTextUI();
 
 	// Draw game elements, back row first, so the front row is displayed in front
@@ -1095,24 +1294,25 @@ void App::Render() {
     drawSwordAtks( player1 );
     drawHp( player1 );
     drawPrevEnergy();
-
-    if ( quitMenuOn ) {
+    
+    if( menuNum != -1 ) {
         drawDimScreen();
-        drawQuitMenu(); }
-    else if ( resetMenuOn ) {
-        drawDimScreen();
-        drawResetMenu(); }
-    else if ( diffSelMenuOn ) {
-        drawDimScreen();
-        drawDiffSelMenu(); }
-    else if ( trainMenuOn ) {
-        drawDimScreen();
-        drawTrainMenu(); }
+        drawMenu();
+    }
 
 	SDL_GL_SwapWindow(displayWindow);
 }
 
 void App::drawBg() {
+    if( level == 0 ) {
+        float menuSizeX = 1;
+        float menuSizeY = 1;
+        GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                             menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+        drawSpriteSheetSprite( place, bgMain, 0, 1, 1 );
+        return;
+    }
+
 	GLuint texture;
 	float bgSizeX = 0.768 * 8 * uiScaleX;
 	float bgSizeY = 0.768 * 8 * uiScaleY;
@@ -1131,62 +1331,215 @@ void App::drawDimScreen() {
 }
 
 void App::drawMenu() {
+    switch( menuNum ) {
+    case MAIN_MENU: drawMainMenu(); break;
+    case NEW_RUN_MENU: drawNewRunMenu(); break;
+    case TUTORIAL_MENU: drawTutorialMenu(); break;
+    case CONTROLS_MENU: drawControlsMenu(); break;
+    case OPTIONS_MENU: drawOptionsMenu(); break;
+    }
+}
+void App::drawMainMenu() {
+    glLoadIdentity();
+	float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, mainMenuPic, 0, 1, 1 );
+    switch( menuSel ) {
+    case 0: drawSpriteSheetSprite( place, mainSelPic0, 0, 1, 1 ); break;
+    case 1: drawSpriteSheetSprite( place, mainSelPic1, 0, 1, 1 ); break;
+    case 2: drawSpriteSheetSprite( place, mainSelPic2, 0, 1, 1 ); break;
+    case 3: drawSpriteSheetSprite( place, mainSelPic3, 0, 1, 1 ); break;
+    case 4: drawSpriteSheetSprite( place, mainSelPic4, 0, 1, 1 ); break;
+    }
+}
+void App::drawNewRunMenu() {
+    glLoadIdentity();
+	float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, newRunMenuPic, 0, 1, 1 );
+    switch( menuSel ) {
+    case 0: drawSpriteSheetSprite( place, newRunSelPic0, 0, 1, 1 ); break;
+    case 1: drawSpriteSheetSprite( place, newRunSelPic1, 0, 1, 1 ); break;
+    case 2: drawSpriteSheetSprite( place, newRunSelPic2, 0, 1, 1 ); break;
+    }
+    switch( charSel ) {
+        case MEGAMAN: {
+            drawSpriteSheetSprite( place, charSelPic0, 0, 1, 1 );
+            drawSpriteSheetSprite( place, chipPic0, 0, 1, 1 );
+            drawSpriteSheetSprite( place, movesetPic0, 0, 1, 1 );
+            break;
+        }
+        case PROTOMAN: {
+            drawSpriteSheetSprite( place, charSelPic1, 0, 1, 1 );
+            drawSpriteSheetSprite( place, chipPic1, 0, 1, 1 );
+            drawSpriteSheetSprite( place, movesetPic1, 0, 1, 1 );
+            break;
+        }
+        case TOMAHAWKMAN: {
+            drawSpriteSheetSprite( place, charSelPic2, 0, 1, 1 );
+            drawSpriteSheetSprite( place, chipPic2, 0, 1, 1 );
+            drawSpriteSheetSprite( place, movesetPic2, 0, 1, 1 );
+            break;
+        }
+        case COLONEL: {
+            drawSpriteSheetSprite( place, charSelPic3, 0, 1, 1 );
+            drawSpriteSheetSprite( place, chipPic3, 0, 1, 1 );
+            drawSpriteSheetSprite( place, movesetPic3, 0, 1, 1 );
+            break;
+        }
+        case SLASHMAN: {
+            drawSpriteSheetSprite( place, charSelPic4, 0, 1, 1 );
+            drawSpriteSheetSprite( place, chipPic4, 0, 1, 1 );
+            drawSpriteSheetSprite( place, movesetPic4, 0, 1, 1 );
+            break;
+        }
+    }
+    switch( gameDiffSel ) {
+    case 0: drawSpriteSheetSprite( place, diffSelPic0, 0, 1, 1 ); break;
+    case 1: drawSpriteSheetSprite( place, diffSelPic1, 0, 1, 1 ); break;
+    case 2: drawSpriteSheetSprite( place, diffSelPic2, 0, 1, 1 ); break;
+    case 3: drawSpriteSheetSprite( place, diffSelPic3, 0, 1, 1 ); break;
+    case 4: drawSpriteSheetSprite( place, diffSelPic4, 0, 1, 1 ); break;
+    }
+}
+void App::drawCharMoveset() {
 	glLoadIdentity();
 	float menuSizeX = 1;
 	float menuSizeY = 1;
-	GLfloat place[] = { -menuSizeX, menuSizeY, -menuSizeX, -menuSizeY,     menuSizeX, -menuSizeY, menuSizeX, menuSizeY };
-    if      ( player1->type == 0 ) { drawSpriteSheetSprite( place, menuPic0, 0, 1, 1 ); }
-    else if ( player1->type == 1 ) { drawSpriteSheetSprite( place, menuPic1, 0, 1, 1 ); }
-    else if ( player1->type == 2 ) { drawSpriteSheetSprite( place, menuPic2, 0, 1, 1 ); }
-    else if ( player1->type == 3 ) { drawSpriteSheetSprite( place, menuPic3, 0, 1, 1 ); }
-    else if ( player1->type == 4 ) { drawSpriteSheetSprite( place, menuPic4, 0, 1, 1 ); }
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    switch( player1->type ) {
+    case MEGAMAN:       drawSpriteSheetSprite( place, movesetPic0, 0, 1, 1 ); break;
+    case PROTOMAN:      drawSpriteSheetSprite( place, movesetPic1, 0, 1, 1 ); break;
+    case TOMAHAWKMAN:   drawSpriteSheetSprite( place, movesetPic2, 0, 1, 1 ); break;
+    case COLONEL:       drawSpriteSheetSprite( place, movesetPic3, 0, 1, 1 ); break;
+    case SLASHMAN:      drawSpriteSheetSprite( place, movesetPic4, 0, 1, 1 ); break;
+    }
 }
-void App::drawQuitMenu() {
+void App::drawInfobox() {
     glLoadIdentity();
-    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if ( menuSel ) { drawSpriteSheetSprite( place, quitPicY, 0, 1, 1 ); }
-    else           { drawSpriteSheetSprite( place, quitPicN, 0, 1, 1 ); }
+	float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    if( level < 0 ) drawSpriteSheetSprite( place, tInfoboxPic, 0, 1, 1 );
+    switch( level ) {
+    case 0: break;
+    case -1: drawSpriteSheetSprite( place, tInfoPic0, 0, 1, 1 ); break;
+    case -2: drawSpriteSheetSprite( place, tInfoPic1, 0, 1, 1 ); break;
+    case -3: drawSpriteSheetSprite( place, tInfoPic2, 0, 1, 1 ); break;
+    case -4: drawSpriteSheetSprite( place, tInfoPic3, 0, 1, 1 ); break;
+    case -5: drawSpriteSheetSprite( place, tInfoPic4, 0, 1, 1 ); break;
+    case -6: drawSpriteSheetSprite( place, tInfoPic5, 0, 1, 1 ); break;
+    case -7: drawSpriteSheetSprite( place, tInfoPic6, 0, 1, 1 ); break;
+    case -8: drawSpriteSheetSprite( place, tInfoPic7, 0, 1, 1 ); break;
+    default: drawSpriteSheetSprite( place, generalInfoboxPic, 0, 1, 1 ); break;
+    }
 }
-void App::drawResetMenu() {
+void App::drawTutorialMenu() {
     glLoadIdentity();
-    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if      ( charSel == 0 ) { drawSpriteSheetSprite( place, resetPic0, 0, 1, 1 ); }
-    else if ( charSel == 1 ) { drawSpriteSheetSprite( place, resetPic1, 0, 1, 1 ); }
-    else if ( charSel == 2 ) { drawSpriteSheetSprite( place, resetPic2, 0, 1, 1 ); }
-    else if ( charSel == 3 ) { drawSpriteSheetSprite( place, resetPic3, 0, 1, 1 ); }
-    else if ( charSel == 4 ) { drawSpriteSheetSprite( place, resetPic4, 0, 1, 1 ); }
+	float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, tutorialMenuPic, 0, 1, 1 );
+    switch( menuSel ) {
+    case 0: drawSpriteSheetSprite( place, tSelPic0, 0, 1, 1 ); break;
+    case 1: drawSpriteSheetSprite( place, tSelPic1, 0, 1, 1 ); break;
+    case 2: drawSpriteSheetSprite( place, tSelPic2, 0, 1, 1 ); break;
+    case 3: drawSpriteSheetSprite( place, tSelPic3, 0, 1, 1 ); break;
+    case 4: drawSpriteSheetSprite( place, tSelPic4, 0, 1, 1 ); break;
+    case 5: drawSpriteSheetSprite( place, tSelPic5, 0, 1, 1 ); break;
+    case 6: drawSpriteSheetSprite( place, tSelPic6, 0, 1, 1 ); break;
+    case 7: drawSpriteSheetSprite( place, tSelPic7, 0, 1, 1 ); break;
+    }
 }
-void App::drawDiffSelMenu() {
+void App::drawControlsMenu() {
     glLoadIdentity();
-    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if      ( gameDiffSel == 0 ) { drawSpriteSheetSprite( place, diffPic1, 0, 1, 1 ); }
-    else if ( gameDiffSel == 1 ) { drawSpriteSheetSprite( place, diffPic2, 0, 1, 1 ); }
-    else if ( gameDiffSel == 2 ) { drawSpriteSheetSprite( place, diffPic3, 0, 1, 1 ); }
-    else if ( gameDiffSel == 3 ) { drawSpriteSheetSprite( place, diffPic4, 0, 1, 1 ); }
-    else if ( gameDiffSel == 4 ) { drawSpriteSheetSprite( place, diffPic5, 0, 1, 1 ); }
+	float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, controlMenuPic, 0, 1, 1 );
 }
-void App::drawTrainMenu() {
+void App::drawOptionsMenu() {
     glLoadIdentity();
-    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    if      ( charSel == 0 ) { drawSpriteSheetSprite( place, trainPic0, 0, 1, 1 ); }
-    else if ( charSel == 1 ) { drawSpriteSheetSprite( place, trainPic1, 0, 1, 1 ); }
-    else if ( charSel == 2 ) { drawSpriteSheetSprite( place, trainPic2, 0, 1, 1 ); }
-    else if ( charSel == 3 ) { drawSpriteSheetSprite( place, trainPic3, 0, 1, 1 ); }
-    else if ( charSel == 4 ) { drawSpriteSheetSprite( place, trainPic4, 0, 1, 1 ); }
+	float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, optionMenuPic, 0, 1, 1 );
+    switch( menuSel ) {
+    case 0: drawSpriteSheetSprite( place, oSelPic0, 0, 1, 1 ); break;
+    case 1: drawSpriteSheetSprite( place, oSelPic1, 0, 1, 1 ); break;
+    case 2: drawSpriteSheetSprite( place, oSelPic2, 0, 1, 1 ); break;
+    case 3: drawSpriteSheetSprite( place, oSelPic3, 0, 1, 1 ); break;
+    }
+    drawSpriteSheetSprite( place, showInfobox ? infoSelPic0 : infoSelPic1, 0, 1, 1 );
+    switch( gameVol ) {
+    case 0:  drawSpriteSheetSprite( place, gameVolSelPic0, 0, 1, 1 ); break;
+    case 1:  drawSpriteSheetSprite( place, gameVolSelPic1, 0, 1, 1 ); break;
+    case 2:  drawSpriteSheetSprite( place, gameVolSelPic2, 0, 1, 1 ); break;
+    case 3:  drawSpriteSheetSprite( place, gameVolSelPic3, 0, 1, 1 ); break;
+    case 4:  drawSpriteSheetSprite( place, gameVolSelPic4, 0, 1, 1 ); break;
+    case 5:  drawSpriteSheetSprite( place, gameVolSelPic5, 0, 1, 1 ); break;
+    case 6:  drawSpriteSheetSprite( place, gameVolSelPic6, 0, 1, 1 ); break;
+    case 7:  drawSpriteSheetSprite( place, gameVolSelPic7, 0, 1, 1 ); break;
+    case 8:  drawSpriteSheetSprite( place, gameVolSelPic8, 0, 1, 1 ); break;
+    case 9:  drawSpriteSheetSprite( place, gameVolSelPic9, 0, 1, 1 ); break;
+    case 10: drawSpriteSheetSprite( place, gameVolSelPic10, 0, 1, 1 ); break;
+    }
+    switch( musicVol ) {
+    case 0:  drawSpriteSheetSprite( place, musicVolSelPic0, 0, 1, 1 ); break;
+    case 1:  drawSpriteSheetSprite( place, musicVolSelPic1, 0, 1, 1 ); break;
+    case 2:  drawSpriteSheetSprite( place, musicVolSelPic2, 0, 1, 1 ); break;
+    case 3:  drawSpriteSheetSprite( place, musicVolSelPic3, 0, 1, 1 ); break;
+    case 4:  drawSpriteSheetSprite( place, musicVolSelPic4, 0, 1, 1 ); break;
+    case 5:  drawSpriteSheetSprite( place, musicVolSelPic5, 0, 1, 1 ); break;
+    case 6:  drawSpriteSheetSprite( place, musicVolSelPic6, 0, 1, 1 ); break;
+    case 7:  drawSpriteSheetSprite( place, musicVolSelPic7, 0, 1, 1 ); break;
+    case 8:  drawSpriteSheetSprite( place, musicVolSelPic8, 0, 1, 1 ); break;
+    case 9:  drawSpriteSheetSprite( place, musicVolSelPic9, 0, 1, 1 ); break;
+    case 10: drawSpriteSheetSprite( place, musicVolSelPic10, 0, 1, 1 ); break;
+    }
+    switch( musicSel ) {
+    case 0:  drawSpriteSheetSprite( place, musicSelPic1, 0, 1, 1 ); break;
+    case 1:  drawSpriteSheetSprite( place, musicSelPic2, 0, 1, 1 ); break;
+    case 2:  drawSpriteSheetSprite( place, musicSelPic3, 0, 1, 1 ); break;
+    case 3:  drawSpriteSheetSprite( place, musicSelPic4, 0, 1, 1 ); break;
+    case 4:  drawSpriteSheetSprite( place, musicSelPic5, 0, 1, 1 ); break;
+    case 5:  drawSpriteSheetSprite( place, musicSelPic6, 0, 1, 1 ); break;
+    case 6:  drawSpriteSheetSprite( place, musicSelPic7, 0, 1, 1 ); break;
+    case 7:  drawSpriteSheetSprite( place, musicSelPic8, 0, 1, 1 ); break;
+    case 8:  drawSpriteSheetSprite( place, musicSelPic9, 0, 1, 1 ); break;
+    case 9:  drawSpriteSheetSprite( place, musicSelPic10, 0, 1, 1 ); break;
+    case 10: drawSpriteSheetSprite( place, musicSelPic11, 0, 1, 1 ); break;
+    case 11: drawSpriteSheetSprite( place, musicSelPic12, 0, 1, 1 ); break;
+    case 12: drawSpriteSheetSprite( place, musicSelPic13, 0, 1, 1 ); break;
+    case 13: drawSpriteSheetSprite( place, musicSelPic14, 0, 1, 1 ); break;
+    case 14: drawSpriteSheetSprite( place, musicSelPic15, 0, 1, 1 ); break;
+    case 15: drawSpriteSheetSprite( place, musicSelPic16, 0, 1, 1 ); break;
+    case 16: drawSpriteSheetSprite( place, musicSelPic17, 0, 1, 1 ); break;
+    case 17: drawSpriteSheetSprite( place, musicSelPic18, 0, 1, 1 ); break;
+    }
 }
-void App::drawTabMenuCtrl() {
+
+void App::drawOverhead() {
     glLoadIdentity();
     glTranslatef( 0, 0.945, 0 );
     float sizeX = 1.44 * uiScaleX;
     float sizeY = 0.15 * uiScaleY;
     GLfloat place[] = { -sizeX, +sizeY, -sizeX, -sizeY,
                         +sizeX, -sizeY, +sizeX, +sizeY };
-    if      ( itemAnimationAmt <= 2.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 0, 1, 4 ); }
-    else if ( itemAnimationAmt <= 4.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 1, 1, 4 ); }
-    else if ( itemAnimationAmt <= 6.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 2, 1, 4 ); }
-    else if ( itemAnimationAmt <= 8.0 ) { drawSpriteSheetSprite( place, tabMenuCtrlSheet, 3, 1, 4 ); }
+    if      ( itemAnimationAmt <= 2.0 ) { drawSpriteSheetSprite( place, overheadSheet, 0, 1, 4 ); }
+    else if ( itemAnimationAmt <= 4.0 ) { drawSpriteSheetSprite( place, overheadSheet, 1, 1, 4 ); }
+    else if ( itemAnimationAmt <= 6.0 ) { drawSpriteSheetSprite( place, overheadSheet, 2, 1, 4 ); }
+    else if ( itemAnimationAmt <= 8.0 ) { drawSpriteSheetSprite( place, overheadSheet, 3, 1, 4 ); }
 }
-
 void App::drawTextUI() {
 	// Display current Level number
 	glLoadIdentity();
@@ -1213,7 +1566,7 @@ void App::drawTextUI() {
 	float rockSizeY = 0.16 * uiScaleY;
 	GLfloat rockPlace[] = { rockX - rockSizeX, rockY + rockSizeY, rockX - rockSizeX, rockY - rockSizeY,
 	                       rockX + rockSizeX, rockY - rockSizeY, rockX + rockSizeX, rockY + rockSizeY };
-	drawSpriteSheetSprite(rockPlace, healthRockPic, 0, 1, 1);
+	drawSpriteSheetSprite(rockPlace, healthBoxPic, 0, 1, 1);
 	glTranslatef(0.061, 0.0075, 0);
 	
     int energyToDisplay = player1->energyDisplayed;
@@ -1276,32 +1629,35 @@ void App::drawTextUI() {
 }
 void App::displayMusic() {
     string text;
-    if ( musicMuted ) { text = "Music Off"; }
+    if( musicVol == 0 ) { text = "Music Off"; }
     else {
         switch ( musicSel ) {
-        case 1:  text = "01 Organization";      break;
-        case 2:  text = "02 An Incident";       break;
-        case 3:  text = "03 Blast Speed";       break;
-        case 4:  text = "04 Shark Panic";       break;
-        case 5:  text = "05 Battle Field";      break;
-        case 6:  text = "06 Doubt";             break;
-        case 7:  text = "07 Distortion";        break;
-        case 8:  text = "08 Surge of Power";    break;
-        case 9:  text = "09 Digital Strider";   break;
-        case 10: text = "10 Break the Storm";   break;
-        case 11: text = "11 Evil Spirit";       break;
-        case 12: text = "12 Hero";              break;
-        case 13: text = "13 Danger Zone";       break;
-        case 14: text = "14 Navi Customizer";   break;
-        case 15: text = "15 Graveyard";         break;
-        case 16: text = "16 The Count";         break;
-        case 17: text = "17 Secret Base";       break;
-        case 18: text = "18 Cybeasts";          break;
+        case 0:  text = "01 Organization";      break;
+        case 1:  text = "02 An Incident";       break;
+        case 2:  text = "03 Blast Speed";       break;
+        case 3:  text = "04 Shark Panic";       break;
+        case 4:  text = "05 Battle Field";      break;
+        case 5:  text = "06 Doubt";             break;
+        case 6:  text = "07 Distortion";        break;
+        case 7:  text = "08 Surge of Power";    break;
+        case 8:  text = "09 Digital Strider";   break;
+        case 9:  text = "10 Break the Storm";   break;
+        case 10: text = "11 Evil Spirit";       break;
+        case 11: text = "12 Hero";              break;
+        case 12: text = "13 Danger Zone";       break;
+        case 13: text = "14 Navi Customizer";   break;
+        case 14: text = "15 Graveyard";         break;
+        case 15: text = "16 The Count";         break;
+        case 16: text = "17 Secret Base";       break;
+        case 17: text = "18 Cybeasts";          break;
         }
     }
     glLoadIdentity();
-    GLfloat place[] = { -1, 1, -1, -1, 1, -1, 1, 1 };
-    drawSpriteSheetSprite( place, musicDisplayPic, 0, 1, 1 );
+    float menuSizeX = 1;
+	float menuSizeY = 1;
+	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
+                         menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, musicDisplayBox, 0, 1, 1 );
 
     glLoadIdentity();
     glTranslatef( 0.30, -0.95, 0 );
@@ -1359,16 +1715,67 @@ void App::drawPlayer(Player * const player) {
 	glLoadIdentity();
 	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
 	glTranslatef(0.5, 1.2, 0.0);
-    if ( player->type == 3 ) { glTranslatef( 0, -0.05 * playerScale, 0 ); }
 	
     player->xDisplay = player->x;
     player->yDisplay = player->y;
 
     float playerSizeX, playerSizeY;
-	int picIndex = 0;
 	float displace = 0.0;   // Movement Offset - when doing movement actions
-	float displace2 = 0.3;  // Texture Offset  - to make sure the character is correctly positioned in all actions
+	float displaceX = 0.0;  // Texture Offset  - to make sure the character is correctly positioned in all actions
+    float displaceY = 0.0;
+
     GLuint texture;
+    int textureSheetWidth = 4;
+    int picIndex = 0;
+
+    switch( player->type ) {
+    default:
+    case MEGAMAN: {
+        playerSizeX = 0.35 * playerScale;
+		playerSizeY = 0.54 * playerScale;
+        displaceX = 0;
+        displaceY = 0;
+        if( player->npc ) texture = darkMegamanMoveSheet;
+        else              texture = megamanMoveSheet;
+        break;
+    }
+    case PROTOMAN: {
+        playerSizeX = 0.53 * playerScale;
+        playerSizeY = 0.59 * playerScale;
+        displaceX = 0.08 * playerScale;
+        displaceY = 0.05 * playerScale;
+        if( player->npc ) texture = darkProtoMoveSheet;
+        else              texture = protoMoveSheet;
+        break;
+    }
+    case TOMAHAWKMAN: {
+        playerSizeX = 0.52 * playerScale;
+        playerSizeY = 0.60 * playerScale;
+        displaceX = 0.2 * playerScale;
+        displaceY = 0.05 * playerScale;
+        if( player->npc ) texture = darkTmanMoveSheet;
+        else              texture = tmanMoveSheet;
+        break;
+    }
+    case COLONEL: {
+        playerSizeX = 0.61 * playerScale;
+        playerSizeY = 0.63 * playerScale;
+        displaceX = -0.1 * playerScale;
+        displaceY = 0.04 * playerScale;
+        if( player->npc ) texture = darkColonelMoveSheet;
+        else              texture = colonelMoveSheet;
+        break;
+    }
+    case SLASHMAN: {
+        playerSizeX = 0.66 * playerScale;
+        playerSizeY = 0.56 * playerScale;
+        displaceX = 0.2 * playerScale;
+        displaceY = 0.0 * playerScale;
+        if( player->npc ) texture = darkSlashmanMoveSheet;
+        else              texture = slashmanMoveSheet;
+        break;
+    }
+    }
 
     bool draw = true;
     int randDraw = ceil( player->hurtDisplayAmt * 100.0 );
@@ -1377,56 +1784,56 @@ void App::drawPlayer(Player * const player) {
     // Death Animation
     if( player->type != 2 && player->type != 4 && player->hp <= 0 && player->hp > -10 && player->deathDisplayAmt > 0 ) {
         int textureSheetWidth = 2;
-        if ( player->type == 0 ) {
+        if     ( player->type == MEGAMAN ) {
 		    playerSizeX = 0.40 * playerScale;
 		    playerSizeY = 0.48 * playerScale;
-            glTranslatef( 0, -0.06 * playerScale, 0 );
-            displace2 = 0.014;
-            if ( player->npc ) { texture = darkMegamanHurtSheet; }
+            displaceX = 0.014;
+            displaceY = -0.06 * playerScale;
+            if( player->npc ) { texture = darkMegamanHurtSheet; }
             else              { texture = megamanHurtSheet; }
         }
-        else if ( player->type == 1 ) {
+        else if( player->type == PROTOMAN ) {
             playerSizeX = 0.70 * playerScale;
 		    playerSizeY = 0.49 * playerScale;
-            glTranslatef( 0, -0.05 * playerScale, 0 );
-            displace2 = -0.01 * playerScale;
+            displaceX = -0.01 * playerScale;
+            displaceY = -0.05 * playerScale;
             if ( player->npc ) { texture = darkProtoHurtSheet; }
             else              { texture = protoHurtSheet; }
         }
-        else if ( player->type == 2 ) {
+        else if( player->type == TOMAHAWKMAN ) {
             playerSizeX = 0.52 * playerScale;
             playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
+            displaceX = 0.2 * playerScale;
+            displaceY = 0.05 * playerScale;
             if ( player->npc ) { texture = darkTmanMoveSheet; }
             else              { texture = tmanMoveSheet; }
             textureSheetWidth = 4;
         }
-        else if ( player->type == 3 ) {
+        else if( player->type == COLONEL ) {
             playerSizeX = 0.65 * playerScale;
 		    playerSizeY = 0.67 * playerScale;
-            glTranslatef( 0, 0.088 * playerScale, 0 );
-            displace2 = -0.184 * playerScale;
-            if ( player->npc ) { texture = darkColonelHurtSheet; }
-            else              { texture = colonelHurtSheet; }
+            displaceX = -0.184 * playerScale;
+            displaceY = 0.038 * playerScale;
+            if( player->npc ) texture = darkColonelHurtSheet;
+            else              texture = colonelHurtSheet;
         }
-        else if ( player->type == 4 ) {
+        else if( player->type == SLASHMAN ) {
             playerSizeX = 0.66 * playerScale;
             playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
+            displaceX = 0.2 * playerScale;
+            displaceY = 0.0 * playerScale;
             if ( player->npc ) { texture = darkSlashmanMoveSheet; }
             else              { texture = slashmanMoveSheet; }
             textureSheetWidth = 4;
         }
 
+        glTranslatef( player->facing * displaceX, displaceY, 0 );
+        if( player->facing == -1 ) picIndex += textureSheetWidth;
+
         GLfloat playerPlace[] = { player->x  * scaleX - playerSizeX, player->y * scaleY + playerSizeY,
                                   player->x  * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
                                   player->x  * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
                                   player->x  * scaleX + playerSizeX, player->y * scaleY + playerSizeY };
-
-        glTranslatef( player->facing * displace2, 0, 0 );
-        if( player->facing == -1 ) picIndex += textureSheetWidth;
         drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
     }
 	// Step Sword Move Animation
@@ -1434,42 +1841,44 @@ void App::drawPlayer(Player * const player) {
         if( !draw ) return;
 
         int textureSheetWidth = 8;
-        if      ( player->type == 0 ) {
+        if     ( player->type == MEGAMAN ) {
 		    playerSizeX = 0.66 * playerScale;
 		    playerSizeY = 0.56 * playerScale;
-            displace2 = 0.3;
+            displaceX = 0.3;
+            displaceY = 0.02;
             texture = player->npc ? darkMegamanAtkSheet : megamanAtkSheet;
         }
-        else if ( player->type == 1 ) {
+        else if( player->type == PROTOMAN ) {
             playerSizeX = 0.78 * playerScale;
 		    playerSizeY = 0.64 * playerScale; 
-            glTranslatef( 0, 0.08 * playerScale, 0 );
-            displace2 -= 0.08;
+            displaceX = 0.22;
+            displaceY = 0.08 * playerScale + 0.02;
             texture = player->npc ? darkProtoAtkSheet : protoAtkSheet;
         }
-        else if ( player->type == 3 ) {
+        else if( player->type == COLONEL ) {
             playerSizeX = 1.00 * playerScale;
             playerSizeY = 0.76 * playerScale;
-            glTranslatef( 0, 0.2 * playerScale, 0 );
+            displaceX = 0.3 * playerScale;
+            displaceY = 0.15 * playerScale + 0.02;
             texture = player->npc ? darkColonelAtkSheet : colonelAtkSheet;
         }
-        else if ( player->type == 4 ) {
+        else if( player->type == SLASHMAN ) {
             playerSizeX = 0.94 * playerScale;
 		    playerSizeY = 0.88 * playerScale; 
-            glTranslatef( 0, 0.065 * playerScale, 0 );
-            displace2 = 0.20;
+            displaceX = 0.20;
+            displaceY = 0.065 * playerScale + 0.02;
             textureSheetWidth = 9;
             texture = player->npc ? darkSlashmanAtkSheet : slashmanAtkSheet;
         }
-        glTranslatef( (float) player->facing * displace2, 0.02, 0 );
+        glTranslatef( player->facing * displaceX, displaceY, 0 );
 
-        // Linear transform based on time
+        // Displacement of Animation - Slow start, then speed to up to attack when Step-Sword Attacking
         if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.60 ) {
             displace = 2.0 - 0.1 * ( stepAtkTime + moveAnimationTime - player->animationDisplayAmt ) / 0.4 / moveAnimationTime; }
         else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.10 ) {
             displace = 1.9 - 1.9 * ( stepAtkTime + 0.6 * moveAnimationTime - player->animationDisplayAmt ) / 0.5 / moveAnimationTime; }
 
-        if ( player->type == 4 ) {
+        if ( player->type == SLASHMAN ) {
             if ( ( player->energy / 100 ) % 2 ) {
                 if      ( player->animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 0; }
 		        else if ( player->animationDisplayAmt > stepAtkTime - 0.18) { picIndex = 1; }
@@ -1493,21 +1902,22 @@ void App::drawPlayer(Player * const player) {
 
         // Draw Step Sword Attack Shadows
         int numShadows = 0;
-        if     ( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.45 ) numShadows = 1;
+        if     ( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.60 ) numShadows = 0;
+        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.50 ) numShadows = 1;
         else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.40 ) numShadows = 2;
-        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.35 ) numShadows = 3;
-        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.30 ) numShadows = 4;
-        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.25 ) numShadows = 5;
-        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.20 ) numShadows = 6;
-        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.15 ) numShadows = 7;
+        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.30 ) numShadows = 3;
+        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.25 ) numShadows = 4;
+        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.20 ) numShadows = 5;
+        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.15 ) numShadows = 6;
         else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.10 ) numShadows = 7;
         else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.05 ) numShadows = 7;
-        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.00 ) numShadows = 6;
-        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.05 ) numShadows = 5;
-        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.10 ) numShadows = 4;
-        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.15 ) numShadows = 3;
-        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.20 ) numShadows = 2;
-        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.25 ) numShadows = 1;
+        else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.00 ) numShadows = 7;
+        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.05 ) numShadows = 6;
+        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.10 ) numShadows = 5;
+        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.15 ) numShadows = 4;
+        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.20 ) numShadows = 3;
+        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.25 ) numShadows = 2;
+        else if( player->animationDisplayAmt > stepAtkTime - moveAnimationTime * 0.30 ) numShadows = 1;
         drawStepShadow( player, numShadows );
 
         if( player->facing == -1 ) picIndex += textureSheetWidth;
@@ -1522,109 +1932,109 @@ void App::drawPlayer(Player * const player) {
         if( !draw ) return;
 
         int textureSheetWidth = 8;
-		if ( player->type == 0 ) {
+		if     ( player->type == MEGAMAN ) {
 		    playerSizeX = 0.66 * playerScale;
 		    playerSizeY = 0.56 * playerScale;
-            if ( player->npc ) { texture = darkMegamanAtkSheet; }
-            else              { texture = megamanAtkSheet; }
+            displaceX = 0.3;
+            displaceY = 0.02;
+            if( player->npc ) texture = darkMegamanAtkSheet;
+            else              texture = megamanAtkSheet;
         }
-        else if ( player->type == 1 ) {
+        else if( player->type == PROTOMAN ) {
             playerSizeX = 0.78 * playerScale;
 		    playerSizeY = 0.64 * playerScale;
-            glTranslatef( 0, 0.08 * playerScale, 0 );
-            displace2 -= 0.08;
-            if ( player->npc ) { texture = darkProtoAtkSheet; }
-            else              { texture = protoAtkSheet; }
+            displaceX = 0.22;
+            displaceY = 0.08 * playerScale + 0.02;
+            if( player->npc ) texture = darkProtoAtkSheet;
+            else              texture = protoAtkSheet;
         }
-        else if ( player->type == 3 ) {
+        else if( player->type == COLONEL ) {
             playerSizeX = 1.00 * playerScale;
             playerSizeY = 0.76 * playerScale;
-            glTranslatef( 0, 0.2 * playerScale, 0 );
-            if ( player->npc ) { texture = darkColonelAtkSheet; }
-            else              { texture = colonelAtkSheet; }
+            displaceX = 0.3 * playerScale;
+            displaceY = 0.15 * playerScale + 0.02;
+            if( player->npc ) texture = darkColonelAtkSheet;
+            else              texture = colonelAtkSheet;
         }
-        else if ( player->type == 4 ) {
+        else if( player->type == SLASHMAN ) {
             playerSizeX = 0.94 * playerScale;
 		    playerSizeY = 0.88 * playerScale; 
-            glTranslatef( 0, 0.065 * playerScale, 0 );
-            displace2 = 0.20;
+            displaceX = 0.20;
+            displaceY = 0.065 * playerScale + 0.02;
             textureSheetWidth = 9;
-            if ( player->npc ) { texture = darkSlashmanAtkSheet; }
-            else              { texture = slashmanAtkSheet; }
+            if( player->npc ) texture = darkSlashmanAtkSheet;
+            else              texture = slashmanAtkSheet;
         }
 
         // Animation for Tomahawkman's Eagle Tomahawk attack
-        if ( player->type == 2 && player->actionNumber == 5 ) {
+        if( player->type == TOMAHAWKMAN && player->actionNumber == 5 ) {
             playerSizeX = 1.10 * playerScale;
             playerSizeY = 0.99  * playerScale;
-            glTranslatef( 0, 0.43 * playerScale, 0 );
-            displace2 = 0.17;
-            if ( player->npc ) { texture = darkTmanAtkSheet2; }
-            else              { texture = tmanAtkSheet2; }
+            displaceX = 0.17;
+            displaceY = 0.43 * playerScale + 0.02;
+            if( player->npc ) texture = darkTmanAtkSheet2;
+            else              texture = tmanAtkSheet2;
             textureSheetWidth = 5;
-            if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 0; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18) { picIndex = 1; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 2; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24) { picIndex = 3; }
-            else if ( player->animationDisplayAmt > 0)                                 { picIndex = 4; } }
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24) picIndex = 3;
+            else if( player->animationDisplayAmt > 0)                                  picIndex = 4; }
         // Tomahawkman's regular attacks
-        else if ( player->type == 2 ) {
+        else if( player->type == TOMAHAWKMAN ) {
             playerSizeX = 0.80 * playerScale;
             playerSizeY = 0.65 * playerScale;
-            displace2 = 0.22;
-            glTranslatef( 0, 0.1 * playerScale, 0 );
-            if ( player->npc ) { texture = darkTmanAtkSheet1; }
-            else              { texture = tmanAtkSheet1; }
+            displaceX = 0.22;
+            displaceY = 0.1 * playerScale + 0.02;
+            if ( player->npc ) texture = darkTmanAtkSheet1;
+            else               texture = tmanAtkSheet1;
             textureSheetWidth = 4;
-            if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.20) { picIndex = 0; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24) { picIndex = 1; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28) { picIndex = 2; }
-			else if ( player->animationDisplayAmt > 0)                                 { picIndex = 3; } }
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.20) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28) picIndex = 2;
+			else if( player->animationDisplayAmt > 0)                                  picIndex = 3; }
         // Slashman's LongSlash
-        else if ( player->type == 4 && player->actionNumber == 1 ) {
-            if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 2; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 3; }
-			else if ( player->animationDisplayAmt > 0)                                  { picIndex = 4; }
-        }
+        else if( player->type == SLASHMAN && player->actionNumber == 1 ) {
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 3;
+			else if( player->animationDisplayAmt >= 0)                                 picIndex = 4; }
         // Slashman's WideSlash
-        else if ( player->type == 4 && player->actionNumber == 2 ) {
-            if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 0; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 1; }
-			else if ( player->animationDisplayAmt > 0)                                 { picIndex = 2; }
-        }
+        else if( player->type == SLASHMAN && player->actionNumber == 2 ) {
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 1;
+			else if( player->animationDisplayAmt >= 0)                                 picIndex = 2; }
         // Slashman's CrossSlash
-        else if ( player->type == 4 && player->actionNumber == 3 ) {
+        else if( player->type == SLASHMAN && player->actionNumber == 3 ) {
             if ( ( player->energy / 100 ) % 2 ) {
-                if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 0; }
-			    else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 1; }
-			    else if ( player->animationDisplayAmt > 0)                                 { picIndex = 2; } }
+                if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 0;
+			    else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 1;
+			    else if( player->animationDisplayAmt >= 0)                                 picIndex = 2; }
             else {
-                if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 2; }
-			    else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 3; }
-			    else if ( player->animationDisplayAmt > 0)                                 { picIndex = 4; } }
+                if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 2;
+			    else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 3;
+			    else if( player->animationDisplayAmt >= 0)                                 picIndex = 4; }
         }
         // Slashman's SpinSlash
-        else if ( player->type == 4 && player->actionNumber == 5 ) {
-            if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 5; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16) { picIndex = 6; }
-            else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 7; }
-            else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28) { picIndex = 6; }
-            else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.34) { picIndex = 8; }
-            else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.40) { picIndex = 6; }
-            else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.46) { picIndex = 7; }
-			else if ( player->animationDisplayAmt > 0)                                 { picIndex = 6; }
-        }
+        else if( player->type == SLASHMAN && player->actionNumber == 5 ) {
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 5;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16) picIndex = 6;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 7;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28) picIndex = 6;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.34) picIndex = 8;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.40) picIndex = 6;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.46) picIndex = 7;
+			else if( player->animationDisplayAmt > 0)                                  picIndex = 6; }
 		// Animation for the rest of the Attacks
 		else {
-			if      ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) { picIndex = 1; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.14) { picIndex = 2; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18) { picIndex = 3; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) { picIndex = 4; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.26) { picIndex = 5; }
-			else if ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.30) { picIndex = 6; }
-			else if ( player->animationDisplayAmt > 0)                                  { picIndex = 7; } }
+			if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.14) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18) picIndex = 3;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 4;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.26) picIndex = 5;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.30) picIndex = 6;
+			else if( player->animationDisplayAmt > 0)                                  picIndex = 7; }
         
-        glTranslatef( player->facing * displace2, 0.02, 0 );
+        glTranslatef( player->facing * displaceX, displaceY, 0 );
         if( player->facing == -1 ) picIndex += textureSheetWidth;
         GLfloat playerPlace[] = { player->x  * scaleX - playerSizeX, player->y * scaleY + playerSizeY,
 								  player->x  * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
@@ -1636,47 +2046,6 @@ void App::drawPlayer(Player * const player) {
     else if( ( player->animationType == 0 && player->moveType == 2 ) ) {
         if( !draw ) return;
 
-        int textureSheetWidth = 4;
-        if      ( player->type == 0 ) {
-		    playerSizeX = 0.35 * playerScale;
-		    playerSizeY = 0.54 * playerScale;
-            displace2 = 0;
-            if ( player->npc ) { texture = darkMegamanMoveSheet; }
-            else              { texture = megamanMoveSheet; }
-        }
-        else if ( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-		    playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.08 * playerScale;
-            if ( player->npc ) { texture = darkProtoMoveSheet; }
-            else              { texture = protoMoveSheet; }
-        }
-        else if ( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkTmanMoveSheet; }
-            else              { texture = tmanMoveSheet; }
-        }
-        else if ( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-		    playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace2 = -0.1 * playerScale;
-            if ( player->npc ) { texture = darkColonelMoveSheet; }
-            else              { texture = colonelMoveSheet; }
-        }
-        else if ( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkSlashmanMoveSheet; }
-            else              { texture = slashmanMoveSheet; }
-        }
-
         const float beforeHurtTime = ( player->animationType == -1 ? pauseAnimationTime - moveAnimationTime : 0 );
         if     ( player->animationDisplayAmt > ( moveAnimationTime * 0.70 + beforeHurtTime ) ) { displace = 1; picIndex = 0; }
         else if( player->animationDisplayAmt > ( moveAnimationTime * 0.60 + beforeHurtTime ) ) { displace = 1; picIndex = 1; }
@@ -1686,25 +2055,26 @@ void App::drawPlayer(Player * const player) {
         else if( player->animationDisplayAmt > ( moveAnimationTime * 0.25 + beforeHurtTime ) ) { displace = 0; picIndex = 1; }
         else if( player->animationDisplayAmt > ( moveAnimationTime * 0.00 + beforeHurtTime ) ) { displace = 0; picIndex = 0; }
 
+        glTranslatef( 0, displaceY, 0 );
         // Up   // Left     // Down     // Right
         if (player->moveDir == 0) {
             player->yDisplay = (float) player->y - displace;
-            glTranslatef( player->facing * displace2, 0, 0 );
+            glTranslatef( player->facing * displaceX, 0, 0 );
             if( player->facing == -1 ) picIndex += textureSheetWidth;
 		}
 		else if (player->moveDir == 1) {
             player->xDisplay = (float) player->x + displace;
-			glTranslatef( -displace2, 0, 0);
+			glTranslatef( -displaceX, 0, 0);
             picIndex += textureSheetWidth;
 		}
 		else if (player->moveDir == 2) {
             player->yDisplay = (float) player->y + displace;
-            glTranslatef( player->facing * displace2, 0, 0 );
+            glTranslatef( player->facing * displaceX, 0, 0 );
             if( player->facing == -1 ) picIndex += textureSheetWidth;
 		}
 		else if (player->moveDir == 3) {
             player->xDisplay = (float) player->x - displace;
-			glTranslatef( displace2, 0, 0);
+			glTranslatef( displaceX, 0, 0);
 		}
 
         GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY + playerSizeY,
@@ -1717,44 +2087,44 @@ void App::drawPlayer(Player * const player) {
     else if( player->animationType == -1 && player->animationDisplayAmt ) {
         int textureSheetWidth = 2;
 
-        if ( player->type == 0 ) {
+        if     ( player->type == MEGAMAN ) {
 		    playerSizeX = 0.40 * playerScale;
 		    playerSizeY = 0.48 * playerScale;
             glTranslatef( 0, -0.06 * playerScale, 0 );
-            displace2 = 0.014;
+            displaceX = 0.014;
             if ( player->npc ) { texture = darkMegamanHurtSheet; }
             else              { texture = megamanHurtSheet; }
         }
-        else if ( player->type == 1 ) {
+        else if( player->type == PROTOMAN ) {
             playerSizeX = 0.70 * playerScale;
 		    playerSizeY = 0.49 * playerScale;
             glTranslatef( 0, -0.05 * playerScale, 0 );
-            displace2 = -0.01 * playerScale;
+            displaceX = -0.01 * playerScale;
             if ( player->npc ) { texture = darkProtoHurtSheet; }
             else              { texture = protoHurtSheet; }
         }
-        else if ( player->type == 2 ) {
+        else if( player->type == TOMAHAWKMAN ) {
             playerSizeX = 0.52 * playerScale;
             playerSizeY = 0.60 * playerScale;
             glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
+            displaceX = 0.2 * playerScale;
             if ( player->npc ) { texture = darkTmanMoveSheet; }
             else              { texture = tmanMoveSheet; }
             textureSheetWidth = 4;
         }
-        else if ( player->type == 3 ) {
+        else if( player->type == COLONEL ) {
             playerSizeX = 0.65 * playerScale;
 		    playerSizeY = 0.67 * playerScale;
             glTranslatef( 0, 0.088 * playerScale, 0 );
-            displace2 = -0.184 * playerScale;
+            displaceX = -0.184 * playerScale;
             if ( player->npc ) { texture = darkColonelHurtSheet; }
             else              { texture = colonelHurtSheet; }
         }
-        else if ( player->type == 4 ) {
+        else if( player->type == SLASHMAN ) {
             playerSizeX = 0.66 * playerScale;
             playerSizeY = 0.56 * playerScale;
             glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
+            displaceX = 0.2 * playerScale;
             if ( player->npc ) { texture = darkSlashmanMoveSheet; }
             else              { texture = slashmanMoveSheet; }
             textureSheetWidth = 4;
@@ -1765,135 +2135,63 @@ void App::drawPlayer(Player * const player) {
                                   player->x  * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
                                   player->x  * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
                                   player->x  * scaleX + playerSizeX, player->y * scaleY + playerSizeY };
-        glTranslatef( player->facing * displace2, 0, 0 );
-        if( player->type != 2 && player->type != 4 && player->animationDisplayAmt <= 0.03 ) picIndex = 1;
+        glTranslatef( player->facing * displaceX, displaceY, 0 );
+        // TomahawkMan and SlashMan do not have special hurt animations
+        if( player->type != TOMAHAWKMAN && player->type != SLASHMAN && player->animationDisplayAmt <= 0.03 ) picIndex = 1;
         if( player->facing == -1 ) picIndex += textureSheetWidth;
         drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
     }
 	// Turning Animation
 	else if( player->animationType == 0 && player->moveType == 1 ) {
         bool reverse = true;
-		if ( player->type == 0 ) {
-		    playerSizeX = 0.35 * playerScale;
-		    playerSizeY = 0.54 * playerScale;
-            displace2 = 0.0 * playerScale;
-            if ( player->npc ) { texture = darkMegamanMoveSheet; }
-            else              { texture = megamanMoveSheet; }
-        }
-        else if ( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-		    playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.08 * playerScale;
-            if ( player->npc ) { texture = darkProtoMoveSheet; }
-            else              { texture = protoMoveSheet; }
-        }
-        else if ( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkTmanMoveSheet; }
-            else              { texture = tmanMoveSheet; }
-        }
-        else if ( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-		    playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace2 = -0.1 * playerScale;
-            if ( player->npc ) { texture = darkColonelMoveSheet; }
-            else              { texture = colonelMoveSheet; }
-        }
-        else if ( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkSlashmanMoveSheet; }
-            else              { texture = slashmanMoveSheet; }
-        }
         
-		if		(player->animationDisplayAmt > moveAnimationTime * 0.70) { picIndex = 0; reverse = true; }
-		else if (player->animationDisplayAmt > moveAnimationTime * 0.60) { picIndex = 1; reverse = true; }
-		else if (player->animationDisplayAmt > moveAnimationTime * 0.50) { picIndex = 2; reverse = true; }
-		else if (player->animationDisplayAmt > moveAnimationTime * 0.45) { picIndex = 3; reverse = false; }
-		else if (player->animationDisplayAmt > moveAnimationTime * 0.35) { picIndex = 2; reverse = false; }
-		else if (player->animationDisplayAmt > moveAnimationTime * 0.25) { picIndex = 1; reverse = false; }
-		else if (player->animationDisplayAmt > moveAnimationTime * 0.00) { picIndex = 0; reverse = false; }
+		if	   (player->animationDisplayAmt > moveAnimationTime * 0.70) { picIndex = 0; reverse = true; }
+		else if(player->animationDisplayAmt > moveAnimationTime * 0.60) { picIndex = 1; reverse = true; }
+		else if(player->animationDisplayAmt > moveAnimationTime * 0.50) { picIndex = 2; reverse = true; }
+		else if(player->animationDisplayAmt > moveAnimationTime * 0.45) { picIndex = 3; reverse = false; }
+		else if(player->animationDisplayAmt > moveAnimationTime * 0.35) { picIndex = 2; reverse = false; }
+		else if(player->animationDisplayAmt > moveAnimationTime * 0.25) { picIndex = 1; reverse = false; }
+		else if(player->animationDisplayAmt > moveAnimationTime * 0.00) { picIndex = 0; reverse = false; }
 
-		if (player->facing == -1) {
-            picIndex += (reverse ? 0 : 4);
-            reverse ? glTranslatef(  displace2, 0, 0 ) : glTranslatef( -displace2, 0, 0 ); }
-		else if (player->facing == 1) {
-            picIndex += (reverse ? 4 : 0);
-            reverse ? glTranslatef( -displace2, 0, 0 ) : glTranslatef(  displace2, 0, 0 ); }
+        glTranslatef( 0, displaceY, 0 );
+        if( player->facing == -1 ) {
+            picIndex += ( reverse ? 0 : textureSheetWidth );
+            reverse ? glTranslatef( displaceX, 0, 0 ) : glTranslatef( -displaceX, 0, 0 ); }
+        else if( player->facing == 1 ) {
+            picIndex += ( reverse ? textureSheetWidth : 0 );
+            reverse ? glTranslatef( -displaceX, 0, 0 ) : glTranslatef( displaceX, 0, 0 ); }
 
         GLfloat playerPlace[] = { player->x * scaleX - playerSizeX, player->y * scaleY + playerSizeY,
 								  player->x * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
 		                          player->x * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
 								  player->x * scaleX + playerSizeX, player->y * scaleY + playerSizeY };
-        if ( draw ) drawSpriteSheetSprite( playerPlace, texture, picIndex, 4, 2 );
+        if ( draw ) drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
 	}
     // Slipping on Ice Movement Animation
     else if( player->animationType == 5 && player->moveType == 2 ) {
         if( !draw ) return;
 
-        int textureSheetWidth = 4;
-        if     ( player->type == 0 ) {
-            playerSizeX = 0.35 * playerScale;
-            playerSizeY = 0.54 * playerScale;
-            displace2 = 0;
-            texture = megamanMoveSheet;
-        }
-        else if( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-            playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.08 * playerScale;
-            texture = protoMoveSheet;
-        }
-        else if( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            texture = tmanMoveSheet;
-        }
-        else if( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-            playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace2 = -0.1 * playerScale;
-            texture = colonelMoveSheet;
-        }
-        else if( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-            playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            texture = slashmanMoveSheet;
-        }
-
         displace = player->animationDisplayAmt / iceSlipAnimationTime;
+        glTranslatef( 0, displaceY, 0 );
         // Up   // Left     // Down     // Right
         if( player->moveDir == 0 ) {
             player->yDisplay = (float) player->y - displace;
-            glTranslatef( player->facing * displace2, 0, 0 );
+            glTranslatef( player->facing * displaceX, 0, 0 );
             if( player->facing == -1 ) picIndex += textureSheetWidth;
         }
         else if( player->moveDir == 1 ) {
             player->xDisplay = (float) player->x + displace;
-            glTranslatef( -displace2, 0, 0 );
+            glTranslatef( -displaceX, 0, 0 );
             picIndex += textureSheetWidth;
         }
         else if( player->moveDir == 2 ) {
             player->yDisplay = (float) player->y + displace;
-            glTranslatef( player->facing * displace2, 0, 0 );
+            glTranslatef( player->facing * displaceX, 0, 0 );
             if( player->facing == -1 ) picIndex += textureSheetWidth;
         }
         else if( player->moveDir == 3 ) {
             player->xDisplay = (float) player->x - displace;
-            glTranslatef( displace2, 0, 0 );
+            glTranslatef( displaceX, 0, 0 );
         }
 
         GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY + playerSizeY,
@@ -1904,196 +2202,50 @@ void App::drawPlayer(Player * const player) {
     }
     // Special Invalid Movement animation for Start Panel
 	else if( player->animationType == 2 && player->animationDisplayAmt > 0) {
-		if ( player->type == 0 ) {
-		    playerSizeX = 0.35 * playerScale;
-		    playerSizeY = 0.54 * playerScale;
-            displace2 = 0;
-            texture = megamanMoveSheet;
-        }
-        else if ( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-		    playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.08 * playerScale;
-            texture = protoMoveSheet;
-        }
-        else if ( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-             texture = tmanMoveSheet;
-        }
-        else if ( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-		    playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace2 = -0.1 * playerScale;
-            texture = colonelMoveSheet;
-        }
-        else if ( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            texture = slashmanMoveSheet;
-        }
-
         displace = player->animationDisplayAmt / moveAnimationTime;
         player->xDisplay = (float) player->x - displace;        
-        glTranslatef( -displace2, 0, 0 );
+        glTranslatef( -displaceX, displaceY, 0 );
 
-        GLfloat playerPlace[] = { player->xDisplay * scaleX + playerSizeX, player->y * scaleY + playerSizeY,
-								  player->xDisplay * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
-		                          player->xDisplay * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
-								  player->xDisplay * scaleX - playerSizeX, player->y * scaleY + playerSizeY };
-        drawSpriteSheetSprite( playerPlace, texture, 0, 4, 2 );
+        GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY + playerSizeY,
+								  player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY - playerSizeY,
+		                          player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY - playerSizeY,
+								  player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY + playerSizeY };
+        drawSpriteSheetSprite( playerPlace, texture, textureSheetWidth, textureSheetWidth, 2 );
 	}
 	// Level Transition pt. 1
 	else if( player->animationType == 3 && player->animationDisplayAmt > moveAnimationTime * 2) {
-		if ( player->type == 0 ) {
-		    playerSizeX = 0.35 * playerScale;
-		    playerSizeY = 0.54 * playerScale;
-            if ( player->npc ) { texture = darkMegamanMoveSheet; }
-            else              { texture = megamanMoveSheet; }
-        }
-        else if ( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-		    playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace = 0.08 * playerScale;
-            if ( player->npc ) { texture = darkProtoMoveSheet; }
-            else              { texture = protoMoveSheet; }
-        }
-        else if ( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkTmanMoveSheet; }
-            else              { texture = tmanMoveSheet; }
-        }
-        else if ( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-		    playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace = -0.1 * playerScale;
-            if ( player->npc ) { texture = darkColonelMoveSheet; }
-            else              { texture = colonelMoveSheet; }
-        }
-        else if ( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkSlashmanMoveSheet; }
-            else              { texture = slashmanMoveSheet; }
-        }
-        
-		displace = 1 - (player->animationDisplayAmt - moveAnimationTime * 2) / moveAnimationTime;
+        displace = 1 - (player->animationDisplayAmt - moveAnimationTime * 2) / moveAnimationTime;
         player->xDisplay = (float) player->x + displace;
-        glTranslatef( displace2, 0, 0 );
-        GLfloat playerPlace[] = { player->xDisplay * scaleX + playerSizeX, player->y * scaleY + playerSizeY,
-								  player->xDisplay * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
-		                          player->xDisplay * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
-								  player->xDisplay * scaleX - playerSizeX, player->y * scaleY + playerSizeY };
-		drawSpriteSheetSprite(playerPlace, texture, 4, 4, 2);
+        glTranslatef( displaceX, displaceY, 0 );
+        GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY + playerSizeY,
+								  player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY - playerSizeY,
+		                          player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY - playerSizeY,
+								  player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY + playerSizeY };
+		drawSpriteSheetSprite(playerPlace, texture, 0, textureSheetWidth, 2);
 	}
 	// Level Transition pt. 2
 	else if( player->animationType == 4 && player->animationDisplayAmt > 0 && player->animationDisplayAmt <= moveAnimationTime * 2) {
-		if ( player->type == 0 ) {
-		    playerSizeX = 0.35 * playerScale;
-		    playerSizeY = 0.54 * playerScale;
-            displace2 = 0;
-            texture = megamanMoveSheet;
-        }
-        else if ( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-		    playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.08 * playerScale;
-            texture = protoMoveSheet;
-        }
-        else if ( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            texture = tmanMoveSheet;
-        }
-        else if ( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-		    playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace2 = -0.1 * playerScale;
-            texture = colonelMoveSheet;
-        }
-        else if ( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace2 = 0.2 * playerScale;
-            texture = slashmanMoveSheet;
-        }
-        
-		displace = player->animationDisplayAmt / moveAnimationTime;
+        displace = player->animationDisplayAmt / moveAnimationTime;
         player->xDisplay = (float) player->x - displace;
-        glTranslatef( displace2, 0, 0 );
-        GLfloat playerPlace[] = { player->xDisplay * scaleX + playerSizeX, player->y * scaleY + playerSizeY,
-								  player->xDisplay * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
-		                          player->xDisplay * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
-								  player->xDisplay * scaleX - playerSizeX, player->y * scaleY + playerSizeY };
-		drawSpriteSheetSprite(playerPlace, texture, 4, 4, 2);
+        glTranslatef( displaceX, displaceY, 0 );
+        GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY + playerSizeY,
+								  player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY - playerSizeY,
+		                          player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY - playerSizeY,
+								  player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY + playerSizeY };
+		drawSpriteSheetSprite(playerPlace, texture, 0, textureSheetWidth, 2);
 	}
     // Player Standing Still
     else if( player->hp > 0 ) {
-		if ( player->type == 0 ) {
-		    playerSizeX = 0.35 * playerScale;
-		    playerSizeY = 0.54 * playerScale;
-            if ( player->npc ) { texture = darkMegamanMoveSheet; }
-            else              { texture = megamanMoveSheet; }
-        }
-        else if ( player->type == 1 ) {
-            playerSizeX = 0.53 * playerScale;
-		    playerSizeY = 0.59 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace = 0.08 * playerScale;
-            if ( player->npc ) { texture = darkProtoMoveSheet; }
-            else              { texture = protoMoveSheet; }
-        }
-        else if ( player->type == 2 ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displace = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkTmanMoveSheet; }
-            else              { texture = tmanMoveSheet; }
-        }
-        else if ( player->type == 3 ) {
-            playerSizeX = 0.61 * playerScale;
-		    playerSizeY = 0.63 * playerScale;
-            glTranslatef( 0, 0.09 * playerScale, 0 );
-            displace = -0.1 * playerScale;
-            if ( player->npc ) { texture = darkColonelMoveSheet; }
-            else              { texture = colonelMoveSheet; }
-        }
-        else if ( player->type == 4 ) {
-            playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displace = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkSlashmanMoveSheet; }
-            else              { texture = slashmanMoveSheet; }
-        }
+        if( !draw ) return;
 
-		if      (player->facing == -1 ) { picIndex = 0; glTranslatef( -displace, 0, 0 ); }
-		else if (player->facing == 1  ) { picIndex = 4; glTranslatef(  displace, 0, 0 ); }
+        if( player->facing == -1 ) picIndex += textureSheetWidth;
+        glTranslatef( player->facing * displaceX, displaceY, 0 );
 
-        GLfloat playerPlace[] = { player->x * scaleX + playerSizeX, player->y * scaleY + playerSizeY,
-                                  player->x * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
-                                  player->x * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
-                                  player->x * scaleX - playerSizeX, player->y * scaleY + playerSizeY };
-        if ( draw ) drawSpriteSheetSprite( playerPlace, texture, picIndex, 4, 2 );
+        GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY + playerSizeY,
+								  player->xDisplay * scaleX - playerSizeX, player->yDisplay * scaleY - playerSizeY,
+		                          player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY - playerSizeY,
+								  player->xDisplay * scaleX + playerSizeX, player->yDisplay * scaleY + playerSizeY };
+        drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
 	}
 }
 void App::drawSwordAtks(Player* const player) {
@@ -2896,6 +3048,7 @@ bool App::attack( Player* const player, int atkNum ) {
     if( player->energy < cost ) return false;
 
     vector< DelayedHpLoss > atkCoords = player->attack( atkNum );
+    if( atkCoords.empty() ) return false;
 
     Mix_Chunk* soundToPlay = nullptr;
 
@@ -2909,7 +3062,7 @@ bool App::attack( Player* const player, int atkNum ) {
             break;
         case 6:
             if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move2( player, player->facing == -1 ? 1 : 3 );
+            move( player, player->facing == -1 ? 1 : 3, 2 );
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime, player->npc ) );
@@ -2929,7 +3082,7 @@ bool App::attack( Player* const player, int atkNum ) {
             break;
         case 4:
             if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move2( player, player->facing == -1 ? 1 : 3 );
+            move( player, player->facing == -1 ? 1 : 3, 2 );
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime, player->npc ) );
@@ -2950,7 +3103,7 @@ bool App::attack( Player* const player, int atkNum ) {
         case 5:
             player->animationDisplayAmt = eTomaAtkTime;
             delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma, player->npc ) );
-            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 2 * player->facing, player->y, preAtkTimeEagleToma - 0.06 ) );
+            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 1 * player->facing, player->y, preAtkTimeEagleToma - 0.06 ) );
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 2 * player->facing, player->y, preAtkTimeEagleToma ) );
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 3 * player->facing, player->y, preAtkTimeEagleToma + 0.04 ) );
             delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 4 * player->facing, player->y, preAtkTimeEagleToma + 0.08 ) );
@@ -2967,7 +3120,7 @@ bool App::attack( Player* const player, int atkNum ) {
             break;
         case 4:
             if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move2( player, player->facing == -1 ? 1 : 3 );
+            move( player, player->facing == -1 ? 1 : 3, 2 );
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "divide", moveAnimationTime, player->npc ) );
@@ -2987,7 +3140,7 @@ bool App::attack( Player* const player, int atkNum ) {
             break;
         case 4:
             if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move2( player, player->facing == -1 ? 1 : 3 );
+            move( player, player->facing == -1 ? 1 : 3, 2 );
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime, player->npc ) );
@@ -3034,7 +3187,7 @@ void App::face( Player* const player, int dir ) {
         if( !player->npc ) npcAbleToAct = true;
     }
 }
-bool App::move(Player* const player, int dir) {       // Move One Panel
+bool App::move(Player* const player, int dir, int dist) {       // Move (dist) panels in a (direction) - Returns true / false for if the player* acted
     bool acted = false;
     bool turned = false;
 
@@ -3042,8 +3195,8 @@ bool App::move(Player* const player, int dir) {       // Move One Panel
     player->y2 = player->y;
 
     // Move Up
-    if( dir == 0 && isPanelValid( player->x, player->y + 1, player->npc ) ) {
-        player->y++;
+    if( dir == 0 && isPanelValid( player->x, player->y + dist, player->npc ) ) {
+        player->y += dist;
         player->moveDir = 0;
         acted = true;
     }
@@ -3054,8 +3207,8 @@ bool App::move(Player* const player, int dir) {       // Move One Panel
             acted = true;
             turned = true;
         }
-        if ( isPanelValid( player->x - 1, player->y, player->npc ) ) {
-            player->x--;
+        if ( isPanelValid( player->x - dist, player->y, player->npc ) ) {
+            player->x -= dist;
             player->moveDir = 1;
             acted = true;
         }
@@ -3063,8 +3216,8 @@ bool App::move(Player* const player, int dir) {       // Move One Panel
         else if( turned ) return true;
     }
     // Move Down
-    else if( dir == 2 && isPanelValid( player->x, player->y - 1, player->npc ) ) {
-        player->y--;
+    else if( dir == 2 && isPanelValid( player->x, player->y - dist, player->npc ) ) {
+        player->y -= dist;
         player->moveDir = 2;
         acted = true;
     }
@@ -3075,8 +3228,8 @@ bool App::move(Player* const player, int dir) {       // Move One Panel
             acted = true;
             turned = true;
         }
-        if ( isPanelValid( player->x + 1, player->y, player->npc ) ) {
-            player->x++;
+        if ( isPanelValid( player->x + dist, player->y, player->npc ) ) {
+            player->x += dist;
             player->moveDir = 3;
             acted = true;
         }
@@ -3085,71 +3238,20 @@ bool App::move(Player* const player, int dir) {       // Move One Panel
     }
 
     if( !acted ) return false;
-
-    // Walk off Cracked Panel -> Cracked panel becomes a Hole
-    if( !player->npc && ( player->x2 != player->x || player->y2 != player->y ) && board.map[player->x2][player->y2].state == -1 ) {
-        board.map[player->x2][player->y2].state = -2;
-        Mix_PlayChannel( 2, panelBreakSound, 0 );
-    }
-
     player->moveType = 2;
     player->animationType = 0;
     player->animationDisplayAmt = moveAnimationTime;
 
-    // Handle Special Panels for the Player, not NPC's
-    if( !player->npc ) {
-        switch( board.map[player->x][player->y].state ) {
-        default:
-            player->onHolyPanel = false;
-            break;
-        case 2:     // Poison Panels damage you when you step on them
-            player->energy -= poisonLossAmt;
-            if( player->energy < 0 ) player->energy = 0;
-            player->totalEnergyChange -= poisonLossAmt;
-            currentEnergyGain -= poisonLossAmt;
-            delayedPrevEnergyList.push_back( DelayedEnergyDisplay( player->x, player->y, -poisonLossAmt, 2, iconDisplayTime ) );
-            chargeDisplayPlusAmt = 0;
-            chargeDisplayMinusAmt = iconDisplayTime;
-            player->hurtDisplayAmt = poisonHurtTime;
-            break;
-        case 3:     // Holy Panels can save you some Energy for Attack Costs
-            player->onHolyPanel = true;
-            break;
-        }
-    }
-    
-    if( !player->npc && ( player->x == -1 || player->x == 6 ) ) npcAbleToAct = false;
-    else if( !player->npc ) npcAbleToAct = true;
-    return acted;
-}
-void App::move2(Player* const player, int dir) {		// Move Two Panels
-    bool acted = false;
+    if( player->npc ) return true;
+    npcAbleToAct = ( player->x != -1 && player->x != 6 );
 
-    player->x2 = player->x;
-    player->y2 = player->y;
-
-    // Move Left
-    if( dir == 1 && isPanelValid( player->x - 2, player->y, player->npc ) ) {
-        player->x -= 2;
-        player->moveDir = 1;
-        acted = true;
-    }
-    // Move Right
-    else if( dir == 3 && isPanelValid( player->x + 2, player->y, player->npc ) ) {
-        player->x += 2;
-        player->moveDir = 3;
-        acted = true;
-    }
-
-    if( !acted ) return;
-
-    // Walk off Cracked panel -> Cracked panel becomes a Hole
-    if( !player->npc && ( player->x2 != player->x || player->y2 != player->y ) && board.map[player->x2][player->y2].state == -1 ) {
+    // Walk off Cracked Panel -> Cracked panel becomes a Hole
+    if( ( player->x2 != player->x || player->y2 != player->y ) && board.map[player->x2][player->y2].state == -1 ) {
         board.map[player->x2][player->y2].state = -2;
         Mix_PlayChannel( 2, panelBreakSound, 0 );
     }
 
-    // Handle Special Panels
+    // Handle other Special Panels for the Player
     switch( board.map[player->x][player->y].state ) {
     default:
         player->onHolyPanel = false;
@@ -3168,11 +3270,8 @@ void App::move2(Player* const player, int dir) {		// Move Two Panels
         player->onHolyPanel = true;
         break;
     }
-
-    player->moveType = 2;
-    player->animationType = 0;
-    player->animationDisplayAmt = moveAnimationTime;
-    if( !player->npc && ( player->x == -1 || player->x == 6 ) ) npcAbleToAct = false;
+    
+    return true;
 }
 
 void App::hitPanel( int xPos, int yPos, int dmg ) {
@@ -3250,11 +3349,14 @@ bool App::isPanelValid(int xPos, int yPos, bool npc) {
 void App::reset() {
     srand( time( 0 ) );
 	board.clear();
-	player1->reset();
+    delete player1;
 	chargeDisplayPlusAmt = 0;
 	chargeDisplayMinusAmt = 0;
 	
 	delayedHpList.clear();
+    delayedSoundList.clear();
+    delayedETomaDisplayList.clear();
+    delayedPrevEnergyList.clear();
     for( int i = 0; i < npcList.size(); i++ ) delete npcList[i];
     npcList.clear();
     for( int i = 0; i < nextNpcList.size(); i++ ) delete nextNpcList[i];
@@ -3262,12 +3364,14 @@ void App::reset() {
     lvlsWithoutBoss = 0;
 	currentEnergyGain = 0;
     
-    quitMenuOn = resetMenuOn = diffSelMenuOn = trainMenuOn = false;
-    menuSel = true;
+    menuNum = -1;
+    menuSel = 0;
     reloadedTutorial = true;
 }
 void App::tutorial( int type ) {
 	reset();
+    player1 = new MegaMan();
+    player1->npc = false;
 	level = -1 * type;
 	
     /*for ( int i = 1; i < 5; i++ ) {
@@ -3308,7 +3412,7 @@ void App::next() {
 	player1->facing = 1;
 	currentEnergyGain = 0;
     player1->actionNumber = -1;
-    quitMenuOn = resetMenuOn = trainMenuOn = false;
+    menuNum = -1;
     menuSel = true;
 }
 
@@ -3321,11 +3425,11 @@ void App::loadBossLevel( int type ) {
     int bossType = rand() % 5;
     switch( bossType ) {
     default:
-    case 0: boss = new MegaMan(); break;
-    case 1: boss = new ProtoMan(); break;
-    case 2: boss = new TomahawkMan(); break;
-    case 3: boss = new Colonel(); break;
-    case 4: boss = new SlashMan(); break;
+    case MEGAMAN:       boss = new MegaMan(); break;
+    case PROTOMAN:      boss = new ProtoMan(); break;
+    case TOMAHAWKMAN:   boss = new TomahawkMan(); break;
+    case COLONEL:       boss = new Colonel(); break;
+    case SLASHMAN:      boss = new SlashMan(); break;
     }
     boss->x = 5;     boss->y = 4;     boss->x2 = 5;    boss->y2 = 4;
     boss->facing = -1;
@@ -3340,22 +3444,30 @@ void App::loadBossLevel( int type ) {
 }
 void App::loadLevel( int num ) {
     if( level == 1 ) player1->energy = player1->energyDisplayed = startingEnergy;
-
-    if ( num <= -1 ) { num = rand() % 100; }			// Random number between 0 and 99, inclusive - used to determine difficulty
     int cappedLvl = level;		if ( cappedLvl > 50 ) { cappedLvl = 50; }
-    int bound2 = 120 - cappedLvl * 3 / 2;				// Bounds used in determining difficulty - based on current level number
-    if ( level >= 75 ) { bound2 = 40; }
-    if ( level >= 100 ) { bound2 = 35; }
-    int bound1 = bound2 - 30;
-    int diff = 0;				// difficulty 0, 1, 2 = easy, medium, hard			// level		easy   medium	hard
-    if ( num > bound1 && num <= bound2 ) { diff = 1; }								//   0			90%		10%		0%
-    else if ( num > bound2 ) { diff = 2; }											//  10			75%		25%		0%
-    lvlDiff = diff;																    //  20			60%		30%		10%
-                                                                                    //  30			45%		30%		25%
-                                                                                    //  40			30%		30%		40%
-                                                                                    //  50			15%		30%		55%
-                                                                                    //  75			10%		30%		60%
-                                                                                    // 100			 5%		30%		65%
+
+    // Bounds used in determining difficulty - which is based on current level number
+    int bound1 = 90 - ( cappedLvl <= 10 ? 0 : cappedLvl * 2 );          // = Percent chance of Easy level
+    int bound2 = 100 - ( cappedLvl > 20 ? ( cappedLvl -20 ) * 2 : 0 );  // = 100% - Percent chance of Hard level
+    // Level		Easy   Medium	Hard
+    //   0          90%     10%      0%
+    //   5          85%     15%      0%
+    //  10          80%     20%      0%
+    //  15          75%     25%      0%
+    //  20          70%     30%      0%
+    //  25          60%     30%     10%
+    //  30          50%     30%     20%
+    //  35          40%     30%     30%
+    //  40          30%     30%     40%
+    //  55          20%     30%     50%
+    //  50+         10%		30%     60%
+
+    if( num <= -1 ) num = rand() % 100;                 // Random number between 0 and 99 - used to determine difficulty
+    int diff = 0;				                        // difficulty 0, 1, 2 = easy, medium, hard
+    if( num >= bound2 ) diff = 2;
+    else if( num >= bound1 ) diff = 1;
+    lvlDiff = diff;
+
     int gain = 0;       // Gain determines avg "profit" per level
     if     ( currentGameDiff == 0 ) { gain =  2 - diff * 9; }
     else if( currentGameDiff == 1 ) { gain =  0 - diff * 9; }
@@ -3363,7 +3475,7 @@ void App::loadLevel( int num ) {
     else if( currentGameDiff == 3 ) { gain = -4 - diff * 9; }
     else if( currentGameDiff == 4 ) { gain = -6 - diff * 9; }
 
-    board.generateLevel( level, diff, gain );
+    board.generateLevel( cappedLvl, diff, gain );
 
     // Previous Bosses that entered the next level
     loadPrevNpc(diff, gain);
@@ -3385,11 +3497,11 @@ void App::loadLevel( int num ) {
                 int type = rand() % 5;
                 switch( type ) {
                 default:
-                case 0: boss = new MegaMan(); break;
-                case 1: boss = new ProtoMan(); break;
-                case 2: boss = new TomahawkMan(); break;
-                case 3: boss = new Colonel(); break;
-                case 4: boss = new SlashMan(); break;
+                case MEGAMAN:       boss = new MegaMan(); break;
+                case PROTOMAN:      boss = new ProtoMan(); break;
+                case TOMAHAWKMAN:   boss = new TomahawkMan(); break;
+                case COLONEL:       boss = new Colonel(); break;
+                case SLASHMAN:      boss = new SlashMan(); break;
                 }
                 boss->x = xPos;     boss->y = yPos;     boss->x2 = xPos;    boss->y2 = yPos;
                 boss->facing = -1;
@@ -3419,17 +3531,15 @@ void App::loadTutorialLevel( bool reload ) {
     if( !reload ) return;
     reloadedTutorial = true;
     board.upgradeAnimationAll();
-    int pX = player1->x, pY = player1->y;
-
-        // Save Player's Panel type
-    int panelType = board.map[pX][pY].state;
-    board.map[pX][pY].reset();
-
+    
     if( level == -7 ) {
-        for( int i = 0; i < 6; i++ ) {
-            board.map[pX][i].reset(); }
+        int pX = player1->x, pY = player1->y;
+        if( pX == -1 || pX == 6 ) return;
+        int panelType = board.map[pX][pY].state;
+        board.map[pX][pY].reset();
+        for( int i = 0; i < 6; i++ ) board.map[pX][i].reset();
+        board.map[pX][pY].state = panelType;
     }
-    board.map[pX][pY].state = panelType;
 }
 void App::loadPrevNpc(int diff, int gain) {
     while( !nextNpcList.empty() ) {
@@ -3548,7 +3658,7 @@ void App::aiAction( Player* const npc ) {
     int minEnergy = 0;
 
     // Megaman NPC
-    if ( npc->type == 0 ) {
+    if ( npc->type == MEGAMAN ) {
         minEnergy = 150;
         if ( rand() % 2 ) {
             if ( npc->facing == -1 ) {
@@ -3617,7 +3727,7 @@ void App::aiAction( Player* const npc ) {
     }
     
     // Protoman NPC
-    else if ( npc->type == 1 ) {
+    else if ( npc->type == PROTOMAN ) {
         minEnergy = 150;
         if ( rand() % 2 ) {
             if ( npc->facing == -1 ) {
@@ -3678,7 +3788,7 @@ void App::aiAction( Player* const npc ) {
     }
     
     // Tomahawkman NPC
-    else if ( npc->type == 2 ) {
+    else if ( npc->type == TOMAHAWKMAN ) {
         minEnergy = 125;
         if ( rand() % 2 ) {
             if ( npc->facing == -1 ) {
@@ -3731,7 +3841,7 @@ void App::aiAction( Player* const npc ) {
     }
     
     // Colonel NPC
-    else if ( npc->type == 3 ) {
+    else if ( npc->type == COLONEL ) {
         minEnergy = 125;
         if ( rand() % 2 ) {
             if ( npc->facing == -1 ) {
@@ -3788,7 +3898,7 @@ void App::aiAction( Player* const npc ) {
     }
     
     // Slashman NPC
-    else if ( npc->type == 4 ) {
+    else if ( npc->type == SLASHMAN ) {
         minEnergy = 100;
         if ( rand() % 2 ) {
             if ( npc->facing == -1 ) {

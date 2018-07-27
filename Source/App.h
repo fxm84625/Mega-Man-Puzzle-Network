@@ -64,33 +64,37 @@ private:
 	void Render();
 	void checkKeys();			// Reads keyboard inputs
 
+    void updateGame( float elapsed );
+    void updatePlayer( float elapsed );
+
     Board board;    			// The current map
 	Player *player1;            // You, the player
     vector<Player*> npcList;        // Potential NPC's
     vector<Player*> nextNpcList;    // NPC's that entered the next level - to be loaded in the next level
-	bool done;					// If the current game is Over or not
-    bool menuDisplay, quitMenuOn, resetMenuOn, diffSelMenuOn, trainMenuOn, menuSel;
-    int charSel;
-	int level, levelType;		// Level Types
-	int lvlDiff, gameDiffSel, currentGameDiff;      // Difficulty settings
+	bool done;					    // If the current game is Over or not
+
+    int level;		                // Level Number
+    int lvlDiff, currentGameDiff;   // Difficulty settings for the current Level, and for the current Run
     int lvlsWithoutBoss;
     bool reloadedTutorial;
 	int currentEnergyGain;		    // Current Player Energy gain for this Level
 	float chargeDisplayPlusAmt;	    // Used for showing that the Player picked up some Energy resource
 	float chargeDisplayMinusAmt;    // Used for showing that the Player spent Energy
 	float itemAnimationAmt, bgAnimationAmt, poisonAnimationAmt, holyAnimationAmt;		// Used for item, panel, and background animations
-    bool npcAbleToAct;              // Whether or not the NPCs can do an Action
+    bool npcAbleToAct;              // Whether or not the NPC's can act
 
-	int musicSel;					// Selects different music tracks
-    bool musicMuted;
+    // Menu
+    int menuNum, menuSel;               // Menu Number      // Menu Selector
+    int charSel, gameDiffSel;           // Game Character and Difficulty Selector
+    int musicSel, gameVol, musicVol;	// Sound Options - Music Track Selector, and Volume Options
+    bool showInfobox;
 	float musicSwitchDisplayAmt;
 
     // Player functions
-    void aiAction( Player* const player );              // Generate a move for the AI
+    void aiAction( Player* const player );                  // Generate a move for the AI
     bool attack( Player* const player, int atkNum );
-	void face( Player* const player, int dir);		// -1 = left	// 1 = right
-    bool move( Player* const player, int dir);		// 0 = up		// 1 = left		// 2 = down		// 3 = right
-	void move2(Player* const player, int dir);		// Move two Squares
+	void face( Player* const player, int dir);		            // -1 = left	// 1 = right
+    bool move( Player* const player, int dir, int dist = 1 );	// DIR: direction   // 0 = up		// 1 = left		// 2 = down		// 3 = right
     
     // Display functions: Animates Sword attack trail Sprites
     void swordDisplay( Player* const player );
@@ -133,24 +137,24 @@ private:
 	void reset();		            // Restarts from level 0
     void tutorial(int type = 1);    // Training Room
 	void next();		            // Goes to next level if completed
-	void updateGame(float elapsed);
-    void updatePlayer(float elapsed);
 
     // Music Functions
-    void changeMusic( int track = -1 );
-    void toggleMusic();
+    void playMusic( int track );
 
 	// Display Functions
 	void drawBg();
     void drawDimScreen();
 
-	void drawMenu();
-    void drawQuitMenu();
-    void drawResetMenu();
-    void drawDiffSelMenu();
-    void drawTrainMenu();
-    void drawTabMenuCtrl();
+    void drawMenu();
+    void drawMainMenu();
+    void drawNewRunMenu();
+    void drawCharMoveset();
+    void drawInfobox();
+    void drawTutorialMenu();
+    void drawControlsMenu();
+    void drawOptionsMenu();
 
+    void drawOverhead();        // Classic Overhead "Chip Select Ready" display
     void drawTextUI();
     void displayMusic();        // Displays music track Number and Name
     void drawPrevEnergy();      // Displays Previous Energy changes at their locations
@@ -175,75 +179,95 @@ private:
 	float fixedElapsed;
 
     // Character Sprite Sheets
-	GLuint megamanMoveSheet,  megamanAtkSheet,                  megamanHurtSheet,   megamanStepSheet,
-           protoMoveSheet,    protoAtkSheet,                    protoHurtSheet,     protoStepSheet,
-           colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,   colonelStepSheet,
-           tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,
-           slashmanMoveSheet, slashmanAtkSheet,                                     slashmanStepSheet,
-           
-           darkMegamanMoveSheet,  darkMegamanAtkSheet,                     darkMegamanHurtSheet,    darkMegamanStepSheet,
-           darkProtoMoveSheet,    darkProtoAtkSheet,                       darkProtoHurtSheet,      darkProtoStepSheet,
-           darkColonelMoveSheet,  darkColonelAtkSheet,                     darkColonelHurtSheet,    darkColonelStepSheet,
-           darkTmanMoveSheet,     darkTmanAtkSheet1,    darkTmanAtkSheet2,
-           darkSlashmanMoveSheet, darkSlashmanAtkSheet,                                             darkSlashmanStepSheet;
+	GLuint
+        megamanMoveSheet,  megamanAtkSheet,                  megamanHurtSheet,   megamanStepSheet,
+        protoMoveSheet,    protoAtkSheet,                    protoHurtSheet,     protoStepSheet,
+        colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,   colonelStepSheet,
+        tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,
+        slashmanMoveSheet, slashmanAtkSheet,                                     slashmanStepSheet,
+        
+        darkMegamanMoveSheet,  darkMegamanAtkSheet,                     darkMegamanHurtSheet,    darkMegamanStepSheet,
+        darkProtoMoveSheet,    darkProtoAtkSheet,                       darkProtoHurtSheet,      darkProtoStepSheet,
+        darkColonelMoveSheet,  darkColonelAtkSheet,                     darkColonelHurtSheet,    darkColonelStepSheet,
+        darkTmanMoveSheet,     darkTmanAtkSheet1,    darkTmanAtkSheet2,
+        darkSlashmanMoveSheet, darkSlashmanAtkSheet,                                             darkSlashmanStepSheet;
     
     // Menu, UI, and Game Elements Sprites
-    GLuint lvBarPic, healthRockPic,
-           rockSheet, rockSheetItem, rockSheetItem2, rockSheetTrappedItem, rockDeathSheet, darkDeathSheet,
-           
-           floorSheet, floorMoveSheet, floorPoisonSheet, floorHolySheet,
-           floorBottomPic1, floorBottomPic2, floorAtkIndPic,
-           
-           energySheet, energySheet2, trappedEnergySheet, recoverSheet, energyGetSheet,
-           
-           textSheetWhite,  textSheetGreen,  textSheetRed,
-           textSheetWhite2, textSheetGreen2, textSheetRed2,
-           textSheetRedTrap, textSheetPoison, textSheetPurpleNPC,
-           
-           bgA, bgB, bgC, bgD,
-           dimScreenPic,
-           menuPic0, menuPic1, menuPic2, menuPic3, menuPic4,
-           musicDisplayPic, tabMenuCtrlSheet,
-           diffPic1, diffPic2, diffPic3, diffPic4, diffPic5,
-           resetPic0, resetPic1, resetPic2, resetPic3, resetPic4,
-           quitPicY, quitPicN,
-           trainPic0, trainPic1, trainPic2, trainPic3, trainPic4;
+    GLuint
+        rockSheet, rockSheetItem, rockSheetItem2, rockSheetTrappedItem, rockDeathSheet, darkDeathSheet,
+        energySheet, energySheet2, trappedEnergySheet, recoverSheet, energyGetSheet,
+        floorSheet, floorMoveSheet, floorPoisonSheet, floorHolySheet,
+        floorBottomPic1, floorBottomPic2, floorAtkIndPic,
+
+        textSheetWhite, textSheetGreen, textSheetRed,
+        textSheetWhite2, textSheetGreen2, textSheetRed2,
+        textSheetRedTrap, textSheetPoison, textSheetPurpleNPC,
+        lvBarPic, healthBoxPic, musicDisplayBox,
+
+        bgA, bgB, bgC, bgD, bgMain,
+
+        dimScreenPic, generalInfoboxPic, overheadSheet,
+        // Main Menu
+        mainMenuPic, mainSelPic0, mainSelPic1, mainSelPic2, mainSelPic3, mainSelPic4,
+        // New Run Menu
+        newRunMenuPic, newRunSelPic0, newRunSelPic1, newRunSelPic2,
+        charSelPic0, charSelPic1, charSelPic2, charSelPic3, charSelPic4,
+        chipPic0, chipPic1, chipPic2, chipPic3, chipPic4,
+        diffSelPic0, diffSelPic1, diffSelPic2, diffSelPic3, diffSelPic4,
+        movesetPic0, movesetPic1, movesetPic2, movesetPic3, movesetPic4,
+        // Tutorial Menu
+        tutorialMenuPic, tSelPic0, tSelPic1, tSelPic2, tSelPic3, tSelPic4, tSelPic5, tSelPic6, tSelPic7,
+        tInfoboxPic, tInfoPic0, tInfoPic1, tInfoPic2, tInfoPic3, tInfoPic4, tInfoPic5, tInfoPic6, tInfoPic7,
+        // Controls Menu
+        controlMenuPic,
+        // Options Menu
+        optionMenuPic, oSelPic0, oSelPic1, oSelPic2, oSelPic3,
+        infoSelPic0, infoSelPic1,
+        gameVolSelPic0, gameVolSelPic1, gameVolSelPic2, gameVolSelPic3, gameVolSelPic4, gameVolSelPic5,
+                        gameVolSelPic6, gameVolSelPic7, gameVolSelPic8, gameVolSelPic9, gameVolSelPic10,
+        musicVolSelPic0, musicVolSelPic1, musicVolSelPic2, musicVolSelPic3, musicVolSelPic4, musicVolSelPic5,
+                         musicVolSelPic6, musicVolSelPic7, musicVolSelPic8, musicVolSelPic9, musicVolSelPic10,
+        musicSelPic1,  musicSelPic2,  musicSelPic3,  musicSelPic4,  musicSelPic5,  musicSelPic6,
+        musicSelPic7,  musicSelPic8,  musicSelPic9,  musicSelPic10, musicSelPic11, musicSelPic12,
+        musicSelPic13, musicSelPic14, musicSelPic15, musicSelPic16, musicSelPic17, musicSelPic18;
 
     // Sword Attack Animation Sprite Sheets
-	GLuint swordAtkSheet1, swordAtkSheet3,
-		   longAtkSheet1,  longAtkSheet3,
-		   wideAtkSheet1,  wideAtkSheet3,
-		   crossAtkSheet1, crossAtkSheet3,
-		   spinAtkSheet1,  spinAtkSheet3,
-		   lifeAtkSheet1,  lifeAtkSheet3,
-           
-           heroAtkSheet1,  heroAtkSheet3,
-           protoAtkSheet1, protoAtkSheet3,
-           
-           screenDivVSheet1,    screenDivVSheet3,
-           screenDivUpSheet1,   screenDivUpSheet3,
-           screenDivDownSheet1, screenDivDownSheet3,
-           screenDivXSheet1,    screenDivXSheet3,
-           screenDivZSheet,
-           
-           tomahawkAtkSheetA1, tomahawkAtkSheetA3,
-           tomahawkAtkSheetB1, tomahawkAtkSheetB3,
-           eagleTomaSheet,
-           
-           longSlashSheet1,    longSlashSheet3,
-           wideSlashSheet1,    wideSlashSheet3;
+	GLuint
+        swordAtkSheet1, swordAtkSheet3,
+		longAtkSheet1,  longAtkSheet3,
+		wideAtkSheet1,  wideAtkSheet3,
+		crossAtkSheet1, crossAtkSheet3,
+		spinAtkSheet1,  spinAtkSheet3,
+		lifeAtkSheet1,  lifeAtkSheet3,
+        
+        heroAtkSheet1,  heroAtkSheet3,
+        protoAtkSheet1, protoAtkSheet3,
+        
+        screenDivVSheet1,    screenDivVSheet3,
+        screenDivUpSheet1,   screenDivUpSheet3,
+        screenDivDownSheet1, screenDivDownSheet3,
+        screenDivXSheet1,    screenDivXSheet3,
+        screenDivZSheet,
+        
+        tomahawkAtkSheetA1, tomahawkAtkSheetA3,
+        tomahawkAtkSheetB1, tomahawkAtkSheetB3,
+        eagleTomaSheet,
+        
+        longSlashSheet1,    longSlashSheet3,
+        wideSlashSheet1,    wideSlashSheet3;
 
-	Mix_Chunk *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *eTomaSound, *spinSlashSound,
-              
-	          *itemSound,       *itemSound2,      *hurtSound,    *deletedSound,     *recoverSound,
-              *bossAppearSound, *bossDeathSound,
-              *rockBreakSound,  *panelBreakSound,
-              
-	          *menuOpenSound,   *menuCloseSound,
-              *quitCancelSound, *quitChooseSound, *quitOpenSound,
-              
-              *track01, *track02, *track03, *track04, *track05, *track06, *track07, *track08, *track09,
-              *track10, *track11, *track12, *track13, *track14, *track15, *track16, *track17, *track18;
+	Mix_Chunk
+        *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *eTomaSound, *spinSlashSound,
+        
+	    *itemSound,       *itemSound2,      *hurtSound,    *deletedSound,     *recoverSound,
+        *bossAppearSound, *bossDeathSound,
+        *rockBreakSound,  *panelBreakSound,
+        
+	    *infoboxOpenSound,   *infoboxCloseSound,
+        *menuCancelSound, *menuChooseSound, *menuOpenSound,
+        
+        *track01, *track02, *track03, *track04, *track05, *track06, *track07, *track08, *track09,
+        *track10, *track11, *track12, *track13, *track14, *track15, *track16, *track17, *track18;
 
 	SDL_Window *displayWindow;
 };
