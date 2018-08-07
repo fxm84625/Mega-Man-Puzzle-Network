@@ -198,11 +198,14 @@ void Board::generateBossLevel( int type ) {
 void Board::generateLevel( int level, int lvlDiff, int gain, int type, int subtype ) {
     clear();
     if( level == 1 ) {
-        type = 0; subtype = 0;
+        type = 0;
+        subtype = 0;
+        lvlDiff = 0;
     }
     else if( type == -1 || subtype == -1 ) {
         type = rand() % 7;
-        subtype = ( type <= 2 ? rand() % 7 : rand() % 8 );
+        if( type <= 2 ) subtype = rand() % 7;
+        else subtype = rand() % 8;
     }
     initLevel( level, lvlDiff, gain, type, subtype );
     generateItems( type, subtype );
@@ -521,18 +524,25 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             numHoly = 1;
             break; }
         case 6: {
-            for( int i = 0; i < 2; i++ ) {                                                      //  ]  =O==[
-                map[i][5].state = -3;    map[4+i][0].state = -3;  map[i+2][3-i].state = -3; }   //  ]=O=O =[
-            for( int i = 0; i < 3; i++ ) {                                                      //  ]=O OO=[
-                map[1][i+2].rockHP = 1;      map[2][i].rockHP = 1;                              //  ]=OO O=[
-                map[3][i+3].rockHP = 1;      map[4][i+1].rockHP = 1; }                          //  ]= O=O=[
-            map[1][1].state = -3;    map[4][4].state = -3;                                      //  ]==O=  [
+            //  ] =O===[
+            //  ]==OO =[
+            //  ]OO==O=[
+            //  ]=O==OO[
+            //  ]= OO==[
+            //  ]===O= [
+            for( int i = 0; i < 2; i++ ) {
+                map[1][i+2].rockHP = 1;   map[3][i].rockHP = 1;
+                map[2][i+4].rockHP = 1;   map[4][i+2].rockHP = 1; }
+            map[0][3].rockHP = 1;   map[3][4].rockHP = 1;
+            map[2][1].rockHP = 1;   map[5][2].rockHP = 1;
+            map[0][5].state = -3;   map[1][1].state = -3;
+            map[5][0].state = -3;   map[4][4].state = -3;
 
-            numRocks = 4 + level / 5 * lvlDiff * 2;
+            numRocks = 4 + level / 5 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
-            numCracked = rand() % 4 + 1 + lvlDiff * 2;      // 1-4	// 3-6	// 5-8
-            numIce = rand() % 2 + lvlDiff;                  // 0-1  // 1-2  // 2-3
-            numPoison = rand() % 2 - 1 + lvlDiff;           // 0-1  // 0-1  // 1-2
+            numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
+            numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
+            numPoison = rand() % 2 -1 + lvlDiff;        // 0    // 0-1  // 1-2
             numHoly = 1;
             break; }
         }
@@ -1006,7 +1016,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i+2][2].rockHP = 1;  map[i+3][1].rockHP = 1; }  // ]=OOO==[
             for( int i = 0; i < 4; i++ ) {                          // ]==OOO=[
                 map[i][5].state = -3;    map[i+2][0].state = -3; }  // ] ==OOO[
-                                                                    // ]==    [
+            map[0][1].state = -3;   map[5][4].state = -3;           // ]==    [
             numRocks = 4 + level / 5 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	        // 0-2	// 1-3	// 2-4
@@ -1209,12 +1219,18 @@ void Board::generateItems( int type, int subtype ) {
                                                             //	]=++= =[
             break; }
         case 6: {
-            for( int i = 0; i < 2; i++ ) {                  //	]  ====[
-                coords.push_back( make_pair( 1, i+2 ) );    //	]===+ =[
-                coords.push_back( make_pair( 2, i+1 ) );    //	]=+ ++=[
-                coords.push_back( make_pair( 3, i+3 ) );    //	]=++ +=[
-                coords.push_back( make_pair( 4, i+2 ) ); }  //	]= +===[
-                                                            //	]====  [
+            //  ] =+===[
+            //  ]===+ =[
+            //  ]++==+=[
+            //  ]=====+[
+            //  ]= =+==[
+            //  ]===+= [
+            for( int i = 0; i < 2; i++ ) {
+                coords.push_back( make_pair( i, 3 ) );
+                coords.push_back( make_pair( 3, i ) );
+                coords.push_back( make_pair( i+2, 5-i ) );
+                coords.push_back( make_pair( i+4, 3-i ) );
+            }
             break; }
         }
         break;
@@ -1734,12 +1750,18 @@ void Board::generateRocks( int type, int subtype ) {
                 coords.push_back( make_pair( 4, i + 2 ) ); }
             break; }
         case 6: {
-            for( int i = 0; i < 3; i++ ) {                  //  ]  =O==[
-                coords.push_back( make_pair( 1, i+2 ) );    //  ]=O=O =[
-                coords.push_back( make_pair( 2, i ) );      //  ]=O OO=[
-                coords.push_back( make_pair( 3, i+3 ) );    //  ]=OO O=[
-                coords.push_back( make_pair( 4, i+1 ) ); }  //  ]= O=O=[
-                                                            //  ]==O=  [
+            //  ] =O===[
+            //  ]==OO =[
+            //  ]OO==O=[
+            //  ]=O==OO[
+            //  ]= OO==[
+            //  ]===O= [
+            for( int i = 0; i < 2; i++ ) {
+                coords.push_back( make_pair( 1, i+2 ) );   coords.push_back( make_pair( 3, i ) );
+                coords.push_back( make_pair( 2, i+4 ) );   coords.push_back( make_pair( 4, i+2 ) );
+            }
+            coords.push_back( make_pair( 0, 3 ) );   coords.push_back( make_pair( 3, 4 ) );
+            coords.push_back( make_pair( 2, 1 ) );   coords.push_back( make_pair( 5, 2 ) );
             break; }
         }
         break;
@@ -2327,14 +2349,15 @@ void Board::generateFloor( int type, int subtype ) {
         case 4: {
             //	]  X===[
             //	]=XX===[
-            //	]===X =[
-            //	]===X =[
+            //	]===X X[
+            //	]===X X[
             //	]= X===[
             //	]= X===[
             for( int i = 0; i < 2; i++ ) {
 			    coords.push_back( make_pair( 2, i ) );
                 coords.push_back( make_pair( 2, i+4 ) );
-                coords.push_back( make_pair( 3, i+2 ) ); }
+                coords.push_back( make_pair( 3, i+2 ) );
+                coords.push_back( make_pair( 5, i+2 ) ); }
 			coords.push_back( make_pair( 1, 4 ) );
             break; }
         case 5: {
@@ -2352,20 +2375,22 @@ void Board::generateFloor( int type, int subtype ) {
                 coords.push_back( make_pair( 3, i+4 ) ); }
             break; }
         case 6: {
-            //  ]  X=X=[
-            //  ]X=X= =[
-            //  ]X= ==X[
-            //  ]X== =X[
-            //  ]= =X=X[
-            //  ]=X=X  [
-            for( int i = 0; i < 3; i++ ) {
-                coords.push_back( make_pair( 0, i+2 ) );
-                coords.push_back( make_pair( 5, i+1 ) ); }
+            //  ] ==X==[
+            //  ]=X== =[
+            //  ]==XX=X[
+            //  ]X=XX==[
+            //  ]= ==X=[
+            //  ]==X== [
             for( int i = 0; i < 2; i++ ) {
-                coords.push_back( make_pair( 2, i+4 ) );
-                coords.push_back( make_pair( 3, i ) ); }
-            coords.push_back( make_pair( 1, 0 ) );
-            coords.push_back( make_pair( 4, 5 ) );
+                coords.push_back( make_pair( 2, i+2 ) );
+                coords.push_back( make_pair( 3, i+2 ) );
+            }
+            coords.push_back( make_pair( 0, 2 ) );
+            coords.push_back( make_pair( 1, 4 ) );
+            coords.push_back( make_pair( 2, 0 ) );
+            coords.push_back( make_pair( 3, 5 ) );
+            coords.push_back( make_pair( 4, 1 ) );
+            coords.push_back( make_pair( 5, 3 ) );
             break; }
         }
         break;
@@ -2797,10 +2822,33 @@ void Board::generateFloor( int type, int subtype ) {
         break;
     }
 
-    generateHolyPanels( coords );
-    generateCrackedPanels( coords );
-    generateIcePanels( coords );
-    generatePoisonPanels( coords );
+    // Generate the types of Panels in a random order
+    switch( rand() % 4 ) {
+    case 0:
+        generateHolyPanels( coords );
+        generateCrackedPanels( coords );
+        generateIcePanels( coords );
+        generatePoisonPanels( coords );
+        break;
+    case 1:
+        generateHolyPanels( coords );
+        generateIcePanels( coords );
+        generatePoisonPanels( coords );
+        generateCrackedPanels( coords );
+        break;
+    case 2:
+        generateCrackedPanels( coords );
+        generateIcePanels( coords );
+        generatePoisonPanels( coords );
+        generateHolyPanels( coords );
+        break;
+    case 3:
+        generateIcePanels( coords );
+        generatePoisonPanels( coords );
+        generateCrackedPanels( coords );
+        generateHolyPanels( coords );
+        break;
+    }
 }
 
 void Board::generateHolyPanels( vector<pair<int, int>>& coords ) {

@@ -32,6 +32,7 @@
 ----------------------------------------------------------------------------------*/
 
 #include "App.h"
+#include <sys/stat.h>
 #pragma comment(linker, "/SUBSYSTEM:WINDOWS")
 using namespace std;
 
@@ -51,7 +52,7 @@ const float iconDisplayTime = 0.45;		// Energy Gain Icon Display time
 const float rockDmgTime = 0.4;			// Rock HP damage indicator time
 const float itemUpgradeTime = 0.32;
 const float charDeathTime = 0.2;
-const float npcWaitTime = 0.125;
+const float npcWaitTime = 0.14;
 
 const float moveAnimationTime = 0.175;	// Player movement time
 const float iceSlipAnimationTime = 0.1; // Time for the Player to slip on one Ice Panel
@@ -64,6 +65,7 @@ const float menuChooseTime = 0.1;       // Slight Delay when navigating the Menu
 const float preAtkTime          = 0.10;
 const float preAtkTimeToma      = 0.20;
 const float preAtkTimeEagleToma = 0.27;
+const float preAtkTimeGutsPunch = 0.12;
 
 const float swordAtkTime = 0.42;
 const float stepAtkTime  = 0.38;
@@ -85,15 +87,20 @@ const float uiScaleY = 1 / 2.7;
 
 const float mainVolScale = 10.0;    // Main sounds Volume Scaling - Attacking, Being Defeated, NPC Appearing
 const float miscVolScale = 6.0;     // Misc. sounds Volume Scaling
-const float musicVolScale = 2.0;    // Music Volume Scaling
+const float musicVolScale = 4.0;    // Music Volume Scaling
 
-enum playerTypes { MEGAMAN, PROTOMAN, TOMAHAWKMAN, COLONEL, SLASHMAN };
+enum playerTypes { MEGAMAN, PROTOMAN, TOMAHAWKMAN, COLONEL, SLASHMAN, GUTSMAN, NUM_CHAR_TYPES };
 enum menuTypes { MAIN_MENU, NEW_RUN_MENU, TUTORIAL_MENU, CONTROLS_MENU, OPTIONS_MENU, EXIT };
 
+bool checkFileExists( const string image_path ) {
+    struct stat buffer;
+    return ( stat( image_path.c_str(), &buffer ) == 0 );
+}
 GLuint loadTexture(const char *image_path) {
+    if( !checkFileExists( image_path ) ) return GLuint();
 	SDL_Surface *surface = IMG_Load(image_path);
-	GLuint textureID;
-	glGenTextures(1, &textureID);
+    GLuint textureID;
+    glGenTextures(1, &textureID);
 	glBindTexture(GL_TEXTURE_2D, textureID);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, surface->w, surface->h, 0, GL_RGBA, GL_UNSIGNED_BYTE, surface->pixels);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -222,9 +229,9 @@ void App::Init() {
 	textSheetWhite2     = loadTexture("Pics\\Texts\\Texts - White 2.png");
 	textSheetGreen2     = loadTexture("Pics\\Texts\\Texts - Green 2.png");
 	textSheetRed2       = loadTexture("Pics\\Texts\\Texts - Red 2.png");
-    textSheetRedTrap    = loadTexture("Pics\\Texts\\Texts - Red Trap.png");
-    textSheetPoison     = loadTexture("Pics\\Texts\\Texts - Purple Poison.png");
-    textSheetPurpleNPC  = loadTexture("Pics\\Texts\\Texts - Purple NPC.png");
+    //textSheetRedTrap    = loadTexture("Pics\\Texts\\Texts - Red Trap.png");
+    //textSheetPoison     = loadTexture("Pics\\Texts\\Texts - Purple Poison.png");
+    //textSheetPurpleNPC  = loadTexture("Pics\\Texts\\Texts - Purple NPC.png");
 
     healthBoxPic        = loadTexture( "Pics\\Texts\\Health Box.png" );
     lvBarPic            = loadTexture( "Pics\\Texts\\Level Bar.png" );
@@ -251,6 +258,11 @@ void App::Init() {
     slashmanMoveSheet   = loadTexture("Pics\\Characters\\4 Slash Move Sheet.png");
     slashmanAtkSheet    = loadTexture("Pics\\Characters\\4 Slash Atk Sheet.png");
     slashmanStepSheet   = loadTexture("Pics\\Characters\\4 Slash Step Sheet.png");
+    gutsMoveSheet       = loadTexture("Pics\\Characters\\5 Guts Move Sheet.png");
+    gutsAtkSheet1       = loadTexture("Pics\\Characters\\5 Guts Atk Sheet 1.png");
+    gutsAtkSheet2       = loadTexture("Pics\\Characters\\5 Guts Atk Sheet 2.png");
+    gutsHurtSheet       = loadTexture("Pics\\Characters\\5 Guts Hurt Sheet.png");
+    gutsStepSheet       = loadTexture("Pics\\Characters\\5 Guts Step Sheet.png");
 
     darkMegamanMoveSheet    = loadTexture("Pics\\NPC\\0 Dark Mega Man Move Sheet.png");
     darkMegamanAtkSheet     = loadTexture("Pics\\NPC\\0 Dark Mega Man Atk Sheet.png");
@@ -270,6 +282,11 @@ void App::Init() {
     darkSlashmanMoveSheet   = loadTexture("Pics\\NPC\\4 Dark Slash Move Sheet.png");
     darkSlashmanAtkSheet    = loadTexture("Pics\\NPC\\4 Dark Slash Atk Sheet.png");
     darkSlashmanStepSheet   = loadTexture("Pics\\NPC\\4 Dark Slash Step Sheet.png");
+    darkGutsMoveSheet       = loadTexture("Pics\\NPC\\5 Dark Guts Move Sheet.png");
+    darkGutsAtkSheet1       = loadTexture("Pics\\NPC\\5 Dark Guts Atk Sheet 1.png");
+    darkGutsAtkSheet2       = loadTexture("Pics\\NPC\\5 Dark Guts Atk Sheet 2.png");
+    darkGutsHurtSheet       = loadTexture("Pics\\NPC\\5 Dark Guts Hurt Sheet.png");
+    darkGutsStepSheet       = loadTexture("Pics\\NPC\\5 Dark Guts Step Sheet.png");
     }
     // Game Textures
     {
@@ -323,11 +340,12 @@ void App::Init() {
     charSelPic2             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 2 - TomahawkMan.png" );
     charSelPic3             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 3 - Colonel.png" );
     charSelPic4             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 4 - SlashMan.png" );
-    chipPic0                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 0 - MegaMan.png" );
-    chipPic1                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 1 - ProtoMan.png" );
-    chipPic2                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 2 - Tomahawk Man.png" );
-    chipPic3                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 3 - Colonel.png" );
-    chipPic4                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 4 - SlashMan.png" );
+    charSelPic5             = loadTexture( "Pics\\Menus\\1 New Run\\Character Select 5 - GutsMan.png" );
+    // chipPic0                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 0 - MegaMan.png" );
+    // chipPic1                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 1 - ProtoMan.png" );
+    // chipPic2                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 2 - Tomahawk Man.png" );
+    // chipPic3                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 3 - Colonel.png" );
+    // chipPic4                = loadTexture( "Pics\\Menus\\1 New Run\\Chips 4 - SlashMan.png" );
     diffSelPic0             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 0.png" );
     diffSelPic1             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 1.png" );
     diffSelPic2             = loadTexture( "Pics\\Menus\\1 New Run\\Difficulty Select 2.png" );
@@ -338,6 +356,7 @@ void App::Init() {
     movesetPic2             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 2 - TomahawkMan.png" );
     movesetPic3             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 3 - Colonel.png" );
     movesetPic4             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 4 - SlashMan.png" );
+    movesetPic5             = loadTexture( "Pics\\Menus\\1 New Run\\Moveset 5 - GutsMan.png" );
     }
     // Tutorial Menu
     {
@@ -458,12 +477,15 @@ void App::Init() {
     longSlashSheet3     = loadTexture("Pics\\Sword Attacks\\Long Slash Sheet 3.png");
     wideSlashSheet1     = loadTexture("Pics\\Sword Attacks\\Wide Slash Sheet 1.png");
     wideSlashSheet3     = loadTexture("Pics\\Sword Attacks\\Wide Slash Sheet 3.png");
+
+    shockwaveSheet1     = loadTexture("Pics\\Sword Attacks\\Shockwave Sheet 1.png");
+    shockwaveSheet3     = loadTexture("Pics\\Sword Attacks\\Shockwave Sheet 3.png");
     }
 
     // Sound Channels and Channel Volumes
     {
     Mix_OpenAudio( 44100, MIX_DEFAULT_FORMAT, 4, 4096 );
-    Mix_AllocateChannels( 8 );
+    Mix_AllocateChannels( 10 );
     Mix_Volume( 0, gameVol * mainVolScale );    // Player Sword Attack Sounds, Player Deleted Sound
     Mix_Volume( 1, gameVol * miscVolScale );    // Item1 Sounds, Trapped Item Sounds, Item Upgrade Sounds
     Mix_Volume( 2, gameVol * miscVolScale );    // Panel Break sounds
@@ -472,6 +494,8 @@ void App::Init() {
     Mix_Volume( 5, gameVol * miscVolScale );    // Item2 Sounds
     Mix_Volume( 6, gameVol * mainVolScale );    // NPC Appearing Sound, NPC Sword Attack Sounds, NPC Deleted Sound
     Mix_Volume( 7, gameVol * miscVolScale );    // Menu Sounds
+    Mix_Volume( 8, gameVol * mainVolScale );    // Player GutsMan Shockwave
+    Mix_Volume( 9, gameVol * mainVolScale );    // NPC GutsMan Shockwave
     }
 
     // Sounds
@@ -482,6 +506,9 @@ void App::Init() {
     tomahawkSound   = Mix_LoadWAV( "Sounds\\Tomahawk.ogg" );
     eTomaSound      = Mix_LoadWAV( "Sounds\\EToma.ogg" );
     spinSlashSound  = Mix_LoadWAV( "Sounds\\SpinSlash.ogg");
+    gutsPunchSound  = Mix_LoadWAV( "Sounds\\Guts Punch.ogg");
+    gutsHammerSound = Mix_LoadWAV( "Sounds\\Guts Hammer.ogg");
+    shockwaveSound  = Mix_LoadWAV( "Sounds\\Shockwave.ogg" );
 
 	itemSound       = Mix_LoadWAV( "Sounds\\GotItem.ogg" );
     itemSound2      = Mix_LoadWAV( "Sounds\\GotItem2.ogg" );
@@ -493,12 +520,12 @@ void App::Init() {
 	rockBreakSound  = Mix_LoadWAV( "Sounds\\AreaGrabHit.ogg" );
 	panelBreakSound = Mix_LoadWAV( "Sounds\\PanelCrack.ogg" );
 
-    infoboxOpenSound  = Mix_LoadWAV( "Sounds\\ChipDesc.ogg" );
-    infoboxCloseSound = Mix_LoadWAV( "Sounds\\ChipDescClose.ogg" );
+    infoboxOpenSound  = Mix_LoadWAV( "Sounds\\infoOpen.ogg" );
+    infoboxCloseSound = Mix_LoadWAV( "Sounds\\infoClose.ogg" );
 
-    menuCancelSound = Mix_LoadWAV( "Sounds\\QuitCancel.ogg" );
-    menuChooseSound = Mix_LoadWAV( "Sounds\\QuitChoose.ogg" );
-    menuOpenSound   = Mix_LoadWAV( "Sounds\\QuitOpen.ogg" );
+    menuCancelSound = Mix_LoadWAV( "Sounds\\MenuCancel.ogg" );
+    menuChooseSound = Mix_LoadWAV( "Sounds\\MenuChoose.ogg" );
+    menuOpenSound   = Mix_LoadWAV( "Sounds\\MenuOpen.ogg" );
     }
     // Music Tracks
     {
@@ -527,12 +554,17 @@ App::~App() {
     for( int i = 0; i < npcList.size(); i++ ) delete npcList[i];
     for( int i = 0; i < nextNpcList.size(); i++ ) delete nextNpcList[i];
 
+    Mix_Pause( -1 );    // Pause all Channels before free-ing up the Sound Chunks
+
 	Mix_FreeChunk( swordSound );
 	Mix_FreeChunk( lifeSwordSound );
     Mix_FreeChunk( screenDivSound );
     Mix_FreeChunk( tomahawkSound );
     Mix_FreeChunk( eTomaSound );
     Mix_FreeChunk( spinSlashSound );
+    Mix_FreeChunk( gutsPunchSound );
+    Mix_FreeChunk( gutsHammerSound );
+    Mix_FreeChunk( shockwaveSound );
 
 	Mix_FreeChunk( itemSound );
     Mix_FreeChunk( itemSound2 );
@@ -656,16 +688,16 @@ void App::updateGame(float elapsed) {
 	} }
 
 	// Handles delayed Damage to Rocks
-    for ( int i = 0; i < delayedHpList.size(); i++ ) {
-        if ( delayedHpList[i].npc && npcList.empty() ) {
-            delayedHpList.erase( delayedHpList.begin() + i );
+    for ( int i = 0; i < delayedDmgList.size(); i++ ) {
+        if ( delayedDmgList[i].npc && npcList.empty() ) {
+            delayedDmgList.erase( delayedDmgList.begin() + i );
             i--;
         }
         else {
-            delayedHpList[i].delay -= elapsed;
-            if ( delayedHpList[i].delay <= 0 ) {
-                hitPanel( delayedHpList[i].xPos, delayedHpList[i].yPos, delayedHpList[i].dmg );
-                delayedHpList.erase( delayedHpList.begin() + i );
+            delayedDmgList[i].delay -= elapsed;
+            if ( delayedDmgList[i].delay <= 0 ) {
+                hitPanel( delayedDmgList[i].xPos, delayedDmgList[i].yPos, delayedDmgList[i].dmg, delayedDmgList[i].npc );
+                delayedDmgList.erase( delayedDmgList.begin() + i );
                 i--;
             }
         }
@@ -695,17 +727,29 @@ void App::updateGame(float elapsed) {
                 if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, eTomaSound, 0 );
                 else if( !npcList.empty() )    Mix_PlayChannel( 6, eTomaSound, 0 );
             }
+            else if( delayedSoundList[i].soundName == "punch" ) {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, gutsPunchSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, gutsPunchSound, 0 );
+            }
+            else if( delayedSoundList[i].soundName == "hammer" ) {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 0, gutsHammerSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 6, gutsHammerSound, 0 );
+            }
+            else if( delayedSoundList[i].soundName == "shockwave" ) {
+                if( !delayedSoundList[i].npc ) Mix_PlayChannel( 8, shockwaveSound, 0 );
+                else if( !npcList.empty() )    Mix_PlayChannel( 9, shockwaveSound, 0 );
+            }
             delayedSoundList.erase( delayedSoundList.begin() + i );
             i--;
 	    }
     }
 
-    // Handles delayed Eagle Tomahawk attack Display
-    for ( int i = 0; i < delayedETomaDisplayList.size(); i++ ) {
-        if( delayedETomaDisplayList[i].delay <= 0 ) { delayedETomaDisplayList[i].animationTimer -= elapsed; }
-        else { delayedETomaDisplayList[i].delay -= elapsed; }
-        if( delayedETomaDisplayList[i].animationTimer <= -0.2 ) {
-            delayedETomaDisplayList.erase( delayedETomaDisplayList.begin() + i );
+    // Handles delayed Attack Displays
+    for ( int i = 0; i < delayedAtkDisplayList.size(); i++ ) {
+        if( delayedAtkDisplayList[i].delay <= 0 ) { delayedAtkDisplayList[i].animationTimer -= elapsed; }
+        else { delayedAtkDisplayList[i].delay -= elapsed; }
+        if( delayedAtkDisplayList[i].animationTimer <= -0.2 ) {
+            delayedAtkDisplayList.erase( delayedAtkDisplayList.begin() + i );
             i--;
         }
     }
@@ -880,7 +924,12 @@ void App::updatePlayer(float elapsed) {
                 board.map[npcList[i]->x][npcList[i]->y].bigRockDeath = true;
                 board.map[npcList[i]->x][npcList[i]->y].isPurple = true;
                 hitPanel( npcList[i]->x, npcList[i]->y );
+                // Reward for Defeating an NPC: Energy drops
                 upgradeItems();
+                while( npcList[i]->timesHit > 0 ) {
+                    spawnRandomItem( npcList[i]->x, npcList[i]->y );
+                    npcList[i]->timesHit--;
+                }
                 Mix_PlayChannel( 6, bossDeathSound, 0 );
                 delete npcList[i];
                 npcList.erase( npcList.begin() + i );
@@ -974,15 +1023,17 @@ void App::checkKeys() {
                 switch( menuNum ) {
                 case -1: break;
                 case TUTORIAL_MENU:
-                    player1->animationDisplayAmt = menuChooseTime;
-                    if( menuSel >= 3 ) menuSel -= 3;
-                    Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    if( menuSel >= 3 ) {
+                        menuSel -= 3;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
                     break;
                 case CONTROLS_MENU: break;
                 default:
-                    player1->animationDisplayAmt = menuChooseTime;
-                    if( menuSel > 0 ) menuSel--;
-                    Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    if( menuSel > 0 ) {
+                        menuSel--;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                    }
                     break;
                 }
                 break;
@@ -993,28 +1044,24 @@ void App::checkKeys() {
                 default: break;
                 case MAIN_MENU:
                     if( menuSel < 4 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         menuSel++;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case NEW_RUN_MENU:
                     if( menuSel < 2 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         menuSel++;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case TUTORIAL_MENU:
                     if( menuSel <= 4 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         menuSel += 3;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case OPTIONS_MENU:
                     if( menuSel < 3 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         menuSel++;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
@@ -1028,31 +1075,26 @@ void App::checkKeys() {
                 default: break;
                 case NEW_RUN_MENU:
                     if( menuSel == 0 && charSel > 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         charSel--;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     else if( menuSel == 1 && gameDiffSel > 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         gameDiffSel--;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case TUTORIAL_MENU:
                     if( menuSel > 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         menuSel--;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case OPTIONS_MENU:
                     if( menuSel == 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         showInfobox = !showInfobox;
                         showInfobox ? Mix_PlayChannel( 7, infoboxOpenSound, 0 ) : Mix_PlayChannel( 7, infoboxCloseSound, 0 );
                     }
                     else if( menuSel == 1 && gameVol > 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         gameVol--;
                         Mix_Volume( 0, gameVol * mainVolScale );
                         Mix_Volume( 1, gameVol * miscVolScale );
@@ -1064,14 +1106,12 @@ void App::checkKeys() {
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     else if( menuSel == 2 && musicVol > 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         musicVol--;
                         Mix_Volume( 3, musicVol * musicVolScale );
                         if( musicVol == 0 ) Mix_Pause(3);
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     else if( menuSel == 3 && musicSel > 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         musicSel--;
                         if( musicVol != 0 ) playMusic( musicSel );
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
@@ -1085,32 +1125,27 @@ void App::checkKeys() {
                 switch( menuNum ) {
                 default: break;
                 case NEW_RUN_MENU:
-                    if( menuSel == 0 && charSel < 4 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
+                    if( menuSel == 0 && charSel < NUM_CHAR_TYPES-1 ) {
                         charSel++;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     else if( menuSel == 1 && gameDiffSel < 4 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         gameDiffSel++;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case TUTORIAL_MENU:
                     if( menuSel < 7 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         menuSel++;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     break;
                 case OPTIONS_MENU:
                     if( menuSel == 0 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         showInfobox = !showInfobox;
                         showInfobox ? Mix_PlayChannel( 7, infoboxOpenSound, 0 ) : Mix_PlayChannel( 7, infoboxCloseSound, 0 );
                     }
                     else if( menuSel == 1 && gameVol < 10 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         gameVol++;
                         Mix_Volume( 0, gameVol * mainVolScale );
                         Mix_Volume( 1, gameVol * miscVolScale );
@@ -1122,14 +1157,12 @@ void App::checkKeys() {
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     else if( menuSel == 2 && musicVol < 10 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         musicVol++;
                         Mix_Volume( 3, musicVol * musicVolScale );
                         if( musicVol == 1 ) playMusic( musicSel );
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                     }
                     else if( menuSel == 3 && musicSel < 17 ) {
-                        player1->animationDisplayAmt = menuChooseTime;
                         musicSel++;
                         if( musicVol != 0 ) playMusic( musicSel );
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
@@ -1138,29 +1171,42 @@ void App::checkKeys() {
                 }
                 break;
             }
+            case SDL_SCANCODE_SPACE: {
+                // If not in a Menu, make the Player turn
+                // If in a Menu, Space is a Menu Confirm
+                if( menuNum == -1 && player1->animationDisplayAmt <= 0 && player1->hp > 0 ) {
+                    face( player1, player1->facing * -1 );
+                    break;
+                }
+            }
             case SDL_SCANCODE_RETURN:
             case SDL_SCANCODE_KP_ENTER: {
+                if( menuNum == -1 ) return;
+                player1->animationDisplayAmt = menuExitTime;
                 switch( menuNum ) {
                 case MAIN_MENU:
                     if( menuSel == EXIT-1 ) {
-                        player1->animationDisplayAmt = menuExitTime;
                         Mix_PlayChannel( 7, menuCancelSound, 0 );
-                        if( level != 0 ) menuNum = -1;
+                        if( level != 0 ) {
+                            level = 0;
+                            menuSel = 0;
+                        }
                         else done = true;
                     }
                     else {
-                        player1->animationDisplayAmt = menuExitTime;
                         Mix_PlayChannel( 7, menuChooseSound, 0 );
                         menuNum = menuSel+1;
                         menuSel = 0;
                         charSel = player1->type;
                         gameDiffSel = currentGameDiff;
-                        menuSel = 0;
                     }
                     break;
                 case NEW_RUN_MENU:
-                    if( menuSel != 2 ) break;
-                    player1->animationDisplayAmt = menuExitTime;
+                    if( menuSel != 2 ) {
+                        menuSel = 2;
+                        Mix_PlayChannel( 7, menuChooseSound, 0 );
+                        break;
+                    }
                     menuNum = -1;
                     reset();
                     switch( charSel ) {
@@ -1170,6 +1216,7 @@ void App::checkKeys() {
                     case TOMAHAWKMAN:   player1 = new TomahawkMan(); break;
                     case COLONEL:       player1 = new Colonel(); break;
                     case SLASHMAN:      player1 = new SlashMan(); break;
+                    case GUTSMAN:       player1 = new GutsMan(); break;
                     }
                     player1->npc = false;
                     currentGameDiff = gameDiffSel;
@@ -1178,13 +1225,11 @@ void App::checkKeys() {
                     Mix_PlayChannel( 7, menuChooseSound, 0 );
                     break;
                 case TUTORIAL_MENU:
-                    player1->animationDisplayAmt = menuExitTime;
                     menuNum = -1;
                     tutorial( menuSel+1 );
                     Mix_PlayChannel( 7, menuChooseSound, 0 );
                     break;
                 default:
-                    player1->animationDisplayAmt = menuExitTime;
                     menuSel = menuNum-1;
                     menuNum = MAIN_MENU;
                     Mix_PlayChannel( 7, menuCancelSound, 0 );
@@ -1192,12 +1237,12 @@ void App::checkKeys() {
                 }
                 break;
             }
-            case SDL_SCANCODE_LSHIFT:
-            case SDL_SCANCODE_SPACE: {
+            case SDL_SCANCODE_LSHIFT: {
                 if( menuNum == -1 && player1->animationDisplayAmt <= 0 && player1->hp > 0 )
                     face( player1, player1->facing * -1 );
                 break;
             }
+            case SDL_SCANCODE_X: debugTest(); break;
             }
         }
     }
@@ -1292,6 +1337,7 @@ void App::Render() {
         drawHp( npcList[i] );
    }
     drawSwordAtks( player1 );
+    drawExtraAtks();
     drawHp( player1 );
     drawPrevEnergy();
     
@@ -1369,33 +1415,37 @@ void App::drawNewRunMenu() {
     switch( charSel ) {
         case MEGAMAN: {
             drawSpriteSheetSprite( place, charSelPic0, 0, 1, 1 );
-            drawSpriteSheetSprite( place, chipPic0, 0, 1, 1 );
+            // drawSpriteSheetSprite( place, chipPic0, 0, 1, 1 );
             drawSpriteSheetSprite( place, movesetPic0, 0, 1, 1 );
             break;
         }
         case PROTOMAN: {
             drawSpriteSheetSprite( place, charSelPic1, 0, 1, 1 );
-            drawSpriteSheetSprite( place, chipPic1, 0, 1, 1 );
+            // drawSpriteSheetSprite( place, chipPic1, 0, 1, 1 );
             drawSpriteSheetSprite( place, movesetPic1, 0, 1, 1 );
             break;
         }
         case TOMAHAWKMAN: {
             drawSpriteSheetSprite( place, charSelPic2, 0, 1, 1 );
-            drawSpriteSheetSprite( place, chipPic2, 0, 1, 1 );
+            // drawSpriteSheetSprite( place, chipPic2, 0, 1, 1 );
             drawSpriteSheetSprite( place, movesetPic2, 0, 1, 1 );
             break;
         }
         case COLONEL: {
             drawSpriteSheetSprite( place, charSelPic3, 0, 1, 1 );
-            drawSpriteSheetSprite( place, chipPic3, 0, 1, 1 );
+            // drawSpriteSheetSprite( place, chipPic3, 0, 1, 1 );
             drawSpriteSheetSprite( place, movesetPic3, 0, 1, 1 );
             break;
         }
         case SLASHMAN: {
             drawSpriteSheetSprite( place, charSelPic4, 0, 1, 1 );
-            drawSpriteSheetSprite( place, chipPic4, 0, 1, 1 );
+            // drawSpriteSheetSprite( place, chipPic4, 0, 1, 1 );
             drawSpriteSheetSprite( place, movesetPic4, 0, 1, 1 );
             break;
+        }
+        case GUTSMAN: {
+            drawSpriteSheetSprite( place, charSelPic5, 0, 1, 1 );
+            drawSpriteSheetSprite( place, movesetPic5, 0, 1, 1 );
         }
     }
     switch( gameDiffSel ) {
@@ -1418,6 +1468,7 @@ void App::drawCharMoveset() {
     case TOMAHAWKMAN:   drawSpriteSheetSprite( place, movesetPic2, 0, 1, 1 ); break;
     case COLONEL:       drawSpriteSheetSprite( place, movesetPic3, 0, 1, 1 ); break;
     case SLASHMAN:      drawSpriteSheetSprite( place, movesetPic4, 0, 1, 1 ); break;
+    case GUTSMAN:       drawSpriteSheetSprite( place, movesetPic5, 0, 1, 1 ); break;
     }
 }
 void App::drawInfobox() {
@@ -1426,19 +1477,23 @@ void App::drawInfobox() {
 	float menuSizeY = 1;
 	GLfloat place[] = { -menuSizeX,  menuSizeY, -menuSizeX, -menuSizeY,
                          menuSizeX, -menuSizeY,  menuSizeX,  menuSizeY };
+    drawSpriteSheetSprite( place, generalInfoboxPic, 0, 1, 1 );
     if( level < 0 ) drawSpriteSheetSprite( place, tInfoboxPic, 0, 1, 1 );
+    else return;
+
+    GLuint texture;
     switch( level ) {
-    case 0: break;
-    case -1: drawSpriteSheetSprite( place, tInfoPic0, 0, 1, 1 ); break;
-    case -2: drawSpriteSheetSprite( place, tInfoPic1, 0, 1, 1 ); break;
-    case -3: drawSpriteSheetSprite( place, tInfoPic2, 0, 1, 1 ); break;
-    case -4: drawSpriteSheetSprite( place, tInfoPic3, 0, 1, 1 ); break;
-    case -5: drawSpriteSheetSprite( place, tInfoPic4, 0, 1, 1 ); break;
-    case -6: drawSpriteSheetSprite( place, tInfoPic5, 0, 1, 1 ); break;
-    case -7: drawSpriteSheetSprite( place, tInfoPic6, 0, 1, 1 ); break;
-    case -8: drawSpriteSheetSprite( place, tInfoPic7, 0, 1, 1 ); break;
-    default: drawSpriteSheetSprite( place, generalInfoboxPic, 0, 1, 1 ); break;
+    case -1: texture = tInfoPic0; break;
+    case -2: texture = tInfoPic1; break;
+    case -3: texture = tInfoPic2; break;
+    case -4: texture = tInfoPic3; break;
+    case -5: texture = tInfoPic4; break;
+    case -6: texture = tInfoPic5; break;
+    case -7: texture = tInfoPic6; break;
+    default:
+    case -8: texture = tInfoPic7; break;
     }
+    drawSpriteSheetSprite( place, texture, 0, 1, 1 );
 }
 void App::drawTutorialMenu() {
     glLoadIdentity();
@@ -1720,9 +1775,8 @@ void App::drawPlayer(Player * const player) {
     player->yDisplay = player->y;
 
     float playerSizeX, playerSizeY;
-	float displace = 0.0;   // Movement Offset - when doing movement actions
-	float displaceX = 0.0;  // Texture Offset  - to make sure the character is correctly positioned in all actions
-    float displaceY = 0.0;
+	float displace = 0.0;                       // Movement Offset - texture displacement when doing movement actions
+	float displaceX = 0.0, displaceY = 0.0;     // Texture Offset  - displacement to make sure the character texture is correctly positioned
 
     GLuint texture;
     int textureSheetWidth = 4;
@@ -1735,8 +1789,7 @@ void App::drawPlayer(Player * const player) {
 		playerSizeY = 0.54 * playerScale;
         displaceX = 0;
         displaceY = 0;
-        if( player->npc ) texture = darkMegamanMoveSheet;
-        else              texture = megamanMoveSheet;
+        texture = ( player->npc ? darkMegamanMoveSheet : megamanMoveSheet );
         break;
     }
     case PROTOMAN: {
@@ -1744,8 +1797,7 @@ void App::drawPlayer(Player * const player) {
         playerSizeY = 0.59 * playerScale;
         displaceX = 0.08 * playerScale;
         displaceY = 0.05 * playerScale;
-        if( player->npc ) texture = darkProtoMoveSheet;
-        else              texture = protoMoveSheet;
+        texture = ( player->npc ? darkProtoMoveSheet : protoMoveSheet );
         break;
     }
     case TOMAHAWKMAN: {
@@ -1753,8 +1805,7 @@ void App::drawPlayer(Player * const player) {
         playerSizeY = 0.60 * playerScale;
         displaceX = 0.2 * playerScale;
         displaceY = 0.05 * playerScale;
-        if( player->npc ) texture = darkTmanMoveSheet;
-        else              texture = tmanMoveSheet;
+        texture = ( player->npc ? darkTmanMoveSheet : tmanMoveSheet );
         break;
     }
     case COLONEL: {
@@ -1762,8 +1813,7 @@ void App::drawPlayer(Player * const player) {
         playerSizeY = 0.63 * playerScale;
         displaceX = -0.1 * playerScale;
         displaceY = 0.04 * playerScale;
-        if( player->npc ) texture = darkColonelMoveSheet;
-        else              texture = colonelMoveSheet;
+        texture = ( player->npc ? darkColonelMoveSheet : colonelMoveSheet );
         break;
     }
     case SLASHMAN: {
@@ -1771,8 +1821,15 @@ void App::drawPlayer(Player * const player) {
         playerSizeY = 0.56 * playerScale;
         displaceX = 0.2 * playerScale;
         displaceY = 0.0 * playerScale;
-        if( player->npc ) texture = darkSlashmanMoveSheet;
-        else              texture = slashmanMoveSheet;
+        texture = ( player->npc ? darkSlashmanMoveSheet : slashmanMoveSheet );
+        break;
+    }
+    case GUTSMAN: {
+        playerSizeX = 0.59 * playerScale;
+        playerSizeY = 0.64 * playerScale;
+        displaceX = 0.15 * playerScale;
+        displaceY = 0.0 * playerScale;
+        texture = ( player->npc ? darkGutsMoveSheet : gutsMoveSheet );
         break;
     }
     }
@@ -1782,49 +1839,42 @@ void App::drawPlayer(Player * const player) {
     if( ( player->hurtDisplayAmt > 0 ) && ( randDraw % 2 ) ) draw = false;
 
     // Death Animation
-    if( player->type != 2 && player->type != 4 && player->hp <= 0 && player->hp > -10 && player->deathDisplayAmt > 0 ) {
+    if( player->type != TOMAHAWKMAN && player->type != SLASHMAN && player->hp <= 0 && player->hp > -10 && player->deathDisplayAmt > 0 ) {
         int textureSheetWidth = 2;
-        if     ( player->type == MEGAMAN ) {
-		    playerSizeX = 0.40 * playerScale;
-		    playerSizeY = 0.48 * playerScale;
+        switch( player->type ) {
+        case MEGAMAN: {
+            playerSizeX = 0.40 * playerScale;
+            playerSizeY = 0.48 * playerScale;
             displaceX = 0.014;
             displaceY = -0.06 * playerScale;
-            if( player->npc ) { texture = darkMegamanHurtSheet; }
-            else              { texture = megamanHurtSheet; }
+            texture = ( player->npc ? darkMegamanHurtSheet : megamanHurtSheet );
+            break;
         }
-        else if( player->type == PROTOMAN ) {
+        case PROTOMAN: {
             playerSizeX = 0.70 * playerScale;
 		    playerSizeY = 0.49 * playerScale;
             displaceX = -0.01 * playerScale;
             displaceY = -0.05 * playerScale;
-            if ( player->npc ) { texture = darkProtoHurtSheet; }
-            else              { texture = protoHurtSheet; }
+            texture = ( player->npc ? darkProtoHurtSheet : protoHurtSheet );
+            break;
         }
-        else if( player->type == TOMAHAWKMAN ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            displaceX = 0.2 * playerScale;
-            displaceY = 0.05 * playerScale;
-            if ( player->npc ) { texture = darkTmanMoveSheet; }
-            else              { texture = tmanMoveSheet; }
-            textureSheetWidth = 4;
-        }
-        else if( player->type == COLONEL ) {
+        case COLONEL: {
             playerSizeX = 0.65 * playerScale;
-		    playerSizeY = 0.67 * playerScale;
+            playerSizeY = 0.67 * playerScale;
             displaceX = -0.184 * playerScale;
             displaceY = 0.038 * playerScale;
-            if( player->npc ) texture = darkColonelHurtSheet;
-            else              texture = colonelHurtSheet;
+            texture = ( player->npc ? darkColonelHurtSheet : colonelHurtSheet );
+            break;
         }
-        else if( player->type == SLASHMAN ) {
-            playerSizeX = 0.66 * playerScale;
-            playerSizeY = 0.56 * playerScale;
-            displaceX = 0.2 * playerScale;
-            displaceY = 0.0 * playerScale;
-            if ( player->npc ) { texture = darkSlashmanMoveSheet; }
-            else              { texture = slashmanMoveSheet; }
-            textureSheetWidth = 4;
+        case GUTSMAN: {
+            playerSizeX = 0.48 * playerScale;
+            playerSizeY = 0.64 * playerScale;
+            displaceX = 0.02 * playerScale;
+            displaceY = 0.0545 * playerScale;
+            textureSheetWidth = 1;
+            texture = ( player->npc ? darkGutsHurtSheet : gutsHurtSheet );
+            break;
+        }
         }
 
         glTranslatef( player->facing * displaceX, displaceY, 0 );
@@ -1841,61 +1891,88 @@ void App::drawPlayer(Player * const player) {
         if( !draw ) return;
 
         int textureSheetWidth = 8;
-        if     ( player->type == MEGAMAN ) {
-		    playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
+        switch( player->type ) {
+        case MEGAMAN: {
+            playerSizeX = 0.66 * playerScale;
+            playerSizeY = 0.56 * playerScale;
             displaceX = 0.3;
             displaceY = 0.02;
-            texture = player->npc ? darkMegamanAtkSheet : megamanAtkSheet;
+            texture = ( player->npc ? darkMegamanAtkSheet : megamanAtkSheet );
+            break;
         }
-        else if( player->type == PROTOMAN ) {
+        case PROTOMAN: {
             playerSizeX = 0.78 * playerScale;
-		    playerSizeY = 0.64 * playerScale; 
+            playerSizeY = 0.64 * playerScale;
             displaceX = 0.22;
             displaceY = 0.08 * playerScale + 0.02;
-            texture = player->npc ? darkProtoAtkSheet : protoAtkSheet;
+            texture = ( player->npc ? darkProtoAtkSheet : protoAtkSheet );
+            break;
         }
-        else if( player->type == COLONEL ) {
+        case COLONEL: {
             playerSizeX = 1.00 * playerScale;
             playerSizeY = 0.76 * playerScale;
             displaceX = 0.3 * playerScale;
             displaceY = 0.15 * playerScale + 0.02;
-            texture = player->npc ? darkColonelAtkSheet : colonelAtkSheet;
+            texture = ( player->npc ? darkColonelAtkSheet : colonelAtkSheet );
+            break;
         }
-        else if( player->type == SLASHMAN ) {
+        case SLASHMAN: {
             playerSizeX = 0.94 * playerScale;
-		    playerSizeY = 0.88 * playerScale; 
+            playerSizeY = 0.88 * playerScale;
             displaceX = 0.20;
             displaceY = 0.065 * playerScale + 0.02;
             textureSheetWidth = 9;
-            texture = player->npc ? darkSlashmanAtkSheet : slashmanAtkSheet;
+            texture = ( player->npc ? darkSlashmanAtkSheet : slashmanAtkSheet );
+            break;
+        }
+        case GUTSMAN: {
+            playerSizeX = 0.97 * playerScale;
+            playerSizeY = 0.53  * playerScale;
+            displaceX = 0.27 * playerScale;
+            displaceY = -0.03 * playerScale;
+            textureSheetWidth = 5;
+            texture = ( player->npc ? darkGutsAtkSheet1 : gutsAtkSheet1 );
+            break;
+        }
         }
         glTranslatef( player->facing * displaceX, displaceY, 0 );
 
         // Displacement of Animation - Slow start, then speed to up to attack when Step-Sword Attacking
+            // displace: 2.0 -> 1.9    40% of total movement time
         if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.60 ) {
             displace = 2.0 - 0.1 * ( stepAtkTime + moveAnimationTime - player->animationDisplayAmt ) / 0.4 / moveAnimationTime; }
+            // displace: 1.9 -> 0.0    50% of total movement time
         else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.10 ) {
             displace = 1.9 - 1.9 * ( stepAtkTime + 0.6 * moveAnimationTime - player->animationDisplayAmt ) / 0.5 / moveAnimationTime; }
 
-        if ( player->type == SLASHMAN ) {
-            if ( ( player->energy / 100 ) % 2 ) {
-                if      ( player->animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 0; }
-		        else if ( player->animationDisplayAmt > stepAtkTime - 0.18) { picIndex = 1; }
-		        else if ( player->animationDisplayAmt > 0)                  { picIndex = 2; } }
+        if( player->type == SLASHMAN ) {
+            if( ( player->energy / 100 ) % 2 ) {
+                if     ( player->animationDisplayAmt > stepAtkTime - 0.06 ) picIndex = 0;
+                else if( player->animationDisplayAmt > stepAtkTime - 0.18 ) picIndex = 1;
+                else                                                        picIndex = 2;
+            }
             else {
-                if      ( player->animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 2; }
-		        else if ( player->animationDisplayAmt > stepAtkTime - 0.18) { picIndex = 3; }
-		        else if ( player->animationDisplayAmt > 0)                  { picIndex = 4; } }
+                if     ( player->animationDisplayAmt > stepAtkTime - 0.06 ) picIndex = 2;
+                else if( player->animationDisplayAmt > stepAtkTime - 0.18 ) picIndex = 3;
+                else                                                        picIndex = 4;
+            }
+        }
+        else if( player->type == GUTSMAN ) {
+            if     ( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.80 )     picIndex = 0;
+            else if( player->animationDisplayAmt > stepAtkTime + moveAnimationTime * 0.60 )     picIndex = 1;
+            else if( player->animationDisplayAmt > stepAtkTime )                                picIndex = 2;
+            else if( player->animationDisplayAmt > stepAtkTime - 0.40 )                         picIndex = 3;
+            else                                                                                picIndex = 4;
         }
         else {
-		    if      ( player->animationDisplayAmt > stepAtkTime - 0.06) { picIndex = 1; }
-		    else if ( player->animationDisplayAmt > stepAtkTime - 0.10) { picIndex = 2; }
-		    else if ( player->animationDisplayAmt > stepAtkTime - 0.14) { picIndex = 3; }
-		    else if ( player->animationDisplayAmt > stepAtkTime - 0.20) { picIndex = 4; }
-		    else if ( player->animationDisplayAmt > stepAtkTime - 0.26) { picIndex = 5; }
-		    else if ( player->animationDisplayAmt > stepAtkTime - 0.32) { picIndex = 6; }
-		    else if ( player->animationDisplayAmt > 0)                  { picIndex = 7; } }
+            if     ( player->animationDisplayAmt > stepAtkTime - 0.06 ) picIndex = 1;
+            else if( player->animationDisplayAmt > stepAtkTime - 0.10 ) picIndex = 2;
+            else if( player->animationDisplayAmt > stepAtkTime - 0.14 ) picIndex = 3;
+            else if( player->animationDisplayAmt > stepAtkTime - 0.20 ) picIndex = 4;
+            else if( player->animationDisplayAmt > stepAtkTime - 0.26 ) picIndex = 5;
+            else if( player->animationDisplayAmt > stepAtkTime - 0.32 ) picIndex = 6;
+            else                                                        picIndex = 7;
+        }
 
         player->xDisplay = (float) player->x + (float) player->facing * -displace;
         player->yDisplay = player->y;
@@ -1928,111 +2005,148 @@ void App::drawPlayer(Player * const player) {
         drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
 	}
 	// Attack Animation
-	else if(player->animationType == 1 ) {
+	else if(player->animationType == 1 && player->animationDisplayAmt > 0 ) {
         if( !draw ) return;
 
         int textureSheetWidth = 8;
-		if     ( player->type == MEGAMAN ) {
-		    playerSizeX = 0.66 * playerScale;
-		    playerSizeY = 0.56 * playerScale;
+        switch( player->type ) {
+        case MEGAMAN: {
+            playerSizeX = 0.66 * playerScale;
+            playerSizeY = 0.56 * playerScale;
             displaceX = 0.3;
             displaceY = 0.02;
-            if( player->npc ) texture = darkMegamanAtkSheet;
-            else              texture = megamanAtkSheet;
+            texture = ( player->npc ? darkMegamanAtkSheet : megamanAtkSheet );
+            break;
         }
-        else if( player->type == PROTOMAN ) {
+        case PROTOMAN: {
             playerSizeX = 0.78 * playerScale;
-		    playerSizeY = 0.64 * playerScale;
+            playerSizeY = 0.64 * playerScale;
             displaceX = 0.22;
             displaceY = 0.08 * playerScale + 0.02;
-            if( player->npc ) texture = darkProtoAtkSheet;
-            else              texture = protoAtkSheet;
+            texture = ( player->npc ? darkProtoAtkSheet : protoAtkSheet );
+            break;
         }
-        else if( player->type == COLONEL ) {
+        case COLONEL: {
             playerSizeX = 1.00 * playerScale;
             playerSizeY = 0.76 * playerScale;
             displaceX = 0.3 * playerScale;
             displaceY = 0.15 * playerScale + 0.02;
-            if( player->npc ) texture = darkColonelAtkSheet;
-            else              texture = colonelAtkSheet;
+            texture = ( player->npc ? darkColonelAtkSheet : colonelAtkSheet );
+            break;
         }
-        else if( player->type == SLASHMAN ) {
+        case SLASHMAN: {
             playerSizeX = 0.94 * playerScale;
-		    playerSizeY = 0.88 * playerScale; 
+            playerSizeY = 0.88 * playerScale;
             displaceX = 0.20;
             displaceY = 0.065 * playerScale + 0.02;
             textureSheetWidth = 9;
-            if( player->npc ) texture = darkSlashmanAtkSheet;
-            else              texture = slashmanAtkSheet;
+            texture = ( player->npc ? darkSlashmanAtkSheet : slashmanAtkSheet );
+            break;
+        }
         }
 
-        // Animation for Tomahawkman's Eagle Tomahawk attack
+        // Animation for TomahawkMan's Eagle Tomahawk attack
         if( player->type == TOMAHAWKMAN && player->actionNumber == 5 ) {
             playerSizeX = 1.10 * playerScale;
             playerSizeY = 0.99  * playerScale;
             displaceX = 0.17;
             displaceY = 0.43 * playerScale + 0.02;
-            if( player->npc ) texture = darkTmanAtkSheet2;
-            else              texture = tmanAtkSheet2;
+            texture = ( player->npc ? darkTmanAtkSheet2 : tmanAtkSheet2 );
             textureSheetWidth = 5;
-            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 0;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18) picIndex = 1;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 2;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24) picIndex = 3;
-            else if( player->animationDisplayAmt > 0)                                  picIndex = 4; }
-        // Tomahawkman's regular attacks
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18 ) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24 ) picIndex = 3;
+            else                                                                        picIndex = 4;
+        }
+        // TomahawkMan's regular attacks
         else if( player->type == TOMAHAWKMAN ) {
             playerSizeX = 0.80 * playerScale;
             playerSizeY = 0.65 * playerScale;
             displaceX = 0.22;
             displaceY = 0.1 * playerScale + 0.02;
-            if ( player->npc ) texture = darkTmanAtkSheet1;
-            else               texture = tmanAtkSheet1;
+            texture = ( player->npc ? darkTmanAtkSheet1 : tmanAtkSheet1 );
             textureSheetWidth = 4;
-            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.20) picIndex = 0;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24) picIndex = 1;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28) picIndex = 2;
-			else if( player->animationDisplayAmt > 0)                                  picIndex = 3; }
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.20 ) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24 ) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28 ) picIndex = 2;
+			else                                                                        picIndex = 3;
+        }
         // Slashman's LongSlash
         else if( player->type == SLASHMAN && player->actionNumber == 1 ) {
-            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 2;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 3;
-			else if( player->animationDisplayAmt >= 0)                                 picIndex = 4; }
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 3;
+			else                                                                        picIndex = 4;
+        }
         // Slashman's WideSlash
         else if( player->type == SLASHMAN && player->actionNumber == 2 ) {
-            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 0;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 1;
-			else if( player->animationDisplayAmt >= 0)                                 picIndex = 2; }
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 1;
+			else                                                                        picIndex = 2;
+        }
         // Slashman's CrossSlash
         else if( player->type == SLASHMAN && player->actionNumber == 3 ) {
             if ( ( player->energy / 100 ) % 2 ) {
-                if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 0;
-			    else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 1;
-			    else if( player->animationDisplayAmt >= 0)                                 picIndex = 2; }
+                if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 0;
+			    else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 1;
+			    else                                                                        picIndex = 2;
+            }
             else {
-                if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 2;
-			    else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 3;
-			    else if( player->animationDisplayAmt >= 0)                                 picIndex = 4; }
+                if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 2;
+			    else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 3;
+			    else                                                                        picIndex = 4;
+            }
         }
         // Slashman's SpinSlash
         else if( player->type == SLASHMAN && player->actionNumber == 5 ) {
-            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 5;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16) picIndex = 6;
-            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 7;
-            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28) picIndex = 6;
-            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.34) picIndex = 8;
-            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.40) picIndex = 6;
-            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.46) picIndex = 7;
-			else if( player->animationDisplayAmt > 0)                                  picIndex = 6; }
-		// Animation for the rest of the Attacks
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 5;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16 ) picIndex = 6;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 7;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28 ) picIndex = 6;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.34 ) picIndex = 8;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.40 ) picIndex = 6;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.46 ) picIndex = 7;
+			else                                                                        picIndex = 6;
+        }
+		// GutsMan's Punches
+        else if( player->type == GUTSMAN && player->actionNumber == 1 ) {
+            playerSizeX = 0.97 * playerScale;
+            playerSizeY = 0.53  * playerScale;
+            displaceX = 0.27 * playerScale;
+            displaceY = -0.03 * playerScale;
+            texture = ( player->npc ? darkGutsAtkSheet1 : gutsAtkSheet1 );
+            textureSheetWidth = 5;
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.03 ) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.06 ) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.12 ) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16 ) picIndex = 3;
+            else                                                                        picIndex = 4;
+        }
+        // GutsMan's Hammer Attacks
+        else if( player->type == GUTSMAN ) {
+            playerSizeX = 0.99 * playerScale;
+            playerSizeY = 0.81 * playerScale;
+            displaceX = 0.11 * playerScale;
+            displaceY = 0.11 * playerScale;
+            texture = ( player->npc ? darkGutsAtkSheet2 : gutsAtkSheet2 );
+            textureSheetWidth = 5;
+            if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.04 ) picIndex = 0;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16 ) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.20 ) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.24 ) picIndex = 3;
+            else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.28 ) picIndex = 4;
+            else                                                                        picIndex = 3;
+        }
+        // Animation for the rest of the Attacks
 		else {
-			if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10) picIndex = 1;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.14) picIndex = 2;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18) picIndex = 3;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22) picIndex = 4;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.26) picIndex = 5;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.30) picIndex = 6;
-			else if( player->animationDisplayAmt > 0)                                  picIndex = 7; }
+			if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.10 ) picIndex = 1;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.14 ) picIndex = 2;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.18 ) picIndex = 3;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.22 ) picIndex = 4;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.26 ) picIndex = 5;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.30 ) picIndex = 6;
+			else                                                                        picIndex = 7;
+        }
         
         glTranslatef( player->facing * displaceX, displaceY, 0 );
         if( player->facing == -1 ) picIndex += textureSheetWidth;
@@ -2084,50 +2198,48 @@ void App::drawPlayer(Player * const player) {
         drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
     }
     // Trapped Energy Hurt Animation
-    else if( player->animationType == -1 && player->animationDisplayAmt ) {
+    else if( player->animationType == -1 && player->animationDisplayAmt > 0 ) {
         int textureSheetWidth = 2;
 
-        if     ( player->type == MEGAMAN ) {
-		    playerSizeX = 0.40 * playerScale;
-		    playerSizeY = 0.48 * playerScale;
-            glTranslatef( 0, -0.06 * playerScale, 0 );
+        switch( player->type ) {
+        case MEGAMAN: {
+            playerSizeX = 0.40 * playerScale;
+            playerSizeY = 0.48 * playerScale;
             displaceX = 0.014;
-            if ( player->npc ) { texture = darkMegamanHurtSheet; }
-            else              { texture = megamanHurtSheet; }
+            displaceY = -0.06 * playerScale;
+            texture = ( player->npc ? darkMegamanHurtSheet : megamanHurtSheet );
+            break;
         }
-        else if( player->type == PROTOMAN ) {
+        case PROTOMAN: {
             playerSizeX = 0.70 * playerScale;
-		    playerSizeY = 0.49 * playerScale;
-            glTranslatef( 0, -0.05 * playerScale, 0 );
+            playerSizeY = 0.49 * playerScale;
             displaceX = -0.01 * playerScale;
-            if ( player->npc ) { texture = darkProtoHurtSheet; }
-            else              { texture = protoHurtSheet; }
+            displaceY = -0.05 * playerScale;
+            texture = ( player->npc ? darkProtoHurtSheet : protoHurtSheet );
+            break;
         }
-        else if( player->type == TOMAHAWKMAN ) {
-            playerSizeX = 0.52 * playerScale;
-            playerSizeY = 0.60 * playerScale;
-            glTranslatef( 0, 0.05 * playerScale, 0 );
-            displaceX = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkTmanMoveSheet; }
-            else              { texture = tmanMoveSheet; }
-            textureSheetWidth = 4;
-        }
-        else if( player->type == COLONEL ) {
+        case COLONEL: {
             playerSizeX = 0.65 * playerScale;
-		    playerSizeY = 0.67 * playerScale;
-            glTranslatef( 0, 0.088 * playerScale, 0 );
+            playerSizeY = 0.67 * playerScale;
             displaceX = -0.184 * playerScale;
-            if ( player->npc ) { texture = darkColonelHurtSheet; }
-            else              { texture = colonelHurtSheet; }
+            displaceY = 0.088 * playerScale;
+            texture = ( player->npc ? darkColonelHurtSheet : colonelHurtSheet );
+            break;
         }
-        else if( player->type == SLASHMAN ) {
-            playerSizeX = 0.66 * playerScale;
-            playerSizeY = 0.56 * playerScale;
-            glTranslatef( 0, 0.00 * playerScale, 0 );
-            displaceX = 0.2 * playerScale;
-            if ( player->npc ) { texture = darkSlashmanMoveSheet; }
-            else              { texture = slashmanMoveSheet; }
+        case GUTSMAN: {
+            playerSizeX = 0.48 * playerScale;
+            playerSizeY = 0.64 * playerScale;
+            displaceX = 0.02 * playerScale;
+            displaceY = 0.0545 * playerScale;
+            textureSheetWidth = 1;
+            texture = ( player->npc ? darkGutsHurtSheet : gutsHurtSheet );
+            break;
+        }
+        case TOMAHAWKMAN:
+        case SLASHMAN: {
             textureSheetWidth = 4;
+            break;
+        }
         }
 
         if( !draw ) return;
@@ -2137,36 +2249,38 @@ void App::drawPlayer(Player * const player) {
                                   player->x  * scaleX + playerSizeX, player->y * scaleY + playerSizeY };
         glTranslatef( player->facing * displaceX, displaceY, 0 );
         // TomahawkMan and SlashMan do not have special hurt animations
-        if( player->type != TOMAHAWKMAN && player->type != SLASHMAN && player->animationDisplayAmt <= 0.03 ) picIndex = 1;
+        if( player->type != TOMAHAWKMAN && player->type != SLASHMAN && player->type != GUTSMAN && player->animationDisplayAmt <= 0.03 ) picIndex = 1;
         if( player->facing == -1 ) picIndex += textureSheetWidth;
         drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
     }
 	// Turning Animation
-	else if( player->animationType == 0 && player->moveType == 1 ) {
+    else if( player->animationType == 0 && player->moveType == 1 ) {
         bool reverse = true;
-        
-		if	   (player->animationDisplayAmt > moveAnimationTime * 0.70) { picIndex = 0; reverse = true; }
-		else if(player->animationDisplayAmt > moveAnimationTime * 0.60) { picIndex = 1; reverse = true; }
-		else if(player->animationDisplayAmt > moveAnimationTime * 0.50) { picIndex = 2; reverse = true; }
-		else if(player->animationDisplayAmt > moveAnimationTime * 0.45) { picIndex = 3; reverse = false; }
-		else if(player->animationDisplayAmt > moveAnimationTime * 0.35) { picIndex = 2; reverse = false; }
-		else if(player->animationDisplayAmt > moveAnimationTime * 0.25) { picIndex = 1; reverse = false; }
-		else if(player->animationDisplayAmt > moveAnimationTime * 0.00) { picIndex = 0; reverse = false; }
+
+        if     ( player->animationDisplayAmt > moveAnimationTime * 0.70 ) { picIndex = 0; reverse = true; }
+        else if( player->animationDisplayAmt > moveAnimationTime * 0.60 ) { picIndex = 1; reverse = true; }
+        else if( player->animationDisplayAmt > moveAnimationTime * 0.50 ) { picIndex = 2; reverse = true; }
+        else if( player->animationDisplayAmt > moveAnimationTime * 0.45 ) { picIndex = 3; reverse = false; }
+        else if( player->animationDisplayAmt > moveAnimationTime * 0.35 ) { picIndex = 2; reverse = false; }
+        else if( player->animationDisplayAmt > moveAnimationTime * 0.25 ) { picIndex = 1; reverse = false; }
+        else                                                              { picIndex = 0; reverse = false; }
 
         glTranslatef( 0, displaceY, 0 );
         if( player->facing == -1 ) {
             picIndex += ( reverse ? 0 : textureSheetWidth );
-            reverse ? glTranslatef( displaceX, 0, 0 ) : glTranslatef( -displaceX, 0, 0 ); }
+            reverse ? glTranslatef( displaceX, 0, 0 ) : glTranslatef( -displaceX, 0, 0 );
+        }
         else if( player->facing == 1 ) {
             picIndex += ( reverse ? textureSheetWidth : 0 );
-            reverse ? glTranslatef( -displaceX, 0, 0 ) : glTranslatef( displaceX, 0, 0 ); }
+            reverse ? glTranslatef( -displaceX, 0, 0 ) : glTranslatef( displaceX, 0, 0 );
+        }
 
         GLfloat playerPlace[] = { player->x * scaleX - playerSizeX, player->y * scaleY + playerSizeY,
-								  player->x * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
-		                          player->x * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
-								  player->x * scaleX + playerSizeX, player->y * scaleY + playerSizeY };
-        if ( draw ) drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
-	}
+                                  player->x * scaleX - playerSizeX, player->y * scaleY - playerSizeY,
+                                  player->x * scaleX + playerSizeX, player->y * scaleY - playerSizeY,
+                                  player->x * scaleX + playerSizeX, player->y * scaleY + playerSizeY };
+        if( draw ) drawSpriteSheetSprite( playerPlace, texture, picIndex, textureSheetWidth, 2 );
+    }
     // Slipping on Ice Movement Animation
     else if( player->animationType == 5 && player->moveType == 2 ) {
         if( !draw ) return;
@@ -2285,13 +2399,7 @@ void App::drawSwordAtks(Player* const player) {
         case 2: tomaDisplayB1( player ); return;
         case 3: tomaDisplayA2( player ); return;
         case 4: tomaDisplayB2( player ); return;
-        case 5:
-            for( int i = 0; i < delayedETomaDisplayList.size(); i++ ) {
-                if( delayedETomaDisplayList[i].delay <= 0 ) {
-                    eTomaDisplay( delayedETomaDisplayList[i].xPos, delayedETomaDisplayList[i].yPos, delayedETomaDisplayList[i].animationTimer );
-                }
-            }
-            return;
+        // case 5: Eagle Tomahawk is displayed in drawExtraAtks()
         }
     case COLONEL:
         switch( player->actionNumber ) {
@@ -2310,6 +2418,20 @@ void App::drawSwordAtks(Player* const player) {
         case 3: crossDisplay( player ); return;
         case 4: stepCrossDisplay( player ); return;
         case 5: return;
+        }
+    case GUTSMAN: return;
+        // GutsMan's Shockwave attacks are displayed in drawExtraAtks()
+    }
+}
+void App::drawExtraAtks() {
+    for( int i = 0; i < delayedAtkDisplayList.size(); i++ ) {
+        if( delayedAtkDisplayList[i].type == "eToma" && delayedAtkDisplayList[i].delay <= 0 ) {
+            eTomaDisplay( delayedAtkDisplayList[i].xPos, delayedAtkDisplayList[i].yPos, delayedAtkDisplayList[i].animationTimer );
+        }
+    }
+    for( int i = 0; i < delayedAtkDisplayList.size(); i++ ) {
+        if( delayedAtkDisplayList[i].type == "shockwave" && delayedAtkDisplayList[i].delay <= 0 ) {
+            shockwaveDisplay( delayedAtkDisplayList[i].xPos, delayedAtkDisplayList[i].yPos, delayedAtkDisplayList[i].dir, delayedAtkDisplayList[i].animationTimer );
         }
     }
 }
@@ -2343,12 +2465,16 @@ void App::drawStepShadow( Player* const player, int amt ) {
         texture = player->npc ? darkSlashmanStepSheet : slashmanStepSheet;
         if( ( player->energy / 100 ) % 2 == 0 ) picIndex = 1;
         break;
+    case GUTSMAN:
+        playerSizeX = 0.97 * playerScale;
+        playerSizeY = 0.53 * playerScale;
+        texture = player->npc ? darkGutsStepSheet : gutsStepSheet;
     }
 
     if( player->facing == -1 ) picIndex += textureSheetWidth;
     float displace = 0.0;
     while( amt > 0 ) {
-        displace += 0.2;
+        displace += 0.25;
         amt--;
         GLfloat playerPlace[] = { player->xDisplay * scaleX - playerSizeX - displace * player->facing, player->y * scaleY + playerSizeY,
                                   player->xDisplay * scaleX - playerSizeX - displace * player->facing, player->y * scaleY - playerSizeY,
@@ -2381,21 +2507,21 @@ void App::drawHp(Player* const player) {
 }
 
 void App::drawFloor() {
-	// Draw Panels
-	glLoadIdentity();
-	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
-	glTranslatef(0.5, 0.7, 0.0);
+    // Draw Panels
+    glLoadIdentity();
+    glOrtho( orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0 );
+    glTranslatef( 0.5, 0.7, 0.0 );
 
-	int index = 0;
-	float width  = 0.40 * overallScale;
-	float height = 0.24 * overallScale;
-	float height2 = 0.06 * overallScale;
+    int index = 0;
+    float width = 0.40 * overallScale;
+    float height = 0.24 * overallScale;
+    float height2 = 0.06 * overallScale;
 
     // Draw the Board - 6x6 Panels
-	for (int i = 0; i < 6; i++) {
-		for (int j = 5; j >= 0; j--) {
-			GLfloat place[] = { i * scaleX + width, j * scaleY + height, i * scaleX + width, j * scaleY - height,
-								i * scaleX - width, j * scaleY - height, i * scaleX - width, j * scaleY + height };
+    for( int i = 0; i < 6; i++ ) {
+        for( int j = 5; j >= 0; j-- ) {
+            GLfloat place[] = { i * scaleX + width, j * scaleY + height, i * scaleX + width, j * scaleY - height,
+                                i * scaleX - width, j * scaleY - height, i * scaleX - width, j * scaleY + height };
             // If the panel is being attacked, display the attack indicator
             if( board.map[i][j].rockAtkInd > rockDmgTime * 0.6 ) drawSpriteSheetSprite( place, floorAtkIndPic, 0, 1, 1 );
             // Else, draw normally
@@ -2434,98 +2560,103 @@ void App::drawFloor() {
                     index = holyAnimationAmt;
                     break;
                 }
-                if     ( j == 0 || j == 1 ) index += textureSheetWidth * 2;
+                if( j == 0 || j == 1 ) index += textureSheetWidth * 2;
                 else if( j == 2 || j == 3 ) index += textureSheetWidth;
                 drawSpriteSheetSprite( place, texture, index, textureSheetWidth, 3 );
             }
-	}	}
+        }
+    }
 
-	// Draw Start Panel
-	float startX = -1;
-	float startY = 0;
-	GLfloat startPlace[] = { startX * scaleX + width, startY * scaleY + height, startX * scaleX + width, startY * scaleY - height,
-							 startX * scaleX - width, startY * scaleY - height, startX * scaleX - width, startY * scaleY + height };
-	if      (itemAnimationAmt >= 0 && itemAnimationAmt <= 1) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 8, 4, 3); }
-	else if (itemAnimationAmt >= 1 && itemAnimationAmt <= 2) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 9, 4, 3); }
-	else if (itemAnimationAmt >= 2 && itemAnimationAmt <= 3) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 10, 4, 3); }
-	else if (itemAnimationAmt >= 3 && itemAnimationAmt <= 4) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 11, 4, 3); }
-	else if (itemAnimationAmt >= 4 && itemAnimationAmt <= 5) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 8, 4, 3); }
-	else if (itemAnimationAmt >= 5 && itemAnimationAmt <= 6) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 9, 4, 3); }
-	else if (itemAnimationAmt >= 6 && itemAnimationAmt <= 7) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 10, 4, 3); }
-	else if (itemAnimationAmt >= 7 && itemAnimationAmt <= 8) { drawSpriteSheetSprite(startPlace, floorMoveSheet, 11, 4, 3); }
+    // Draw Start Panel
+    float startX = -1;
+    float startY = 0;
+    GLfloat startPlace[] = { startX * scaleX + width, startY * scaleY + height, startX * scaleX + width, startY * scaleY - height,
+                             startX * scaleX - width, startY * scaleY - height, startX * scaleX - width, startY * scaleY + height };
+    if( itemAnimationAmt >= 0 && itemAnimationAmt <= 1 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 8, 4, 3 ); }
+    else if( itemAnimationAmt >= 1 && itemAnimationAmt <= 2 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 9, 4, 3 ); }
+    else if( itemAnimationAmt >= 2 && itemAnimationAmt <= 3 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 10, 4, 3 ); }
+    else if( itemAnimationAmt >= 3 && itemAnimationAmt <= 4 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 11, 4, 3 ); }
+    else if( itemAnimationAmt >= 4 && itemAnimationAmt <= 5 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 8, 4, 3 ); }
+    else if( itemAnimationAmt >= 5 && itemAnimationAmt <= 6 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 9, 4, 3 ); }
+    else if( itemAnimationAmt >= 6 && itemAnimationAmt <= 7 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 10, 4, 3 ); }
+    else if( itemAnimationAmt >= 7 && itemAnimationAmt <= 8 ) { drawSpriteSheetSprite( startPlace, floorMoveSheet, 11, 4, 3 ); }
 
-	// Draw Goal Panel
-	float goalX = 6;
-	float goalY = 5;
-	GLfloat goalPlace[] = { goalX * scaleX + width, goalY * scaleY + height, goalX * scaleX + width, goalY * scaleY - height,
-							goalX * scaleX - width, goalY * scaleY - height, goalX * scaleX - width, goalY * scaleY + height };
-	if      (itemAnimationAmt >= 0 && itemAnimationAmt <= 1) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 0, 4, 3); }
-	else if (itemAnimationAmt >= 1 && itemAnimationAmt <= 2) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 1, 4, 3); }
-	else if (itemAnimationAmt >= 2 && itemAnimationAmt <= 3) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 2, 4, 3); }
-	else if (itemAnimationAmt >= 3 && itemAnimationAmt <= 4) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 3, 4, 3); }
-	else if (itemAnimationAmt >= 4 && itemAnimationAmt <= 5) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 0, 4, 3); }
-	else if (itemAnimationAmt >= 5 && itemAnimationAmt <= 6) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 1, 4, 3); }
-	else if (itemAnimationAmt >= 6 && itemAnimationAmt <= 7) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 2, 4, 3); }
-	else if (itemAnimationAmt >= 7 && itemAnimationAmt <= 8) { drawSpriteSheetSprite(goalPlace, floorMoveSheet, 3, 4, 3); }
+    // Draw Goal Panel
+    float goalX = 6;
+    float goalY = 5;
+    GLfloat goalPlace[] = { goalX * scaleX + width, goalY * scaleY + height, goalX * scaleX + width, goalY * scaleY - height,
+                            goalX * scaleX - width, goalY * scaleY - height, goalX * scaleX - width, goalY * scaleY + height };
+    if     ( itemAnimationAmt >= 0 && itemAnimationAmt <= 1 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 0, 4, 3 );
+    else if( itemAnimationAmt >= 1 && itemAnimationAmt <= 2 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 1, 4, 3 );
+    else if( itemAnimationAmt >= 2 && itemAnimationAmt <= 3 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 2, 4, 3 );
+    else if( itemAnimationAmt >= 3 && itemAnimationAmt <= 4 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 3, 4, 3 );
+    else if( itemAnimationAmt >= 4 && itemAnimationAmt <= 5 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 0, 4, 3 );
+    else if( itemAnimationAmt >= 5 && itemAnimationAmt <= 6 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 1, 4, 3 );
+    else if( itemAnimationAmt >= 6 && itemAnimationAmt <= 7 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 2, 4, 3 );
+    else if( itemAnimationAmt >= 7 && itemAnimationAmt <= 8 ) drawSpriteSheetSprite( goalPlace, floorMoveSheet, 3, 4, 3 );
 
-	// Draw Panel Bottom pieces
-	for (int x = -1; x <= 6; x++) {
-		float y = -0.63;
-		if (x == 6) { y += 5; }
-		GLfloat bottomPlace[] = { x * scaleX + width, y * scaleY + height2, x * scaleX + width, y * scaleY - height2,
-								  x * scaleX - width, y * scaleY - height2, x * scaleX - width, y * scaleY + height2 };
-		if (x == 6) { drawSpriteSheetSprite(bottomPlace, floorBottomPic2, 0, 1, 1); }
-		else        { drawSpriteSheetSprite(bottomPlace, floorBottomPic1, 0, 1, 1); }
-	}
+    // Draw Panel Bottom pieces
+    for( int x = -1; x <= 6; x++ ) {
+        float y = -0.63;
+        if( x == 6 ) { y += 5; }
+        GLfloat bottomPlace[] = { x * scaleX + width, y * scaleY + height2, x * scaleX + width, y * scaleY - height2,
+                                  x * scaleX - width, y * scaleY - height2, x * scaleX - width, y * scaleY + height2 };
+        drawSpriteSheetSprite( bottomPlace, x == 6 ? floorBottomPic2 : floorBottomPic1, 0, 1, 1 );
+    }
 }
-void App::drawRocks(int row) {			// Draw the Rock Obstacles on the Floor
-	glLoadIdentity();
-	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
-	glTranslatef(0.5, 1.01, 0.0);
+void App::drawRocks( int row ) {			// Draw the Rock Obstacles on the Floor
+    glLoadIdentity();
+    glOrtho( orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0 );
+    glTranslatef( 0.5, 1.01, 0.0 );
 
-	float sizeX  = 0.32 * itemScale;
-	float sizeY  = 0.40 * itemScale;
-	float sizeX2 = 0.55 * itemScale;
-	float sizeY2 = 0.55 * itemScale;
-    
-	GLuint textureSheet;
-	int sheetHeight = 3;
-	int index = 0;
+    float sizeX = 0.32 * itemScale;
+    float sizeY = 0.40 * itemScale;
+    float sizeX2 = 0.55 * itemScale;
+    float sizeY2 = 0.55 * itemScale;
 
-	for (int i = 0; i < 6; i++) {
-		if ( board.map[i][row].rockHP > 0 ) {
-			GLfloat place[] = { i * scaleX + sizeX, row * scaleY + sizeY, i * scaleX + sizeX, row * scaleY - sizeY,
-								i * scaleX - sizeX, row * scaleY - sizeY, i * scaleX - sizeX, row * scaleY + sizeY };
+    GLuint textureSheet;
+    int sheetHeight = 3;
+    int index = 0;
 
-			if      (board.map[i][row].rockType == 0) { sheetHeight = 5; textureSheet = rockSheet; }
-            else if (board.map[i][row].rockType == 1) {
+    for( int i = 0; i < 6; i++ ) {
+        if( board.map[i][row].rockHP > 0 ) {
+            GLfloat place[] = { i * scaleX + sizeX, row * scaleY + sizeY, i * scaleX + sizeX, row * scaleY - sizeY,
+                                i * scaleX - sizeX, row * scaleY - sizeY, i * scaleX - sizeX, row * scaleY + sizeY };
+
+            if( board.map[i][row].rockType == 0 ) {
+                sheetHeight = 5;
+                textureSheet = rockSheet;
+            }
+            else if( board.map[i][row].rockType == 1 ) {
                 sheetHeight = 3;
-                if      ( board.map[i][row].item == 2 )  { textureSheet = rockSheetItem2; }
-                else if ( board.map[i][row].item == -1 ) { textureSheet = rockSheetTrappedItem; }
-                else                               { textureSheet = rockSheetItem; }
+                if( board.map[i][row].item == 2 )       textureSheet = rockSheetItem2;
+                else if( board.map[i][row].item == -1 ) textureSheet = rockSheetTrappedItem;
+                else                                    textureSheet = rockSheetItem;
             }
 
-			index = (board.map[i][row].rockHP - 1) * 3;
-			if      (board.map[i][row].prevDmg == 1 && board.map[i][row].rockAtkInd > 0) { index += 4; }
-			else if (board.map[i][row].prevDmg == 2 && board.map[i][row].rockAtkInd > 0) { index += 8; }
+            index = ( board.map[i][row].rockHP - 1 ) * 3;
+            if     ( board.map[i][row].prevDmg == 1 && board.map[i][row].rockAtkInd > 0 ) index += 4; 
+            else if( board.map[i][row].prevDmg == 2 && board.map[i][row].rockAtkInd > 0 ) index += 8;
 
-            drawSpriteSheetSprite(place, textureSheet, index, 3, sheetHeight);
+            drawSpriteSheetSprite( place, textureSheet, index, 3, sheetHeight );
         }
-		else if( board.map[i][row].rockAtkInd > 0 && board.map[i][row].prevDmg > 0 ) {
-            textureSheet = rockDeathSheet;
-            if ( board.map[i][row].bigRockDeath ) {
+        else if( board.map[i][row].rockAtkInd > 0 && board.map[i][row].prevDmg > 0 ) {
+            textureSheet = ( board.map[i][row].isPurple ? darkDeathSheet : rockDeathSheet );
+            if( board.map[i][row].bigRockDeath ) {
                 sizeX2 = 0.75 * itemScale;
-                sizeY2 = 0.75 * itemScale; }
-            if ( board.map[i][row].isPurple ) {
-                textureSheet = darkDeathSheet; }
+                sizeY2 = 0.75 * itemScale;
+            }
 
-			GLfloat place[] = { i * scaleX + sizeX2, row * scaleY + sizeY2, i * scaleX + sizeX2, row * scaleY - sizeY2,
-								i * scaleX - sizeX2, row * scaleY - sizeY2, i * scaleX - sizeX2, row * scaleY + sizeY2 };
-			if      (board.map[i][row].rockAtkInd > rockDmgTime * 0.60) { drawSpriteSheetSprite(place, textureSheet, 0, 4, 1); }
-			else if (board.map[i][row].rockAtkInd > rockDmgTime * 0.40) { drawSpriteSheetSprite(place, textureSheet, 1, 4, 1); }
-			else if (board.map[i][row].rockAtkInd > rockDmgTime * 0.20) { drawSpriteSheetSprite(place, textureSheet, 2, 4, 1); }
-			else if (board.map[i][row].rockAtkInd > rockDmgTime * 0.00) { drawSpriteSheetSprite(place, textureSheet, 3, 4, 1); }
-}	}	}
+            GLfloat place[] = { i * scaleX + sizeX2, row * scaleY + sizeY2, i * scaleX + sizeX2, row * scaleY - sizeY2,
+                                i * scaleX - sizeX2, row * scaleY - sizeY2, i * scaleX - sizeX2, row * scaleY + sizeY2 };
+            if     ( board.map[i][row].rockAtkInd > rockDmgTime * 0.60 ) index = 0;
+            else if( board.map[i][row].rockAtkInd > rockDmgTime * 0.40 ) index = 1;
+            else if( board.map[i][row].rockAtkInd > rockDmgTime * 0.20 ) index = 2;
+            else                                                         index = 3;
+            drawSpriteSheetSprite( place, textureSheet, index, 4, 1 );
+        }
+    }
+}
 void App::drawItems(int row) {		// Draw the Collectable Resources on the Map
 	glLoadIdentity();
 	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
@@ -2537,41 +2668,46 @@ void App::drawItems(int row) {		// Draw the Collectable Resources on the Map
 	for (int i = 0; i < 6; i++) {
 		GLfloat place[] = { i + itemSizeX * scaleX, row * scaleY + itemSizeY, i + itemSizeX * scaleX, row * scaleY - itemSizeY,
 							i - itemSizeX * scaleX, row * scaleY - itemSizeY, i - itemSizeX * scaleX, row * scaleY + itemSizeY };
-		if (board.map[i][row].item != 0 && board.map[i][row].rockHP <= 0) {
+        if( board.map[i][row].item != 0 && board.map[i][row].rockHP <= 0 ) {
             GLuint texture = energySheet;
-            if      ( board.map[i][row].item == 2 )  { texture = energySheet2; }
-            else if ( board.map[i][row].item == -1 ) { texture = trappedEnergySheet; }
+            int picIndex = 0;
+            if     ( board.map[i][row].item ==  2 ) texture = energySheet2;
+            else if( board.map[i][row].item == -1 ) texture = trappedEnergySheet;
 
-			if      (itemAnimationAmt >= 0 && itemAnimationAmt < 1) { drawSpriteSheetSprite(place, texture, 0, 8, 1); }
-			else if (itemAnimationAmt >= 1 && itemAnimationAmt < 2) { drawSpriteSheetSprite(place, texture, 1, 8, 1); }
-			else if (itemAnimationAmt >= 2 && itemAnimationAmt < 3) { drawSpriteSheetSprite(place, texture, 2, 8, 1); }
-			else if (itemAnimationAmt >= 3 && itemAnimationAmt < 4) { drawSpriteSheetSprite(place, texture, 3, 8, 1); }
-			else if (itemAnimationAmt >= 4 && itemAnimationAmt < 5) { drawSpriteSheetSprite(place, texture, 4, 8, 1); }
-			else if (itemAnimationAmt >= 5 && itemAnimationAmt < 6) { drawSpriteSheetSprite(place, texture, 5, 8, 1); }
-			else if (itemAnimationAmt >= 6 && itemAnimationAmt < 7) { drawSpriteSheetSprite(place, texture, 6, 8, 1); }
-			else if (itemAnimationAmt >= 7)                         { drawSpriteSheetSprite(place, texture, 7, 8, 1); } }
+            if     ( itemAnimationAmt >= 0 && itemAnimationAmt < 1 ) picIndex = 0;
+            else if( itemAnimationAmt >= 1 && itemAnimationAmt < 2 ) picIndex = 1;
+            else if( itemAnimationAmt >= 2 && itemAnimationAmt < 3 ) picIndex = 2;
+            else if( itemAnimationAmt >= 3 && itemAnimationAmt < 4 ) picIndex = 3;
+            else if( itemAnimationAmt >= 4 && itemAnimationAmt < 5 ) picIndex = 4;
+            else if( itemAnimationAmt >= 5 && itemAnimationAmt < 6 ) picIndex = 5;
+            else if( itemAnimationAmt >= 6 && itemAnimationAmt < 7 ) picIndex = 6;
+            else                                                     picIndex = 7;
+            drawSpriteSheetSprite( place, texture, picIndex, 8, 1 );
+        }
     }
 }
-void App::drawItemUpgrading(int row) {
+void App::drawItemUpgrading( int row ) {
     glLoadIdentity();
-	glOrtho(orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0);
-	glTranslatef(0.5, 1.11, 0.0);
+    glOrtho( orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0 );
+    glTranslatef( 0.5, 1.11, 0.0 );
 
     float itemSizeX = 0.31 * itemScale / 1.0;
-	float itemSizeY = 0.59 * itemScale / 1.0;
+    float itemSizeY = 0.59 * itemScale / 1.0;
 
-    for (int i = 0; i < 6; i++) {
-		GLfloat place[] = { i + itemSizeX * scaleX, row * scaleY + itemSizeY, i + itemSizeX * scaleX, row * scaleY - itemSizeY,
-							i - itemSizeX * scaleX, row * scaleY - itemSizeY, i - itemSizeX * scaleX, row * scaleY + itemSizeY };
-		if (board.map[i][row].upgradeInd > 0) {
+    for( int i = 0; i < 6; i++ ) {
+        GLfloat place[] = { i + itemSizeX * scaleX, row * scaleY + itemSizeY, i + itemSizeX * scaleX, row * scaleY - itemSizeY,
+                            i - itemSizeX * scaleX, row * scaleY - itemSizeY, i - itemSizeX * scaleX, row * scaleY + itemSizeY };
+        if( board.map[i][row].upgradeInd > 0 ) {
             GLuint texture = recoverSheet;
+            int picIndex = 0;
 
-			if      ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.875 ) { drawSpriteSheetSprite(place, texture, 0, 6, 1); }
-			else if ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.750 ) { drawSpriteSheetSprite(place, texture, 1, 6, 1); }
-			else if ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.625 ) { drawSpriteSheetSprite(place, texture, 2, 6, 1); }
-			else if ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.500 ) { drawSpriteSheetSprite(place, texture, 3, 6, 1); }
-			else if ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.250 ) { drawSpriteSheetSprite(place, texture, 4, 6, 1); }
-			else if ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.000 ) { drawSpriteSheetSprite(place, texture, 5, 6, 1); }
+            if     ( board.map[i][row].upgradeInd > itemUpgradeTime * 0.875 ) picIndex = 0;
+            else if( board.map[i][row].upgradeInd > itemUpgradeTime * 0.750 ) picIndex = 1;
+            else if( board.map[i][row].upgradeInd > itemUpgradeTime * 0.625 ) picIndex = 2;
+            else if( board.map[i][row].upgradeInd > itemUpgradeTime * 0.500 ) picIndex = 3;
+            else if( board.map[i][row].upgradeInd > itemUpgradeTime * 0.250 ) picIndex = 4;
+            else                                                              picIndex = 5;
+            drawSpriteSheetSprite( place, texture, picIndex, 6, 1 );
         }
     }
 }
@@ -2963,20 +3099,24 @@ void App::tomaDisplayB2( Player* const player) {
     else if ( player->animationDisplayAmt > swordAtkTime - 0.32 ) { drawSpriteSheetSprite(atkPlace, texture, 3, 4, 1); }
 }
 void App::eTomaDisplay(int xPos, int yPos, float animationTime) {
+    glLoadIdentity();
+    glOrtho( orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0 );
+    glTranslatef( 0.5, 1.2, 0.0 );
     if( animationTime <= 0 ) return;
 
     float sizeX = 0.52 * playerScale;
     float sizeY = 0.72 * playerScale;
     glTranslatef( 0, 0.2, 0 );
     GLuint texture = eagleTomaSheet;
+    int picIndex = 0;
 
     GLfloat atkPlace[] = { xPos * scaleX + sizeX, yPos * scaleY + sizeY, xPos * scaleX + sizeX, yPos * scaleY - sizeY,
                            xPos * scaleX - sizeX, yPos * scaleY - sizeY, xPos * scaleX - sizeX, yPos * scaleY + sizeY };
-    if      ( animationTime >= 0.10 ) {}
-    else if ( animationTime >  0.08 ) { drawSpriteSheetSprite( atkPlace, texture, 0, 4, 1 ); }
-    else if ( animationTime >  0.04 ) { drawSpriteSheetSprite( atkPlace, texture, 1, 4, 1 ); }
-    else if ( animationTime >  0.02 ) { drawSpriteSheetSprite( atkPlace, texture, 2, 4, 1 ); }
-    else if ( animationTime >  0.00 ) { drawSpriteSheetSprite( atkPlace, texture, 3, 4, 1 ); }
+    if     ( animationTime >  0.12 ) picIndex = 0;
+    else if( animationTime >  0.08 ) picIndex = 1;
+    else if( animationTime >  0.04 ) picIndex = 2;
+    else                             picIndex = 3;
+    drawSpriteSheetSprite( atkPlace, texture, picIndex, 4, 1 );
 }
 void App::longSlashDisplay( Player* const player) {
     float sizeX = 0.84 * playerScale;
@@ -3041,13 +3181,34 @@ void App::stepCrossDisplay( Player* const player) {
     else if ( player->animationDisplayAmt > stepAtkTime - 0.32 ) { drawSpriteSheetSprite( atkPlace, texture, 1, 3, 1 ); }
     else if ( player->animationDisplayAmt > stepAtkTime - 0.38 ) { drawSpriteSheetSprite( atkPlace, texture, 2, 3, 1 ); }
 }
+void App::shockwaveDisplay(int xPos, int yPos, int dir, float animationTime) {
+    glLoadIdentity();
+    glOrtho( orthoX1, orthoX2, orthoY1, orthoY2, -1.0, 1.0 );
+    glTranslatef( 0.5, 1.2, 0.0 );
+    if( animationTime <= 0 ) return;
+
+    float sizeX = 0.47 * playerScale;
+    float sizeY = 0.43 * playerScale;
+    glTranslatef( dir * -0.1, -0.2, 0 );
+    GLuint texture = ( dir == -1 ? shockwaveSheet1 : shockwaveSheet3 );
+    int picIndex = 0;
+
+    GLfloat atkPlace[] = { xPos * scaleX - sizeX, yPos * scaleY + sizeY, xPos * scaleX - sizeX, yPos * scaleY - sizeY,
+                           xPos * scaleX + sizeX, yPos * scaleY - sizeY, xPos * scaleX + sizeX, yPos * scaleY + sizeY };
+    if     ( animationTime > 0.22 ) picIndex = 0;
+    else if( animationTime > 0.16 ) picIndex = 1;
+    else if( animationTime > 0.12 ) picIndex = 2;
+    else if( animationTime > 0.04 ) picIndex = 3;
+    else                            picIndex = 4;
+    drawSpriteSheetSprite( atkPlace, texture, picIndex, 5, 1 );
+}
 
 // Player Control Functions: Attacking & Movement
 bool App::attack( Player* const player, int atkNum ) {
     int cost = player->getAtkCost( atkNum );
     if( player->energy < cost ) return false;
 
-    vector< DelayedHpLoss > atkCoords = player->attack( atkNum );
+    vector< DelayedDamage > atkCoords = player->attack( atkNum );
     if( atkCoords.empty() ) return false;
 
     Mix_Chunk* soundToPlay = nullptr;
@@ -3061,8 +3222,7 @@ bool App::attack( Player* const player, int atkNum ) {
             soundToPlay = swordSound;
             break;
         case 6:
-            if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move( player, player->facing == -1 ? 1 : 3, 2 );
+            if( !move( player, player->facing == -1 ? 1 : 3, 2 ) ) return false;
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime, player->npc ) );
@@ -3081,8 +3241,7 @@ bool App::attack( Player* const player, int atkNum ) {
             soundToPlay = swordSound;
             break;
         case 4:
-            if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move( player, player->facing == -1 ? 1 : 3, 2 );
+            if( !move( player, player->facing == -1 ? 1 : 3, 2 ) ) return false;
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime, player->npc ) );
@@ -3100,15 +3259,16 @@ bool App::attack( Player* const player, int atkNum ) {
             player->animationDisplayAmt = lifeAtkTime;
             delayedSoundList.push_back( DelayedSound( "toma", preAtkTimeToma, player->npc ) );
             break;
-        case 5:
+        case 5: {
             player->animationDisplayAmt = eTomaAtkTime;
             delayedSoundList.push_back( DelayedSound( "eToma", preAtkTimeEagleToma, player->npc ) );
-            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 1 * player->facing, player->y, preAtkTimeEagleToma - 0.06 ) );
-            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 2 * player->facing, player->y, preAtkTimeEagleToma ) );
-            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 3 * player->facing, player->y, preAtkTimeEagleToma + 0.04 ) );
-            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 4 * player->facing, player->y, preAtkTimeEagleToma + 0.08 ) );
-            delayedETomaDisplayList.push_back( DelayedETomaDisplay( player->x + 5 * player->facing, player->y, preAtkTimeEagleToma + 0.12 ) );
+            for( int i = 1; i <= 5; i++ ) {
+                int xPos = player->x + player->facing * i;
+                float delay = preAtkTimeEagleToma - 0.08 + 0.04 * i;
+                delayedAtkDisplayList.push_back( DelayedAttackDisplay( "eToma", xPos, player->y, delay ) );
+            }
             break;
+        }
         }
         break;
     }
@@ -3119,8 +3279,7 @@ bool App::attack( Player* const player, int atkNum ) {
             soundToPlay = screenDivSound;
             break;
         case 4:
-            if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move( player, player->facing == -1 ? 1 : 3, 2 );
+            if( !move( player, player->facing == -1 ? 1 : 3, 2 ) ) return false;
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "divide", moveAnimationTime, player->npc ) );
@@ -3139,8 +3298,7 @@ bool App::attack( Player* const player, int atkNum ) {
             soundToPlay = swordSound;
             break;
         case 4:
-            if( !isPanelValid( player->x + 2 * player->facing, player->y ) ) return false;
-            move( player, player->facing == -1 ? 1 : 3, 2 );
+            if( !move( player, player->facing == -1 ? 1 : 3, 2 ) ) return false;
             player->moveType = 3;
             player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
             delayedSoundList.push_back( DelayedSound( "sword", moveAnimationTime, player->npc ) );
@@ -3152,9 +3310,53 @@ bool App::attack( Player* const player, int atkNum ) {
         }
         break;
     }
+    case GUTSMAN: {
+        switch( atkNum ) {
+        case 1:
+            player->animationDisplayAmt = swordAtkTime;
+            soundToPlay = gutsPunchSound;
+            break;
+        case 2:
+            player->animationDisplayAmt = lifeAtkTime;
+            delayedSoundList.push_back( DelayedSound( "hammer", preAtkTimeToma, player->npc ) );
+            break;
+        case 3:
+            if( !move( player, player->facing == -1 ? 1 : 3, 2, true ) ) return false;
+            player->moveType = 3;
+            player->animationDisplayAmt = stepAtkTime + moveAnimationTime;
+            delayedSoundList.push_back( DelayedSound( "punch", preAtkTimeGutsPunch, player->npc ) );
+            break;
+        case 4: {
+            player->animationDisplayAmt = lifeAtkTime;
+            delayedSoundList.push_back( DelayedSound( "hammer", preAtkTimeToma, player->npc ) );
+            for( int i = 1; i <= 5; i++ ) {
+                float xPos = player->x + player->facing * i;
+                float delay = preAtkTimeToma + 0.06 * (i-1);
+                delayedSoundList.push_back( DelayedSound( "shockwave", delay, player->npc ) );
+                delayedAtkDisplayList.push_back( DelayedAttackDisplay( "shockwave", xPos, player->y, delay, player->facing ) );
+            }
+            break;
+        }
+        case 5: {
+            player->animationDisplayAmt = lifeAtkTime;
+            delayedSoundList.push_back( DelayedSound( "hammer", preAtkTimeToma, player->npc ) );
+            for( int i = 1; i <= 3; i++ ) {
+                int xPos = player->x + player->facing * i;
+                float delay = preAtkTimeToma + 0.06 * (i-1);
+                delayedSoundList.push_back( DelayedSound( "shockwave", delay, player->npc ) );
+                for( int j = -1; j <= 1; j++ ) {
+                    int yPos = player->y + j;
+                    delayedAtkDisplayList.push_back( DelayedAttackDisplay( "shockwave", xPos, yPos, delay, player->facing ) );
+                }
+            }
+            break;
+        }
+        }
+        break;
+    }
     }
 
-    delayedHpList.insert( delayedHpList.end(), atkCoords.begin(), atkCoords.end() );
+    for( int i = 0; i < atkCoords.size(); i++ ) delayedDmgList.push_back( atkCoords[i] );
     
     player->energy -= cost;
     if( !player->npc ) {
@@ -3177,6 +3379,7 @@ bool App::attack( Player* const player, int atkNum ) {
     return true;
 }
 void App::face( Player* const player, int dir ) {
+    // Facing directions:   // -1 = Left    // 1 = Right
     if( ( dir == -1 || dir == 1 ) && player->facing != dir ) {
         player->facing = dir;
         player->x2 = player->x;
@@ -3187,7 +3390,9 @@ void App::face( Player* const player, int dir ) {
         if( !player->npc ) npcAbleToAct = true;
     }
 }
-bool App::move(Player* const player, int dir, int dist) {       // Move (dist) panels in a (direction) - Returns true / false for if the player* acted
+bool App::move(Player* const player, int dir, int dist, bool forced) {
+    // Move (dist) panels in a (direction) - Returns true / false for if the Player acted
+    // If (forced), force the player to move - Used only with GutsMan's Dash Punch
     bool acted = false;
     bool turned = false;
 
@@ -3207,7 +3412,7 @@ bool App::move(Player* const player, int dir, int dist) {       // Move (dist) p
             acted = true;
             turned = true;
         }
-        if ( isPanelValid( player->x - dist, player->y, player->npc ) ) {
+        if ( isPanelValid( player->x - dist, player->y, player->npc, forced ) ) {
             player->x -= dist;
             player->moveDir = 1;
             acted = true;
@@ -3228,7 +3433,7 @@ bool App::move(Player* const player, int dir, int dist) {       // Move (dist) p
             acted = true;
             turned = true;
         }
-        if ( isPanelValid( player->x + dist, player->y, player->npc ) ) {
+        if ( isPanelValid( player->x + dist, player->y, player->npc, forced ) ) {
             player->x += dist;
             player->moveDir = 3;
             acted = true;
@@ -3274,21 +3479,21 @@ bool App::move(Player* const player, int dir, int dist) {       // Move (dist) p
     return true;
 }
 
-void App::hitPanel( int xPos, int yPos, int dmg ) {
+void App::hitPanel( int xPos, int yPos, int dmg, bool fromNpc ) {
     if( xPos < 0 || xPos > 5 || yPos < 0 || yPos > 5 ) return;
     
     board.map[xPos][yPos].rockAtkInd = rockDmgTime;
     board.map[xPos][yPos].prevDmg = 0;
 
     // Attacking a Rock
-    if ( board.map[xPos][yPos].rockHP > 0 ) {
+    if( board.map[xPos][yPos].rockHP > 0 ) {
         if ( board.map[xPos][yPos].rockHP == 1 ) { board.map[xPos][yPos].prevDmg = 1; }
         else { board.map[xPos][yPos].prevDmg = dmg; }
         board.map[xPos][yPos].rockHP -= dmg;
         if ( board.map[xPos][yPos].rockHP <= 0 && !board.map[xPos][yPos].bigRockDeath ) { Mix_PlayChannel( 4, rockBreakSound, 0 ); }
     }
     // NPC attacks against the Player
-    else if ( xPos == player1->x && yPos == player1->y ) {
+    else if( fromNpc && xPos == player1->x && yPos == player1->y ) {
         player1->energy -= dmg * npcDmgAmt;
         player1->totalEnergyChange -= dmg * npcDmgAmt;
         currentEnergyGain -= dmg * npcDmgAmt;
@@ -3316,8 +3521,6 @@ void App::hitPanel( int xPos, int yPos, int dmg ) {
                 npcList[i]->hp -= dmg;
                 npcList[i]->timesHit++;
                 npcList[i]->hurtDisplayAmt = hurtAnimationTime;
-                // Reward for hitting Enemies: Spawn Energy Items
-                spawnRandomItem( npcList[i]->x, npcList[i]->y );
 
                 if( npcList[i]->animationType == 0 ) {
                     npcList[i]->animationType = -1;
@@ -3334,16 +3537,18 @@ void App::hitPanel( int xPos, int yPos, int dmg ) {
 }
 
 // Map Functions
-bool App::isPanelValid(int xPos, int yPos, bool npc) {
+bool App::isPanelValid(int xPos, int yPos, bool npc, bool forced) {
     // Checks if a specific panel allows the Player to walk on it
-    if ( xPos == -1 && yPos == 0 && !npc ) return true;			// Start Panel
-    if ( xPos ==  6 && yPos == 5 )         return true;			// Goal Panel
-    if ( xPos < 0 || xPos > 5 || yPos < 0 || yPos > 5 ) return false;		// Map boundaries are 0 to 5 on both X and Y axes
-    if ( board.map[xPos][yPos].rockHP > 0 ) return false;		// Players cannot walk into a Rock
-    if ( board.map[xPos][yPos].state <= -2 ) return false;		// Players cannot walk onto a Hole
-    if ( xPos == player1->x && yPos == player1->y ) return false;                 // NPCs can't walk onto the Player's position
-    for ( int i = 0; i < npcList.size(); i++ ) {
-        if ( xPos == npcList[i]->x && yPos == npcList[i]->y ) return false; }     // Players can't walk onto NPC positions
+    if( xPos == -1 && yPos == 0 && !npc ) return true;			// Start Panel
+    if( xPos ==  6 && yPos == 5 )         return true;			// Goal Panel
+    if( xPos < 0 || xPos > 5 || yPos < 0 || yPos > 5 ) return false;		// Map boundaries are 0 to 5 on both X and Y axes
+    if( board.map[xPos][yPos].state <= -2 ) return false;		// Players cannot walk onto a Hole
+    if( board.map[xPos][yPos].rockHP > 2 ) return false;        // Players cannot walk into a Rock,
+    if( !forced && board.map[xPos][yPos].rockHP > 0 ) return false;		// Players cannot walk into a Rock, Unless "forced"
+                                                                        // Forced only when the Player is GutsMan Dash Punching, and the rock at most 2 HP
+    if( xPos == player1->x && yPos == player1->y ) return false;                 // NPCs can't walk onto the Player's position
+    for( int i = 0; i < npcList.size(); i++ ) {
+        if( xPos == npcList[i]->x && yPos == npcList[i]->y ) return false; }     // Players can't walk onto NPC positions
 	return true;
 }
 void App::reset() {
@@ -3353,9 +3558,9 @@ void App::reset() {
 	chargeDisplayPlusAmt = 0;
 	chargeDisplayMinusAmt = 0;
 	
-	delayedHpList.clear();
+	delayedDmgList.clear();
     delayedSoundList.clear();
-    delayedETomaDisplayList.clear();
+    delayedAtkDisplayList.clear();
     delayedPrevEnergyList.clear();
     for( int i = 0; i < npcList.size(); i++ ) delete npcList[i];
     npcList.clear();
@@ -3388,7 +3593,7 @@ void App::tutorial( int type ) {
     board.map[0][5].item = -1;    board.map[1][5].item = -1;    board.map[2][5].item = -1;
     board.map[4][0].item = -1;    board.map[5][0].item = -1;*/
 
-    board.generateTrainingLevel( type );
+    loadTutorialLevel();
 }
 void App::next() {
     player1->x = 0;		player1->y = 0;
@@ -3422,7 +3627,7 @@ void App::loadBossLevel( int type ) {
     player1->energy = 10000;
 
     Player *boss;
-    int bossType = rand() % 5;
+    int bossType = rand() % NUM_CHAR_TYPES;
     switch( bossType ) {
     default:
     case MEGAMAN:       boss = new MegaMan(); break;
@@ -3430,6 +3635,7 @@ void App::loadBossLevel( int type ) {
     case TOMAHAWKMAN:   boss = new TomahawkMan(); break;
     case COLONEL:       boss = new Colonel(); break;
     case SLASHMAN:      boss = new SlashMan(); break;
+    case GUTSMAN:       boss = new GutsMan(); break;
     }
     boss->x = 5;     boss->y = 4;     boss->x2 = 5;    boss->y2 = 4;
     boss->facing = -1;
@@ -3486,28 +3692,29 @@ void App::loadLevel( int num ) {
         || ( diff >= 1 && rand() % 10 == 0 ) ) {
 
             int xPos = -1, yPos = -1;
-            for( int x = 5; x >= 4; x-- ) {
-                for( int y = 5; y >= 1; y-- ) {
+            for( int y = 5; y >= 1; y-- ) {
+                for( int x = 5; x >= 4; x-- ) {
                     if( x == 5 && y == 5 ) continue;
                     if( isPanelValid( x, y ) ) { xPos = x; yPos = y; }
                 }
             }
             if ( xPos != -1 && yPos != -1 ) {
                 Player *boss;
-                int type = rand() % 5;
-                switch( type ) {
+                int bossType = rand() % NUM_CHAR_TYPES;
+                switch( bossType ) {
                 default:
                 case MEGAMAN:       boss = new MegaMan(); break;
                 case PROTOMAN:      boss = new ProtoMan(); break;
                 case TOMAHAWKMAN:   boss = new TomahawkMan(); break;
                 case COLONEL:       boss = new Colonel(); break;
                 case SLASHMAN:      boss = new SlashMan(); break;
+                case GUTSMAN:       boss = new GutsMan(); break;
                 }
                 boss->x = xPos;     boss->y = yPos;     boss->x2 = xPos;    boss->y2 = yPos;
                 boss->facing = -1;
                 boss->npc = true;
                 boss->hp = currentGameDiff + diff + 1;
-                boss->type = type;
+                boss->type = bossType;
                 boss->energy = abs( gain ) * 25;
                 npcList.push_back( boss );
                 Mix_PlayChannel( 6, bossAppearSound, 0 );
@@ -3547,8 +3754,8 @@ void App::loadPrevNpc(int diff, int gain) {
         nextNpcList.pop_back();
 
         int xPos = -1, yPos = -1;
-        for( int x = 5; x >= 4; x-- ) {
-            for( int y = 1; y <= 5; y++ ) {
+        for( int y = 5; y >= 1; y-- ) {
+            for( int x = 5; x >= 4; x-- ) {
                 if( x == 5 && y == 5 ) continue;
                 if( isPanelValid( x, y ) ) { xPos = x; yPos = y; }
             }
@@ -3556,7 +3763,7 @@ void App::loadPrevNpc(int diff, int gain) {
         if( xPos != -1 && yPos != -1 ) {
             npc->facing = -1;
             if( diff != 0 ) npc->hp++;
-            npc->energy += abs( gain ) * 25;
+            npc->energy += max( abs( gain ) * 25, 200 );
             npc->x = xPos;
             npc->y = yPos;
             npcList.push_back( npc );
@@ -3628,7 +3835,7 @@ void App::spawnRandomItem( int xPos, int yPos ) {
     }
 }
 void App::upgradeItems() {
-    // Upgrades all items, then spawns 2 Green Energies
+    // Upgrades all items, then spawns Bonus Green Energies
     // Red(-50) -> Dissapears
     // Green(100) -> Blue(150)
     for ( int i = 0; i < 6; i++ ) {
@@ -3645,654 +3852,350 @@ void App::upgradeItems() {
         }
     }
 
-    // Bonus 2 Green Energies in random locations
-    for( int i = 0; i < 2; i++ ) spawnRandomItem( rand() % 6, rand() % 6 );
+    // Bonus Green Energies
+    for( int i = 0; i < 1; i++ ) spawnRandomItem( rand() % 6, rand() % 6 );
 
     Mix_PlayChannel( 1, recoverSound, 0 );
 }
 
 void App::aiAction( Player* const npc ) {
     // Generates a random move for the NPC's    // Checks for Attack options, then Movement options
+    int randNum2 = rand() % 2;
+    int randNum5 = rand() % 5;
+
+    int x = npc->x, y = npc->y, dir = npc->facing;
+    int pX = player1->x, pY = player1->y;
+    if( randNum5 > 1 ) { pX = player1->x2; pY = player1->y2; }
 
     // NPC's will attempt to run when out of Energy to attack
     int minEnergy = 0;
 
-    // Megaman NPC
-    if ( npc->type == MEGAMAN ) {
+    // Check attack options
+    switch( npc->type ) {
+    case MEGAMAN: {
         minEnergy = 150;
-        if ( rand() % 2 ) {
-            if ( npc->facing == -1 ) {
-                if ( ( npc->x - 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( ( npc->x - player1->x2 == 1 || npc->x - player1->x2 == 2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 7 ) ) return; }
-                if ( ( abs( npc->x - player1->x2 ) <= 1 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( player1->x2 > npc->x ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 3 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( npc->x + 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( ( player1->x2 + npc->x == 1 || player1->x2 + npc->x == 2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 7 ) ) return; }
-                if ( ( abs( npc->x - player1->x2 ) <= 1 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( player1->x2 < npc->x ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 3 ) ) return; }
-            }
+        // Check Life Sword
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 7 ) ) return;
         }
-        else {
-            if ( npc->facing == -1 ) {
-                if ( ( npc->x - 3 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( ( npc->x - player1->x == 1 || npc->x - player1->x == 2 ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 7 ) ) return; }
-                if ( ( abs( npc->x - player1->x ) <= 1 ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( npc->y == player1->y )
-                   || ( abs(npc->y - player1->y) == 1 && ( npc->x == player1->x || npc->x - 2 == player1->x ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x - 2 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( npc->x + 3 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( ( npc->x + player1->x == 1 || npc->x + player1->x == 2 ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 7 ) ) return; }
-                if ( ( abs( npc->x - player1->x ) <= 1 ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( npc->y == player1->y )
-                   || ( abs(npc->y - player1->y) == 1 && ( npc->x == player1->x || npc->x + 2 == player1->x ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x + 2 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-            }
+        // Check Step Sword
+        if( x + 3 * dir == pX && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 6 ) ) return;
         }
+        // Check Spin Sword
+        if( abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 5 ) ) return;
+        }
+        // Check Cross Sword
+        if( ( x + 1 * dir == pX && y == pY )
+            || ( ( x + 2 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
+            if( attack( npc, 4 ) ) return;
+        }
+        // Check Wide Sword
+        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 3 ) ) return;
+        }
+        // Check Long Sword
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
+            if( attack( npc, 2 ) ) return;
+        }
+        // Check Sword
+        if( x + 1 * dir == pX && y == pY ) {
+            if( attack( npc, 1 ) ) return;
+        }
+        break;
     }
-    
-    // Protoman NPC
-    else if ( npc->type == PROTOMAN ) {
+    case PROTOMAN: {
         minEnergy = 150;
-        if ( rand() % 2 ) {
-            if ( npc->facing == -1 ) {
-                if ( ( player1->x2 == npc->x - 2 ) && ( player1->y2 == npc->y ) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( (player1->x2 < npc->x) && (player1->x2 >= npc->x - 3) && (npc->y == player1->y2) ) {
-                    if ( (player1->x2 != npc->x - 2) && (rand() % 2) ) {}
-                    else if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 && ( rand() % 2 ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x - 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 3 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( player1->x2 == npc->x + 2 ) && ( player1->y2 == npc->y ) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( (player1->x2 > npc->x) && (player1->x2 <= npc->x + 3) && (npc->y == player1->y2) ) {
-                    if ( (player1->x2 != npc->x + 2) && (rand() % 2) ) {}
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x + 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 3 ) ) return; }
-            }
+        // Check Proto Cross
+        if( ( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY )
+            || ( x + 2 * dir == pX && abs( y - pY ) <= 1 ) ) {
+            if( attack( npc, 6 ) ) return;
         }
-        else {
-            if ( npc->facing == -1 ) {
-                if ( (player1->x < npc->x) && (player1->x >= npc->x - 3) && (npc->y == player1->y) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( (npc->x - 2 == player1->x) && (abs(player1->y - npc->y) == 1) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( ( npc->x - 3 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x - 2 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( (player1->x > npc->x) && (player1->x <= npc->x + 3) && (npc->y == player1->y) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( (npc->x + 2 == player1->x) && (abs(player1->y - npc->y) == 1) ) {
-                    if ( attack( npc, 6 ) ) return; }
-                if ( ( npc->x + 3 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x + 2 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-            }
+        // Check Hero Sword
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY ) {
+            if( attack( npc, 5 ) ) return;
         }
+        // Check Step Sword
+        if( x + 3 * dir == pX && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 4 ) ) return;
+        }
+        // Check Wide Sword
+        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 3 ) ) return;
+        }
+        // Check Long Sword
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
+            if( attack( npc, 2 ) ) return;
+        }
+        // Check Sword
+        if( x + 1 * dir == pX && y == pY ) {
+            if( attack( npc, 1 ) ) return;
+        }
+        break;
     }
-    
-    // Tomahawkman NPC
-    else if ( npc->type == TOMAHAWKMAN ) {
+    case TOMAHAWKMAN: {
         minEnergy = 125;
-        if ( rand() % 2 ) {
-            if ( npc->facing == -1 ) {
-                if ( ( player1->x2 < npc->x ) && ( npc->y == player1->y2 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 1 == player1->x2 || npc->x - 2 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 4 ) ) return;
-                    else if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x - 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 2 ) ) return;
-                    else if ( attack( npc, 1 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( player1->x > npc->x2 ) && ( npc->y == player1->y2 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 1 == player1->x2 || npc->x + 2 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 4 ) ) return;
-                    else if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x + 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 2 ) ) return;
-                    else if ( attack( npc, 1 ) ) return; }
-            }
+        // Check Eagle Tomahawk Earthquake
+        if( y == pY && ( ( dir == -1 && pX < x ) || ( dir == 1 && pX > x ) ) ) {
+            if( attack( npc, 5 ) ) return;
         }
-        else {
-            if ( npc->facing == -1 ) {
-                if ( ( player1->x < npc->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 1 == player1->x || npc->x - 2 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 4 ) ) return;
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 2 ) ) return;
-                    if ( attack( npc, 1 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( player1->x > npc->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 1 == player1->x || npc->x + 2 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 4 ) ) return;
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 2 ) ) return;
-                    if ( attack( npc, 1 ) ) return; }
-            }
+        // Check Tomahawk Swing
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 4 ) ) return;
+            if( attack( npc, 3 ) ) return;
         }
+        // Check Wide Swing
+        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 2 ) ) return;
+            if( attack( npc, 1 ) ) return;
+        }
+        break;
     }
-    
-    // Colonel NPC
-    else if ( npc->type == COLONEL ) {
+    case COLONEL: {
         minEnergy = 125;
-        if ( rand() % 2 ) {
-            if ( npc->facing == -1 ) {
-                if ( ( npc->x - 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x - 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 3 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( npc->x + 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x + 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 3 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-            }
+        // Check Z-Saber Neo Screen Divide
+        if( ( x + 1 * dir == pX && y == pY )
+            || ( ( x + 2 * dir == pX || x + 1 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
+            if( attack( npc, 5 ) ) return;
         }
-        else {
-            if ( npc->facing == -1 ) {
-                if ( ( npc->x - 3 == player1->x ) && ( npc->y == player1->y )
-                || ( abs(npc->y - player1->y) == 1 && ( npc->x - 2 == player1->x || npc->x - 4 == player1->x ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x == player1->x && npc->y - 1 == player1->y )
-                || ( npc->x - 1 == player1->x && npc->y == player1->y )
-                || ( npc->x - 2 == player1->x && npc->y + 1 == player1->y ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x == player1->x && npc->y + 1 == player1->y )
-                || ( npc->x - 2 == player1->x && npc->y - 1 == player1->y ) ) {
-                    if ( attack( npc, 3 ) )return; }
-                if ( ( npc->x == player1->x && npc->y - 1 == player1->y )
-                || ( npc->x - 1 == player1->x && npc->y == player1->y )
-                || ( npc->x == player1->x && npc->y + 1 == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( npc->x + 3 == player1->x ) && ( npc->y == player1->y )
-                || ( abs(npc->y - player1->y) == 1 && ( npc->x + 2 == player1->x || npc->x + 4 == player1->x ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( npc->x == player1->x && npc->y - 1 == player1->y )
-                || ( npc->x + 1 == player1->x && npc->y == player1->y )
-                || ( npc->x + 2 == player1->x && npc->y + 1 == player1->y ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x == player1->x && npc->y + 1 == player1->y )
-                || ( npc->x + 2 == player1->x && npc->y - 1 == player1->y ) ) {
-                    if ( attack( npc, 3 ) )return; }
-                if ( ( npc->x == player1->x && npc->y - 1 == player1->y )
-                || ( npc->x + 1 == player1->x && npc->y == player1->y )
-                || ( npc->x == player1->x && npc->y + 1 == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-            }
+        // Check Step Cross Divide
+        if( ( x + 3 * dir == pX && y == pY )
+            || ( ( x + 4 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) == 1 ) ) {
+            if( attack( npc, 4 ) ) return;
         }
+        // Check Screen Divide Up
+        if( ( x + 1 * dir == pX && y == pY )
+            || ( x == pX && y - 1 == pY )
+            || ( x + 2 * dir == pX && y + 1 == pY ) ) {
+            if( attack( npc, 2 ) ) return;
+        }
+        // Check Screen Divide Down
+        if( ( x + 1 * dir == pX && y == pY )
+            || ( x == pX && y + 1 == pY )
+            || ( x + 2 * dir == pX && y - 1 == pY ) ) {
+            if( attack( npc, 2 ) ) return;
+        }
+        // Check Arc Divide
+        if( ( x + 1 * dir == pX && y == pY )
+            || ( x == pX && abs( y - pY ) == 1 ) ) {
+            if( attack( npc, 1 ) ) return;
+        }
+        break;
     }
-    
-    // Slashman NPC
-    else if ( npc->type == SLASHMAN ) {
+    case SLASHMAN: {
         minEnergy = 100;
-        if ( rand() % 2 ) {
-            if ( npc->facing == -1 ) {
-                if ( ( npc->x - 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( abs( npc->x - player1->x2 ) <= 1 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( player1->x2 > npc->x ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 2 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( npc->x + 3 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) && ( rand() % 2 ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( abs( npc->x - player1->x2 ) <= 1 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( player1->x2 < npc->x ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 1 == player1->x2 ) && ( abs( npc->y - player1->y2 ) <= 1 ) ) {
-                    if ( ( npc->y != player1->y2 ) && ( rand() % 2 ) ) {}
-                    else if ( attack( npc, 2 ) ) return; }
-            }
+        // Check Tornado Spin Slash
+        if( abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 5 ) ) return;
         }
-        else {
-            if ( npc->facing == -1 ) {
-                if ( ( npc->x - 3 == player1->x ) && ( npc->y == player1->y )
-                   || ( abs(npc->y - player1->y) == 1 && ( npc->x - 2 == player1->x || npc->x - 4 == player1->x ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( abs( npc->x - player1->x ) <= 1 ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( npc->y == player1->y )
-                   || ( abs(npc->y - player1->y) == 1 && ( npc->x == player1->x || npc->x - 2 == player1->x ) ) ) {
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x - 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x - 2 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-            }
-            else if ( npc->facing == 1 ) {
-                if ( ( npc->x + 3 == player1->x ) && ( npc->y == player1->y )
-                   || ( abs(npc->y - player1->y) == 1 && ( npc->x + 2 == player1->x || npc->x + 4 == player1->x ) ) ) {
-                    if ( attack( npc, 4 ) ) return; }
-                if ( ( abs( npc->x - player1->x ) <= 1 ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 5 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( npc->y == player1->y )
-                   || ( abs(npc->y - player1->y) == 1 && ( npc->x == player1->x || npc->x + 2 == player1->x ) ) ) {
-                    if ( attack( npc, 3 ) ) return; }
-                if ( ( npc->x + 1 == player1->x ) && ( abs( npc->y - player1->y ) <= 1 ) ) {
-                    if ( attack( npc, 2 ) ) return; }
-                if ( ( npc->x + 2 == player1->x ) && ( npc->y == player1->y ) ) {
-                    if ( attack( npc, 1 ) ) return; }
-            }
+        // Check Step Cross
+        if( ( x + 3 * dir == pX && y == pY )
+            || ( ( x + 4 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) == 1 ) ) {
+            if( attack( npc, 4 ) ) return;
         }
+        // Check Cross Slash
+        if( ( x + 1 * dir == pX && y == pY )
+            || ( ( x + 2 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
+            if( attack( npc, 3 ) ) return;
+        }
+        // Check Wide Slash
+        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 2 ) ) return;
+        }
+        // Check Long Slash
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
+            if( attack( npc, 1 ) ) return;
+        }
+        break;
+    }
+    case GUTSMAN: {
+        minEnergy = 125;
+        // Check Guts Hammer Shockwave Slam
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && abs( y - pY ) <= 1 ) {
+            if( attack( npc, 5 ) ) return;
+        }
+        // Check Guts Hammer Shockwave
+        if( y == pY && ( ( dir == -1 && pX < x ) || ( dir == 1 && pX > x ) ) ) {
+            if( attack( npc, 4 ) ) return;
+        }
+        // Check Guts Dash Punch
+        if( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY ) {
+            if( attack( npc, 3 ) ) return;
+        }
+        // Check Guts Hammer and Guts Punch
+        if( x + 1 * dir == pX && y == pY ) {
+            if( attack( npc, 2 ) ) return;
+            if( attack( npc, 1 ) ) return;
+        }
+        break;
+    }
     }
 
-    // Movement
-        // Attempt to run to the Next Level if out of Energy
-    if ( npc->energy < minEnergy ) {
-        if      ( npc->x == npc->y ) {
-            if ( rand() % 2 ) {
-                if ( move( npc, 0 ) ) return;
-                if ( move( npc, 3 ) ) return;
-                if ( move( npc, 2 ) ) return;
-                if ( move( npc, 1 ) ) return; }
-            else {
-                if ( move( npc, 3 ) ) return;
-                if ( move( npc, 0 ) ) return;
-                if ( move( npc, 1 ) ) return;
-                if ( move( npc, 2 ) ) return; } }
-        else if ( npc->x >  npc->y ) {
-            if ( move( npc, 0 ) ) return;
-            if ( move( npc, 3 ) ) return;
-            if ( move( npc, 2 ) ) return;
-            if ( move( npc, 1 ) ) return;
+    // -- Movement -- //
+    // Attempt to run to the Next Level if out of Energy
+    if( npc->energy < minEnergy ) {
+        if( x > y || ( x == y && randNum2 == 0 ) ) {
+            if     ( move( npc, 0 ) ) return;
+            if( isPanelValid( x+1, y, true ) ) {
+                if( move( npc, 3 ) ) return;
+            }
+            if( move( npc, 2 ) ) return;
+            if( isPanelValid( x-1, y, true ) ) {
+                if( move( npc, 1 ) ) return;
+            }
         }
-        else if ( npc->x <  npc->y ) {
-            if ( move( npc, 3 ) ) return;
-            if ( move( npc, 0 ) ) return;
-            if ( move( npc, 1 ) ) return;
-            if ( move( npc, 2 ) ) return;
+        else {
+            if( isPanelValid( x+1, y, true ) ) {
+                if( move( npc, 3 ) ) return;
+            }
+            if( move( npc, 0 ) ) return;
+            if( isPanelValid( x-1, y, true ) ) {
+                if( move( npc, 1 ) ) return;
+            }
+            if( move( npc, 2 ) ) return;
         }
     }
-    if ( rand() % 2 ) {
-        if      ( player1->y > npc->y && player1->x < npc->x ) {    // Up Left
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x - npc->x) <= abs(player1->y - npc->y) ) ) {
-                if ( move( npc, 0 ) ) return;
-                if ( move( npc, 1 ) ) return; }
-            else {
-                if ( move( npc, 1 ) ) return;
-                if ( move( npc, 0 ) ) return; }
+    // If the Player is within one panel
+    else if( abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
+        // Positions behind the NPC
+        if( x - dir == pX ) {
+            if( npc->type == PROTOMAN || npc->type == TOMAHAWKMAN || npc->type == GUTSMAN || randNum2 ) face( npc, -dir );
+            else move( npc, dir );
+            return;
         }
-        else if ( player1->y > npc->y && player1->x > npc->x ) {    // Up Right
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x - npc->x) <= abs(player1->y - npc->y) ) ) {
-                if ( move( npc, 0 ) ) return;
-                if ( move( npc, 3 ) ) return; }
-            else {
-                if ( move( npc, 3 ) ) return;
-                if ( move( npc, 0 ) ) return; }
+        // Positions in front of the NPC
+        else if( x + dir == pX ) {
+            if( y == pY ) move( npc, dir );
+            else move( npc, y - pY + 1 );
+                         // y - pY + 1:  // If the Player is above, move the NPC up
+                                         // If the Player if below, move the NPC down
+            return;
         }
-        else if ( player1->y < npc->y && player1->x < npc->x ) {    // Down Left
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x - npc->x) <= abs(player1->y - npc->y) ) ) {
-                if ( move( npc, 2 ) ) return;
-                if ( move( npc, 1 ) ) return; }
-            else {
-                if ( move( npc, 1 ) ) return;
-                if ( move( npc, 2 ) ) return; }
+        // The Position directly above the NPC
+        else if( y+1 == pY ) {
+            if( move( npc, 0 ) ) return;
+            if( !isPanelValid( x + dir, y, true ) || !isPanelValid( x + dir, y+1, true ) ) {
+                if( move( npc, dir+2 ) ) return;
+            }
+            if( move( npc, 2-dir ) ) return;
         }
-        else if ( player1->y < npc->y && player1->x > npc->x ) {    // Down Right
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x - npc->x) <= abs(player1->y - npc->y) ) ) {
-                if ( move( npc, 2 ) ) return;
-                if ( move( npc, 3 ) ) return; }
-            else {
-                if ( move( npc, 3 ) ) return;
-                if ( move( npc, 2 ) ) return; }
-        }
-        else if ( npc->facing == -1 ) {
-            if      ( player1->x <  npc->x && player1->y == npc->y ) {        // Left
-                if ( move( npc, 1 ) ) return;
-                if ( npc->x - 1 == player1->x ) return;
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
+        // The Position directly below the NPC
+        else {
+            if( move( npc, 2 ) ) return;
+            if( !isPanelValid( x + dir, y, true ) || !isPanelValid( x + dir, y-1, true ) ) {
+                if( move( npc, dir+2 ) ) return;
             }
-            else if ( player1->x >  npc->x && player1->y == npc->y ) {   // Right
-                if ( move( npc, 3 ) ) return;
-                if ( npc->x + 1 == player1->x ) {
-                    face( npc, 3 ); return; }
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
-            }
-            else if ( player1->x == npc->x && player1->y >  npc->y ) {   // Up
-                if ( move( npc, 0 ) ) return;
-                if ( npc->y + 1 == player1->y ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 2 ) ) return;
-                    if ( npc->x == 5 ) { return; }
-                    else              { face( npc, 3 ); return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
-            }
-            else if ( player1->x == npc->x && player1->y <  npc->y ) {   // Down
-                if ( move( npc, 2 ) ) return;
-                if ( npc->y - 1 == player1->y ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 0 ) ) return;
-                    if ( npc->x == 5 ) { return; }
-                    else              { face( npc, 3 ); return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
-            }
-        }
-        else if ( npc->facing == 1 ) {
-            if      ( player1->x <  npc->x && player1->y == npc->y ) {        // Left
-                if ( move( npc, 1 ) ) return;
-                if ( npc->x - 1 == player1->x ) {
-                    if ( npc->x == 5 ) { face( npc, 1 ); return; }
-                    else              { return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
-            }
-            else if ( player1->x >  npc->x && player1->y == npc->y ) {   // Right
-                if ( move( npc, 3 ) ) return;
-                if ( npc->x + 1 == player1->x ) return;
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
-            }
-            else if ( player1->x == npc->x && player1->y >  npc->y ) {   // Up
-                if ( move( npc, 0 ) ) return;
-                if ( npc->y + 1 == player1->y ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 2 ) ) return;
-                    if ( npc->x == 5 ) { face( npc, 1 ); return; }
-                    else              { return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
-            }
-            else if ( player1->x == npc->x && player1->y <  npc->y ) {   // Down
-                if ( move( npc, 2 ) ) return;
-                if ( npc->y - 1 == player1->y ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 0 ) ) return;
-                    if ( npc->x == 5 ) { face( npc, 1 ); return; }
-                    else              { return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
-            }
+            if( move( npc, 2-dir ) ) return;
+            if( move( npc, 0 ) ) return;
         }
     }
+    // If the Player is more than one panel away
     else {
-        if      ( player1->y2 > npc->y && player1->x2 < npc->x ) {    // Up Left
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x2 - npc->x) <= abs(player1->y2 - npc->y) ) ) {
-                if ( move( npc, 0 ) ) return;
-                if ( move( npc, 1 ) ) return; }
+        // Up
+        if( pX == x && pY > y ) {
+            if( move( npc, 0 ) ) return;
+            if( randNum2 ) {
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+            }
             else {
-                if ( move( npc, 1 ) ) return;
-                if ( move( npc, 0 ) ) return; }
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+            }
         }
-        else if ( player1->y2 > npc->y && player1->x2 > npc->x ) {    // Up Right
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x2 - npc->x) <= abs(player1->y2 - npc->y) ) ) {
-                if ( move( npc, 0 ) ) return;
-                if ( move( npc, 3 ) ) return; }
+        // Up Left
+        else if( pX < x && pY > y ) {
+            if( move( npc, 0 ) ) return;
+            if( isPanelValid( x-1, y, true ) ) {
+                if( move( npc, 1 ) ) return;
+            }
+            if( isPanelValid( x+1, y, true ) ) {
+                if( move( npc, 3 ) ) return;
+            }
+        }
+        // Left
+        else if( pX < x && pY == y ) {
+            if( move( npc, 1 ) ) return;
+            if( move( npc, 0 ) ) return;
+            if( move( npc, 2 ) ) return;
+            
+        }
+        // Down Left
+        else if( pX < x && pY < y ) {
+            if( move( npc, 2 ) ) return;
+            if( isPanelValid( x-1, y, true ) ) {
+                if( move( npc, 1 ) ) return;
+            }
+            if( move( npc, 0 ) ) return;
+        }
+        // Down
+        else if( pX == x && pY < y ) {
+            if( move( npc, 2 ) ) return;
+            if( randNum2 ) {
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+            }
             else {
-                if ( move( npc, 3 ) ) return;
-                if ( move( npc, 0 ) ) return; }
-        }
-        else if ( player1->y2 < npc->y && player1->x2 < npc->x ) {    // Down Left
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x2 - npc->x) <= abs(player1->y2 - npc->y) ) ) {
-                if ( move( npc, 2 ) ) return;
-                if ( move( npc, 1 ) ) return; }
-            else {
-                if ( move( npc, 1 ) ) return;
-                if ( move( npc, 2 ) ) return; }
-        }
-        else if ( player1->y2 < npc->y && player1->x2 > npc->x ) {    // Down Right
-            if ( npc->type == 1 || npc->type == 2 || ( abs(player1->x2 - npc->x) <= abs(player1->y2 - npc->y) ) ) {
-                if ( move( npc, 2 ) ) return;
-                if ( move( npc, 3 ) ) return; }
-            else {
-                if ( move( npc, 3 ) ) return;
-                if ( move( npc, 2 ) ) return; }
-        }
-        else if ( npc->facing == -1 ) {
-            if      ( player1->x2 <  npc->x && player1->y2 == npc->y ) {        // Left
-                if ( move( npc, 1 ) ) return;
-                if ( npc->x - 1 == player1->x2 ) return;
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
             }
-            else if ( player1->x2 >  npc->x && player1->y2 == npc->y ) {   // Right
-                if ( move( npc, 3 ) ) return;
-                if ( npc->x + 1 == player1->x2 ) {
-                    face( npc, 3 ); return; }
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
+            if( move( npc, 0 ) ) return;
+        }
+        // Down Right
+        else if( pX > x && pY < y ) {
+            if( move( npc, 2 ) ) return;
+            if( isPanelValid( x+1, y, true ) ) {
+                if( move( npc, 3 ) ) return;
             }
-            else if ( player1->x2 == npc->x && player1->y2 >  npc->y ) {   // Up
-                if ( move( npc, 0 ) ) return;
-                if ( npc->y + 1 == player1->y2 ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 2 ) ) return;
-                    if ( npc->x == 5 ) { return; }
-                    else              { face( npc, 3 ); return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
+            if( move( npc, 0 ) ) return;
+        }
+        // Right
+        else if( pX > x && pY == y ) {
+            if( move( npc, 3 ) ) return;
+            if( move( npc, 0 ) ) return;
+            if( move( npc, 2 ) ) return;
+        }
+        // Up Right
+        else {
+            if( move( npc, 0 ) ) return;
+            if( isPanelValid( x+1, y, true ) ) {
+                if( move( npc, 3 ) ) return;
             }
-            else if ( player1->x2 == npc->x && player1->y2 <  npc->y ) {   // Down
-                if ( move( npc, 2 ) ) return;
-                if ( npc->y - 1 == player1->y2 ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 0 ) ) return;
-                    if ( npc->x == 5 ) { return; }
-                    else              { face( npc, 3 ); return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
+            if( isPanelValid( x-1, y, true ) ) {
+                if( move( npc, 1 ) ) return;
             }
         }
-        else if ( npc->facing == 1 ) {
-            if      ( player1->x2 <  npc->x && player1->y2 == npc->y ) {        // Left
-                if ( move( npc, 1 ) ) return;
-                if ( npc->x - 1 == player1->x2 ) {
-                    if ( npc->x == 5 ) { face( npc, 1 ); return; }
-                    else              { return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
-            }
-            else if ( player1->x2 >  npc->x && player1->y2 == npc->y ) {   // Right
-                if ( move( npc, 3 ) ) return;
-                if ( npc->x + 1 == player1->x2 ) return;
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 0 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 2 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 0 ) ) return; }
-                else {
-                    if ( move( npc, 2 ) ) return; }
-            }
-            else if ( player1->x2 == npc->x && player1->y2 >  npc->y ) {   // Up
-                if ( move( npc, 0 ) ) return;
-                if ( npc->y + 1 == player1->y2 ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 2 ) ) return;
-                    if ( npc->x == 5 ) { face( npc, 1 ); return; }
-                    else              { return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y + 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
-            }
-            else if ( player1->x2 == npc->x && player1->y2 <  npc->y ) {   // Down
-                if ( move( npc, 2 ) ) return;
-                if ( npc->y - 1 == player1->y2 ) {
-                    if ( move( npc, 3 ) ) return;
-                    if ( move( npc, 1 ) ) return;
-                    if ( move( npc, 0 ) ) return;
-                    if ( npc->x == 5 ) { face( npc, 1 ); return; }
-                    else              { return; } }
-                if ( !isPanelValid( npc->x - 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 3 ) ) return; }
-                if ( !isPanelValid( npc->x + 1, npc->y - 1, true ) ) {
-                    if ( move( npc, 1 ) ) return; }
-                if ( rand() % 2 ) {
-                    if ( move( npc, 1 ) ) return; }
-                else {
-                    if ( move( npc, 3 ) ) return; }
-            }
+    }
+}
+
+void App::debugTest() {
+    reset();
+    player1 = new GutsMan();
+    player1->npc = false;
+    player1->animationDisplayAmt = menuExitTime;
+    player1->energy = player1->energyDisplayed = 10000;
+
+    level = 1;
+    for( int x = 0; x < 6; x++ ) {
+        for( int y = 0; y < 6; y++ ) {
+            board.map[x][y].state = 1;
         }
     }
 }

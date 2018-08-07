@@ -1,7 +1,7 @@
 #include "DelayedEffects.h"
 
-DelayedHpLoss::DelayedHpLoss() : dmg( 0 ), xPos( 0 ), yPos( 0 ), delay( 0.0 ), npc( false ) {}
-DelayedHpLoss::DelayedHpLoss( int dmgAmt, int x, int y, float delayTime, bool isNpc )
+DelayedDamage::DelayedDamage() : dmg( 0 ), xPos( 0 ), yPos( 0 ), delay( 0.0 ), npc( false ) {}
+DelayedDamage::DelayedDamage( int dmgAmt, int x, int y, float delayTime, bool isNpc )
   : dmg(dmgAmt),
     xPos(x),
     yPos(y),
@@ -16,13 +16,17 @@ DelayedSound::DelayedSound( string name, float delayTime, bool isNpc )
     npc(isNpc)
 {}
 
-DelayedETomaDisplay::DelayedETomaDisplay() : xPos( 0 ), yPos( 0 ), delay( 0.0 ), animationTimer( 0.1 ) {}
-DelayedETomaDisplay::DelayedETomaDisplay( int x, int y, float delayTime )
-  : animationTimer( 0.1 ),
+DelayedAttackDisplay::DelayedAttackDisplay() : xPos( 0 ), yPos( 0 ), delay( 0.0 ), animationTimer( 0.0 ), dir(-1) {}
+DelayedAttackDisplay::DelayedAttackDisplay( string atkType, int x, int y, float delayTime, int facingDir )
+  : type(atkType),
     xPos(x),
     yPos(y),
-    delay(delayTime)
-{}
+    delay(delayTime),
+    dir(facingDir)
+{
+    if     ( type == "eToma" )     animationTimer = 0.16;
+    else if( type == "shockwave" ) animationTimer = 0.28;
+}
 
 DelayedEnergyDisplay::DelayedEnergyDisplay() : x(0), y(0), amt(0), type(0), animationTimer(0.0) {}
 DelayedEnergyDisplay::DelayedEnergyDisplay( int xPos, int yPos, int energyAmt, int typeNum, float time )

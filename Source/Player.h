@@ -36,7 +36,7 @@ public:
     void reset();
     virtual string getAtkName() = 0;
     virtual int getAtkCost( int atkNum ) = 0;
-    virtual vector< DelayedHpLoss > attack( int atkNum ) = 0;
+    virtual vector< DelayedDamage > attack( int atkNum ) = 0;
 };
 
 class MegaMan : public Player {
@@ -44,15 +44,15 @@ public:
     MegaMan();
     string getAtkName();
     int getAtkCost( int atkNum );
-    vector< DelayedHpLoss > attack( int atkNum );
+    vector< DelayedDamage > attack( int atkNum );
 private:
-    vector< DelayedHpLoss > attack1();
-    vector< DelayedHpLoss > attack2();
-    vector< DelayedHpLoss > attack3();
-    vector< DelayedHpLoss > attack4();
-    vector< DelayedHpLoss > attack5();
-    vector< DelayedHpLoss > attack6();
-    vector< DelayedHpLoss > attack7();
+    vector< DelayedDamage > attack1();
+    vector< DelayedDamage > attack2();
+    vector< DelayedDamage > attack3();
+    vector< DelayedDamage > attack4();
+    vector< DelayedDamage > attack5();
+    vector< DelayedDamage > attack6();
+    vector< DelayedDamage > attack7();
 };
 
 class ProtoMan : public Player {
@@ -60,14 +60,14 @@ public:
     ProtoMan();
     string getAtkName();
     int getAtkCost( int atkNum );
-    vector< DelayedHpLoss > attack( int atkNum );
+    vector< DelayedDamage > attack( int atkNum );
 private:
-    vector< DelayedHpLoss > attack1();
-    vector< DelayedHpLoss > attack2();
-    vector< DelayedHpLoss > attack3();
-    vector< DelayedHpLoss > attack4();
-    vector< DelayedHpLoss > attack5();
-    vector< DelayedHpLoss > attack6();
+    vector< DelayedDamage > attack1();
+    vector< DelayedDamage > attack2();
+    vector< DelayedDamage > attack3();
+    vector< DelayedDamage > attack4();
+    vector< DelayedDamage > attack5();
+    vector< DelayedDamage > attack6();
 };
 
 class TomahawkMan : public Player {
@@ -75,13 +75,13 @@ public:
     TomahawkMan();
     string getAtkName();
     int getAtkCost( int atkNum );
-    vector< DelayedHpLoss > attack( int atkNum );
+    vector< DelayedDamage > attack( int atkNum );
 private:
-    vector< DelayedHpLoss > attack1();
-    vector< DelayedHpLoss > attack2();
-    vector< DelayedHpLoss > attack3();
-    vector< DelayedHpLoss > attack4();
-    vector< DelayedHpLoss > attack5();
+    vector< DelayedDamage > attack1();
+    vector< DelayedDamage > attack2();
+    vector< DelayedDamage > attack3();
+    vector< DelayedDamage > attack4();
+    vector< DelayedDamage > attack5();
 };
 
 class Colonel : public Player {
@@ -89,13 +89,13 @@ public:
     Colonel();
     string getAtkName();
     int getAtkCost( int atkNum );
-    vector< DelayedHpLoss > attack( int atkNum );
+    vector< DelayedDamage > attack( int atkNum );
 private:
-    vector< DelayedHpLoss > attack1();
-    vector< DelayedHpLoss > attack2();
-    vector< DelayedHpLoss > attack3();
-    vector< DelayedHpLoss > attack4();
-    vector< DelayedHpLoss > attack5();
+    vector< DelayedDamage > attack1();
+    vector< DelayedDamage > attack2();
+    vector< DelayedDamage > attack3();
+    vector< DelayedDamage > attack4();
+    vector< DelayedDamage > attack5();
 };
 
 class SlashMan : public Player {
@@ -103,11 +103,25 @@ public:
     SlashMan();
     string getAtkName();
     int getAtkCost( int atkNum );
-    vector< DelayedHpLoss > attack( int atkNum );
+    vector< DelayedDamage > attack( int atkNum );
 private:
-    vector< DelayedHpLoss > attack1();
-    vector< DelayedHpLoss > attack2();
-    vector< DelayedHpLoss > attack3();
-    vector< DelayedHpLoss > attack4();
-    vector< DelayedHpLoss > attack5();
+    vector< DelayedDamage > attack1();
+    vector< DelayedDamage > attack2();
+    vector< DelayedDamage > attack3();
+    vector< DelayedDamage > attack4();
+    vector< DelayedDamage > attack5();
+};
+
+class GutsMan : public Player {
+public:
+    GutsMan();
+    string getAtkName();
+    int getAtkCost( int atkNum );
+    vector< DelayedDamage > attack( int atkNum );
+private:
+    vector< DelayedDamage > attack1();
+    vector< DelayedDamage > attack2();
+    vector< DelayedDamage > attack3();
+    vector< DelayedDamage > attack4();
+    vector< DelayedDamage > attack5();
 };

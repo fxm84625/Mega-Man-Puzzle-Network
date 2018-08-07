@@ -94,7 +94,7 @@ private:
     void aiAction( Player* const player );                  // Generate a move for the AI
     bool attack( Player* const player, int atkNum );
 	void face( Player* const player, int dir);		            // -1 = left	// 1 = right
-    bool move( Player* const player, int dir, int dist = 1 );	// DIR: direction   // 0 = up		// 1 = left		// 2 = down		// 3 = right
+    bool move( Player* const player, int dir, int dist = 1, bool forced = false );	// DIR: direction   // 0 = up		// 1 = left		// 2 = down		// 3 = right
     
     // Display functions: Animates Sword attack trail Sprites
     void swordDisplay( Player* const player );
@@ -119,14 +119,15 @@ private:
     void tomaDisplayB1( Player* const player );
     void tomaDisplayB2( Player* const player );
     void eTomaDisplay( int xPos, int yPos, float animationTime );
+    void shockwaveDisplay( int xPos, int yPos, int dir, float animationTime );
 
     void longSlashDisplay( Player* const player );
     void wideSlashDisplay( Player* const player );
     void stepCrossDisplay( Player* const player );
 
-	void hitPanel(int xPos, int yPos, int dmg = 1);					// Deal Damage to a Panel at a specific position
+	void hitPanel(int xPos, int yPos, int dmg = 1, bool fromNpc = false);		// Deal Damage to a Panel at a specific position
 
-	bool isPanelValid(int xPos, int yPos, bool npc = false);	    // Checks if a specific panel allows the Player to walk on it
+	bool isPanelValid(int xPos, int yPos, bool npc = false, bool forcd = false);	// Checks if a specific panel allows the Player to walk on it
 
     void loadBossLevel(int type);
     void loadLevel(int num = -1);		            // Generates a Level based on Level Templates		// "num != -1" for defined difficulty
@@ -137,6 +138,7 @@ private:
 	void reset();		            // Restarts from level 0
     void tutorial(int type = 1);    // Training Room
 	void next();		            // Goes to next level if completed
+    void debugTest();
 
     // Music Functions
     void playMusic( int track );
@@ -161,6 +163,7 @@ private:
 
 	void drawPlayer(Player* const player);
     void drawSwordAtks(Player* const player);
+    void drawExtraAtks();
     void drawStepShadow(Player* const player, int amt);
     void drawHp(Player* const player);
 	void drawFloor();
@@ -168,9 +171,9 @@ private:
 	void drawItems(int row);
     void drawItemUpgrading(int row);
 
-	vector<DelayedHpLoss> delayedHpList;
+	vector<DelayedDamage> delayedDmgList;
 	vector<DelayedSound> delayedSoundList;
-    vector<DelayedETomaDisplay> delayedETomaDisplayList;
+    vector<DelayedAttackDisplay> delayedAtkDisplayList;
     vector<DelayedEnergyDisplay> delayedPrevEnergyList;
 	
 	SDL_Event event;
@@ -185,12 +188,14 @@ private:
         colonelMoveSheet,  colonelAtkSheet,                  colonelHurtSheet,   colonelStepSheet,
         tmanMoveSheet,     tmanAtkSheet1,    tmanAtkSheet2,
         slashmanMoveSheet, slashmanAtkSheet,                                     slashmanStepSheet,
+        gutsMoveSheet,     gutsAtkSheet1,    gutsAtkSheet2,  gutsHurtSheet,      gutsStepSheet,
         
         darkMegamanMoveSheet,  darkMegamanAtkSheet,                     darkMegamanHurtSheet,    darkMegamanStepSheet,
         darkProtoMoveSheet,    darkProtoAtkSheet,                       darkProtoHurtSheet,      darkProtoStepSheet,
         darkColonelMoveSheet,  darkColonelAtkSheet,                     darkColonelHurtSheet,    darkColonelStepSheet,
         darkTmanMoveSheet,     darkTmanAtkSheet1,    darkTmanAtkSheet2,
-        darkSlashmanMoveSheet, darkSlashmanAtkSheet,                                             darkSlashmanStepSheet;
+        darkSlashmanMoveSheet, darkSlashmanAtkSheet,                                             darkSlashmanStepSheet,
+        darkGutsMoveSheet,     darkGutsAtkSheet1,    darkGutsAtkSheet2, darkGutsHurtSheet,       darkGutsStepSheet;
     
     // Menu, UI, and Game Elements Sprites
     GLuint
@@ -201,7 +206,7 @@ private:
 
         textSheetWhite, textSheetGreen, textSheetRed,
         textSheetWhite2, textSheetGreen2, textSheetRed2,
-        textSheetRedTrap, textSheetPoison, textSheetPurpleNPC,
+        //textSheetRedTrap, textSheetPoison, textSheetPurpleNPC,
         lvBarPic, healthBoxPic, musicDisplayBox,
 
         bgA, bgB, bgC, bgD, bgMain,
@@ -211,10 +216,10 @@ private:
         mainMenuPic, mainSelPic0, mainSelPic1, mainSelPic2, mainSelPic3, mainSelPic4,
         // New Run Menu
         newRunMenuPic, newRunSelPic0, newRunSelPic1, newRunSelPic2,
-        charSelPic0, charSelPic1, charSelPic2, charSelPic3, charSelPic4,
-        chipPic0, chipPic1, chipPic2, chipPic3, chipPic4,
+        charSelPic0, charSelPic1, charSelPic2, charSelPic3, charSelPic4, charSelPic5,
+        // Unused // chipPic0, chipPic1, chipPic2, chipPic3, chipPic4, chipPic5,
+        movesetPic0, movesetPic1, movesetPic2, movesetPic3, movesetPic4, movesetPic5,
         diffSelPic0, diffSelPic1, diffSelPic2, diffSelPic3, diffSelPic4,
-        movesetPic0, movesetPic1, movesetPic2, movesetPic3, movesetPic4,
         // Tutorial Menu
         tutorialMenuPic, tSelPic0, tSelPic1, tSelPic2, tSelPic3, tSelPic4, tSelPic5, tSelPic6, tSelPic7,
         tInfoboxPic, tInfoPic0, tInfoPic1, tInfoPic2, tInfoPic3, tInfoPic4, tInfoPic5, tInfoPic6, tInfoPic7,
@@ -254,10 +259,12 @@ private:
         eagleTomaSheet,
         
         longSlashSheet1,    longSlashSheet3,
-        wideSlashSheet1,    wideSlashSheet3;
+        wideSlashSheet1,    wideSlashSheet3,
+
+        shockwaveSheet1,    shockwaveSheet3;
 
 	Mix_Chunk
-        *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *eTomaSound, *spinSlashSound,
+        *swordSound,      *lifeSwordSound,  *screenDivSound,  *tomahawkSound, *eTomaSound, *spinSlashSound, *gutsPunchSound, *gutsHammerSound, *shockwaveSound,
         
 	    *itemSound,       *itemSound2,      *hurtSound,    *deletedSound,     *recoverSound,
         *bossAppearSound, *bossDeathSound,

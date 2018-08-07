@@ -29,13 +29,20 @@ const int crossCost2 = 100;
 const int stepCrossCost = 175;
 const int spinSlashCost = 225;
 
+const int gutsPunchCost = 75;
+const int gutsHammerCost = 125;
+const int gutsDashPunchCost = 125;
+const int gutsShockwaveCost = 175;
+const int gutsSlamCost = 250;
+
 const float preAtkTime          = 0.10;
 const float preAtkTimeToma      = 0.20;
 const float preAtkTimeEagleToma = 0.27;
+const float preAtkTimeGutsPunch = 0.12;
 
-const float moveAnimationTime = 0.175;	// Player movement time
+const float moveAnimationTime   = 0.175;	// Player movement time
+const float stepAtkTime         = 0.38;
 const float charDeathTime       = 0.2;
-const float hurtAnimationTime   = 0.5;
 
 Player::Player()
   : x(0), y(0),
@@ -98,10 +105,12 @@ ProtoMan::ProtoMan() { type = 1; }
 TomahawkMan::TomahawkMan() { type = 2; }
 Colonel::Colonel() { type = 3; }
 SlashMan::SlashMan() { type = 4; }
+GutsMan::GutsMan() { type = 5; }
 
 string MegaMan::getAtkName() {
     switch( actionNumber ) {
-    default: case 1: return "Sword";
+    default:
+    case 1: return "Sword";
     case 2: return "LongSwrd";
     case 3: return "WideSwrd";
     case 4: return "CrossSwd";
@@ -122,7 +131,7 @@ int MegaMan::getAtkCost( int atkNum ) {
     case 7: return discount + lifeCost;
     }
 }
-vector< DelayedHpLoss > MegaMan::attack( int actionNumber ) {
+vector< DelayedDamage > MegaMan::attack( int actionNumber ) {
     switch( actionNumber ) {
     case 1: return attack1();
     case 2: return attack2();
@@ -131,82 +140,82 @@ vector< DelayedHpLoss > MegaMan::attack( int actionNumber ) {
     case 5: return attack5();
     case 6: return attack6();
     case 7: return attack7();
-    default: return vector<DelayedHpLoss>();
+    default: return vector<DelayedDamage>();
     }
 }
-vector< DelayedHpLoss > MegaMan::attack1() {
+vector< DelayedDamage > MegaMan::attack1() {
     // Sword
-    vector< DelayedHpLoss > atkCoords;
-    atkCoords.push_back( DelayedHpLoss( 1, x + facing, y, preAtkTime, npc ) );
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 1, x + facing, y, preAtkTime, npc ) );
     return atkCoords;
 }
-vector< DelayedHpLoss > MegaMan::attack2() {
+vector< DelayedDamage > MegaMan::attack2() {
     // LongSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 2; i++ ) {
         int xPos = x + facing * i;
         int yPos = y;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > MegaMan::attack3() {
+vector< DelayedDamage > MegaMan::attack3() {
     // WideSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > MegaMan::attack4() {
+vector< DelayedDamage > MegaMan::attack4() {
     // CrossSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * ( i+1 );
         int yPos = y + i;
         int dmg = ( i == 0 ? 2 : 1 );
-        atkCoords.push_back( DelayedHpLoss( dmg, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( dmg, xPos, yPos, preAtkTime, npc ) );
     }
     for( int i = -1; i <= 1; i += 2 ) {
         int xPos = x + facing * (i+1);
         int yPos = y - i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > MegaMan::attack5() {
+vector< DelayedDamage > MegaMan::attack5() {
     // SpinSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         for( int j = -1; j <= 1; j++ ) {
             if( i == 0  && j == 0 ) continue;
             int xPos = x + i;
             int yPos = y + j;
-            atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+            atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
         }
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > MegaMan::attack6() {
+vector< DelayedDamage > MegaMan::attack6() {
     // StepSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * 3;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > MegaMan::attack7() {
+vector< DelayedDamage > MegaMan::attack7() {
     // LifeSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 2; i++ ) {
         for( int j = -1; j <= 1; j++ ) {
             int xPos = x + facing * i;
             int yPos = y + j;
-            atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+            atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
         }
     }
     return atkCoords;
@@ -214,7 +223,8 @@ vector< DelayedHpLoss > MegaMan::attack7() {
 
 string ProtoMan::getAtkName() {
     switch( actionNumber ) {
-    default: case 1: return "Sword";
+    default:
+    case 1: return "Sword";
     case 2: return "LongSwrd";
     case 3: return "WideSwrd";
     case 4: return "StepSwrd";
@@ -233,7 +243,7 @@ int ProtoMan::getAtkCost( int atkNum ) {
     case 6: return discount + protoCost;
     }
 }
-vector< DelayedHpLoss > ProtoMan::attack( int actionNumber ) {
+vector< DelayedDamage > ProtoMan::attack( int actionNumber ) {
     switch( actionNumber ) {
     case 1: return attack1();
     case 2: return attack2();
@@ -241,74 +251,75 @@ vector< DelayedHpLoss > ProtoMan::attack( int actionNumber ) {
     case 4: return attack4();
     case 5: return attack5();
     case 6: return attack6();
-    default: return vector<DelayedHpLoss>();
+    default: return vector<DelayedDamage>();
     }
 }
-vector< DelayedHpLoss > ProtoMan::attack1() {
+vector< DelayedDamage > ProtoMan::attack1() {
     // Sword
-    vector< DelayedHpLoss > atkCoords;
-    atkCoords.push_back( DelayedHpLoss( 1, x + facing, y, preAtkTime, npc ) );
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 1, x + facing, y, preAtkTime, npc ) );
     return atkCoords;
 }
-vector< DelayedHpLoss > ProtoMan::attack2() {
+vector< DelayedDamage > ProtoMan::attack2() {
     // LongSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 2; i++ ) {
         int xPos = x + facing * i;
         int yPos = y;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > ProtoMan::attack3() {
+vector< DelayedDamage > ProtoMan::attack3() {
     // WideSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > ProtoMan::attack4() {
+vector< DelayedDamage > ProtoMan::attack4() {
     // StepSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * 3;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > ProtoMan::attack5() {
+vector< DelayedDamage > ProtoMan::attack5() {
     // HeroSword
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 3; i++ ) {
         int xPos = x + facing * i;
         int yPos = y;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > ProtoMan::attack6() {
+vector< DelayedDamage > ProtoMan::attack6() {
     // ProtoCross
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 3; i++ ) {
         int xPos = x + facing * i;
         int yPos = y;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
     }
     for( int i = -1; i <= 1; i += 2 ) {
         int xPos = x + facing * 2;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
 
 string TomahawkMan::getAtkName() {
     switch( actionNumber ) {
-    default: case 1: return "WideSwng";
+    default:
+    case 1: return "WideSwng";
     case 2: return "WdSwngEX";
     case 3: return "Tomahawk";
     case 4: return "TmhawkEX";
@@ -325,76 +336,77 @@ int TomahawkMan::getAtkCost( int atkNum ) {
     case 5: return discount + eTomaCost;
     }
 }
-vector< DelayedHpLoss > TomahawkMan::attack( int actionNumber ) {
+vector< DelayedDamage > TomahawkMan::attack( int actionNumber ) {
     switch( actionNumber ) {
     case 1: return attack1();
     case 2: return attack2();
     case 3: return attack3();
     case 4: return attack4();
     case 5: return attack5();
-    default: return vector<DelayedHpLoss>();
+    default: return vector<DelayedDamage>();
     }
 }
-vector< DelayedHpLoss > TomahawkMan::attack1() {
+vector< DelayedDamage > TomahawkMan::attack1() {
     // WideSwing
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTimeToma, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTimeToma, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > TomahawkMan::attack2() {
+vector< DelayedDamage > TomahawkMan::attack2() {
     // WideSwingEX
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTimeToma, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTimeToma, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > TomahawkMan::attack3() {
+vector< DelayedDamage > TomahawkMan::attack3() {
     // TomahawkSwing
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 2; i++ ) {
         for( int j = -1; j <= 1; j++ ) {
             int xPos = x + facing * i;
             int yPos = y + j;
-            atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTimeToma, npc ) );
+            atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTimeToma, npc ) );
         }
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > TomahawkMan::attack4() {
+vector< DelayedDamage > TomahawkMan::attack4() {
     // TomahawkSwingEX
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 2; i++ ) {
         for( int j = -1; j <= 1; j++ ) {
             int xPos = x + facing * i;
             int yPos = y + j;
-            atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTimeToma, npc ) );
+            atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTimeToma, npc ) );
         }
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > TomahawkMan::attack5() {
+vector< DelayedDamage > TomahawkMan::attack5() {
     // EagleTomahawk
-    vector< DelayedHpLoss > atkCoords;
-    atkCoords.push_back( DelayedHpLoss( 5, x + facing, y, preAtkTimeEagleToma - 0.06, npc ) );
-    for( int i = 2; i <= 5; i++ ) {
-        int xPos = x + facing * i;
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 5, x + facing, y, preAtkTimeEagleToma - 0.06, npc ) );
+    for( int i = 0; i <= 3; i++ ) {
+        int xPos = x + facing * (i+2);
         int yPos = y;
-        float delay = preAtkTimeEagleToma - 0.08 + 0.04 * (float)i;
-        atkCoords.push_back( DelayedHpLoss( 5, xPos, yPos, delay, npc ) );
+        float delay = preAtkTimeEagleToma + 0.04 * (float)i;
+        atkCoords.push_back( DelayedDamage( 5, xPos, yPos, delay, npc ) );
     }
     return atkCoords;
 }
 
 string Colonel::getAtkName() {
     switch( actionNumber ) {
-    default: case 1: return "ArcDvide";
+    default:
+    case 1: return "ArcDvide";
     case 2: return "ScreenDv";
     case 3: return "ScreenDv";
     case 4: return "CrossDiv";
@@ -411,75 +423,76 @@ int Colonel::getAtkCost( int atkNum ) {
     case 5: return discount + zDivideCost;
     }
 }
-vector< DelayedHpLoss > Colonel::attack( int actionNumber ) {
+vector< DelayedDamage > Colonel::attack( int actionNumber ) {
     switch( actionNumber ) {
     case 1: return attack1();
     case 2: return attack2();
     case 3: return attack3();
     case 4: return attack4();
     case 5: return attack5();
-    default: return vector<DelayedHpLoss>();
+    default: return vector<DelayedDamage>();
     }
 }
-vector< DelayedHpLoss > Colonel::attack1() {
+vector< DelayedDamage > Colonel::attack1() {
     // Arc Divide
-    vector< DelayedHpLoss > atkCoords;
-    atkCoords.push_back( DelayedHpLoss( 1, x + facing, y, preAtkTime, npc ) );
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 1, x + facing, y, preAtkTime, npc ) );
     for( int i = -1; i <= 1; i += 2 ) {
-        atkCoords.push_back( DelayedHpLoss( 1, x, y + i, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, x, y + i, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > Colonel::attack2() {
+vector< DelayedDamage > Colonel::attack2() {
     // Screen Divide Up
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * ( i+1 );
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > Colonel::attack3() {
+vector< DelayedDamage > Colonel::attack3() {
     // Screen Divide Down
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * ( i+1 );
         int yPos = y - i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > Colonel::attack4() {
+vector< DelayedDamage > Colonel::attack4() {
     // Step Cross Divide
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * ( i+3 );
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
     }
     for( int i = -1; i <= 1; i += 2 ) {
         int xPos = x + facing * ( i+3 );
         int yPos = y - i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > Colonel::attack5() {
+vector< DelayedDamage > Colonel::attack5() {
     // Z-Saber Cross Divide
-    vector< DelayedHpLoss > atkCoords;
-    atkCoords.push_back( DelayedHpLoss( 2, x + facing, y, preAtkTime, npc ) );
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 2, x + facing, y, preAtkTime, npc ) );
     for( int i = 0; i <= 2; i++ ) {
         int xPos = x + facing * i;
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, y + 1, preAtkTime, npc ) );
-        atkCoords.push_back( DelayedHpLoss( 2, xPos, y - 1, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, y + 1, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 2, xPos, y - 1, preAtkTime, npc ) );
     }
     return atkCoords;
 }
 
 string SlashMan::getAtkName() {
     switch( actionNumber ) {
-    default: case 1: return "LongSlsh";
+    default:
+    case 1: return "LongSlsh";
     case 2: return "WideSlsh";
     case 3: return "CrossSls";
     case 4: return "StepCrss";
@@ -496,77 +509,157 @@ int SlashMan::getAtkCost( int atkNum ) {
     case 5: return discount + spinSlashCost;
     }
 }
-vector< DelayedHpLoss > SlashMan::attack( int actionNumber ) {
+vector< DelayedDamage > SlashMan::attack( int actionNumber ) {
     switch( actionNumber ) {
     case 1: return attack1();
     case 2: return attack2();
     case 3: return attack3();
     case 4: return attack4();
     case 5: return attack5();
-    default: return vector<DelayedHpLoss>();
+    default: return vector<DelayedDamage>();
     }
 }
-vector< DelayedHpLoss > SlashMan::attack1() {
+vector< DelayedDamage > SlashMan::attack1() {
     // LongSlash
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = 1; i <= 2; i++ ) {
         int xPos = x + facing * i;
         int yPos = y;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > SlashMan::attack2() {
+vector< DelayedDamage > SlashMan::attack2() {
     // WideSlash
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing;
         int yPos = y + i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > SlashMan::attack3() {
+vector< DelayedDamage > SlashMan::attack3() {
     // CrossSlash
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * ( i+1 );
         int yPos = y + i;
         int dmg = ( i == 0 ? 2 : 1 );
-        atkCoords.push_back( DelayedHpLoss( dmg, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( dmg, xPos, yPos, preAtkTime, npc ) );
     }
     for( int i = -1; i <= 1; i += 2 ) {
         int xPos = x + facing * ( i+1 );
         int yPos = y - i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > SlashMan::attack4() {
+vector< DelayedDamage > SlashMan::attack4() {
     // StepCross
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         int xPos = x + facing * ( i+3 );
         int yPos = y + i;
         int dmg = ( i == 0 ? 2 : 1 );
-        atkCoords.push_back( DelayedHpLoss( dmg, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
+        atkCoords.push_back( DelayedDamage( dmg, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
     }
     for( int i = -1; i <= 1; i += 2 ) {
         int xPos = x + facing * ( i+3 );
         int yPos = y - i;
-        atkCoords.push_back( DelayedHpLoss( 1, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
+        atkCoords.push_back( DelayedDamage( 1, xPos, yPos, preAtkTime + moveAnimationTime, npc ) );
     }
     return atkCoords;
 }
-vector< DelayedHpLoss > SlashMan::attack5() {
+vector< DelayedDamage > SlashMan::attack5() {
     // Tornado Spin Slash
-    vector< DelayedHpLoss > atkCoords;
+    vector< DelayedDamage > atkCoords;
     for( int i = -1; i <= 1; i++ ) {
         for( int j = -1; j <= 1; j++ ) {
             if( i == 0  && j == 0 ) continue;
             int xPos = x + i;
             int yPos = y + j;
-            atkCoords.push_back( DelayedHpLoss( 2, xPos, yPos, preAtkTime, npc ) );
+            atkCoords.push_back( DelayedDamage( 2, xPos, yPos, preAtkTime, npc ) );
+        }
+    }
+    return atkCoords;
+}
+
+string GutsMan::getAtkName() {
+    switch( actionNumber ) {
+    default:
+    case 1: return "GutsPnch";
+    case 2: return "GutsHmmr";
+    case 3: return "DashPnch";
+    case 4: return "Shockwav";
+    case 5: return "HamrSlam";
+    }
+}
+int GutsMan::getAtkCost( int atkNum ) {
+    int discount = ( onHolyPanel ? -25 : 0 );
+    switch( atkNum ) {
+    default: case 1: return gutsPunchCost;
+    case 2: return discount + gutsHammerCost;
+    case 3: return discount + gutsDashPunchCost;
+    case 4: return discount + gutsShockwaveCost;
+    case 5: return discount + gutsSlamCost;
+    }
+}
+vector< DelayedDamage > GutsMan::attack( int actionNumber ) {
+    switch( actionNumber ) {
+    case 1: return attack1();
+    case 2: return attack2();
+    case 3: return attack3();
+    case 4: return attack4();
+    case 5: return attack5();
+    default: return vector<DelayedDamage>();
+    }
+}
+vector< DelayedDamage > GutsMan::attack1() {
+    // Guts Punch
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 2, x + facing, y, preAtkTimeGutsPunch, npc ) );
+    return atkCoords;
+}
+vector< DelayedDamage > GutsMan::attack2() {
+    // Guts Dash Punch
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 5, x + facing, y, preAtkTimeToma, npc ) );
+    return atkCoords;
+}
+vector< DelayedDamage > GutsMan::attack3() {
+    // Guts Hammer
+    vector< DelayedDamage > atkCoords;
+    for( int i = 1; i <= 3; i++ ) {
+        int xPos = x + facing * i;
+        float delay = moveAnimationTime * 0.40 + moveAnimationTime * 0.25 * (i-1);
+        atkCoords.push_back( DelayedDamage( 2, xPos, y, delay, npc ) );
+    }
+    return atkCoords;
+}
+vector< DelayedDamage > GutsMan::attack4() {
+    // Guts Hammer Shockwave
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 5, x + facing, y, preAtkTimeToma, npc ) );
+    for( int i = 1; i <= 4; i++ ) {
+        int xPos = x + facing * (i+1);
+        float delay = preAtkTimeToma + 0.06 * i;
+        atkCoords.push_back( DelayedDamage( 2, xPos, y, delay, npc ) );
+    }
+    return atkCoords;
+}
+vector< DelayedDamage > GutsMan::attack5() {
+    // Guts Hammer Shockwave Slam
+    vector< DelayedDamage > atkCoords;
+    atkCoords.push_back( DelayedDamage( 2, x + facing, y-1, preAtkTimeToma, npc ) );
+    atkCoords.push_back( DelayedDamage( 5, x + facing, y, preAtkTimeToma, npc ) );
+    atkCoords.push_back( DelayedDamage( 2, x + facing, y+1, preAtkTimeToma, npc ) );
+    for( int i = 1; i <= 2; i++ ) {
+        int xPos = x + facing * (i+1);
+        float delay = preAtkTimeToma + 0.06 * i;
+        for( int j = -1; j <= 1; j++ ) {
+            int yPos = y + j;
+            atkCoords.push_back( DelayedDamage( 2, xPos, yPos, delay, npc ) );
         }
     }
     return atkCoords;
