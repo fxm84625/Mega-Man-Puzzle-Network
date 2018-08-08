@@ -120,15 +120,36 @@ void Board::generateTrainingLevel( int type, bool reload ) {
     }
     case 7: {    // Random Training
         if( rand() % 2 ) {
-            for( int i = 0; i < 5; i++ ) {
-                map[0][i+1].item = 1;   map[i+1][0].item = 2; } }
+            for( int i = 1; i <= 5; i++ ) {
+                map[0][i].item = 1;
+                map[0][i].rockHP = 0;
+                map[0][i].rockType = 0;
+                map[0][i].state = 0;
+                map[i][0].item = 2;
+                map[i][0].rockHP = 0;
+                map[i][0].rockType = 0;
+                map[i][0].state = 0;
+            }
+        }
         else {
-            for( int i = 0; i < 5; i++ ) {
-                map[0][i+1].item = 2;   map[i+1][0].item = 1; } }
+            for( int i = 1; i <= 5; i++ ) {
+                map[0][i].item = 2;
+                map[0][i].rockHP = 0;
+                map[0][i].rockType = 0;
+                map[0][i].state = 0;
+                map[i][0].item = 1;
+                map[i][0].rockHP = 0;
+                map[i][0].rockType = 0;
+                map[i][0].state = 0;
+            }
+        }
         for( int x = 1; x <= 5; x++ ) {
             for( int y = 1; y <= 5; y++ ) {
-                switch( rand() % 3 ) {
+                switch( rand() % 4 ) {
                 case 0: {
+                    map[x][y].item = 0;
+                    map[x][y].rockHP = 0;
+                    map[x][y].rockType = 0;
                     map[x][y].state = rand() % 5 - 1;
                     break;
                     }
@@ -136,16 +157,21 @@ void Board::generateTrainingLevel( int type, bool reload ) {
                     map[x][y].item = -1;
                     map[x][y].rockHP = 3;
                     map[x][y].rockType = 1;
+                    map[x][y].state = 0;
                     break;
                     }
                 case 2: {
                     map[x][y].item = rand() % 2 + 1;
                     map[x][y].rockHP = 3;
                     map[x][y].rockType = 1;
+                    map[x][y].state = 0;
                     break;
                     }
                 case 3: {
+                    map[x][y].item = 0;
                     map[x][y].rockHP = 5;
+                    map[x][y].rockType = 0;
+                    map[x][y].state = 0;
                     break;
                     }
                 }
@@ -227,7 +253,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[0][2].state = -3;	map[0][3].state = -3;	map[0][4].state = -3;	map[0][5].state = -3;	//	]====O=[
 
             // Amount of Rock Obstacles and Energy Item Resources
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             // Amount of Special Panels
             numCracked = rand() % 3 + lvlDiff;	    // 0-2	// 1-3	// 2-4
@@ -244,7 +270,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
 			    map[4][i + 3].state = -3;	map[5][i + 3].state = -3; }			//	]====OO[
 		    map[4][5].rockHP = 1;
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 13 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	                // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -259,7 +285,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
 			    map[1][i + 3].rockHP = 1;		map[2][i + 3].rockHP = 1;			//	] =OOO=[
 			    map[3][i + 1].rockHP = 1;		map[4][i + 1].rockHP = 1; }			//	]===OO=[
                                                                                     //	]== ===[
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 10 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	                // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;                  // 0    // 0-1  // 1-2
@@ -274,7 +300,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i + 1][0].state = -3;		map[i + 1][5].state = -3; }									//	]=O==O=[
             map[1][1].rockHP = 1;	map[1][4].rockHP = 1;	map[4][1].rockHP = 1;	map[4][4].rockHP = 1;	//	]=    =[
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	            // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -288,7 +314,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[5][2].rockHP = 1;	map[5][3].rockHP = 1;                                                   //	]=OO=OO[
                                                                                                             //	]==OO==[
                                                                                                             //	]===O==[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 14 + numRocks + gain;
             numCracked = rand() % 4 + 1 + lvlDiff * 2;      // 1-4	// 3-6	// 5-8
             numIce = rand() % 2 + lvlDiff;                  // 0-1  // 1-2  // 2-3
@@ -303,7 +329,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[3][4].rockHP = 1;    map[4][3].rockHP = 1;            //	]===OO=[
                                                                       //	]== ===[
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	                // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -319,7 +345,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i+4][1].rockHP = 1;  map[i+4][2].rockHP = 1; }    //	]=     [
             map[2][2].rockHP = 1;    map[3][3].rockHP = 1;
 
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 14 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	            // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -339,7 +365,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[3][1].rockHP = 1;		map[5][3].rockHP = 1;					// ]====  [
             map[0][3].state = 0;		map[3][0].state = 0;
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -354,7 +380,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[1][2].rockHP = 1;	map[4][5].rockHP = 1;					// ]==O===[
             map[2][1].rockHP = 1;	map[5][4].rockHP = 1;					// ]===   [
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -369,7 +395,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i + 1][4].rockHP = 1;	map[4][i + 1].rockHP = 1; }		// ]===OOO[
                                                                             // ]====O=[
                                                                             // ]===   [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 11 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 -1 + lvlDiff;           // 0    // 0-1  // 1-2
@@ -384,7 +410,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i + 3][3].rockHP = 1;	map[3][i + 3].rockHP = 1; }		// ]======[
                                                                             // ]===OOO[
                                                                             // ]===   [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 11 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;		            // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;                  // 0    // 0-1  // 1-2
@@ -398,7 +424,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i + 3][3].rockHP = 1;	map[3][i + 3].rockHP = 1; }				// ]==O==O[
             map[2][2].rockHP = 1;	map[2][5].rockHP = 1;	map[5][2].rockHP = 1;	// ]===OOO[
                                                                                     // ]===   [
-            numRocks = 5 + level / 5 + lvlDiff * 2;									
+            numRocks = 5 + level / 6 + lvlDiff * 2;									
             numItems = 14 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;		            // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;                  // 0    // 0-1  // 1-2
@@ -414,7 +440,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[4][i + 4].rockHP = 1;	map[i + 4][4].rockHP = 1; }	    // ]= O=O [
             map[3][3].rockHP = 1;	map[1][1].state = -3;					// ]===== [
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 13 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -428,7 +454,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[2][2].state = -3;    map[4][4].state = -3;                              // ]== O==[
             map[4][0].state = -3;    map[5][0].state = -3;    map[5][1].state = -3;     // ]===O= [
                                                                                         // ]====  [
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	            // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -446,7 +472,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[1][i+3].rockHP = 1;    map[3][i].rockHP = 1;        //	]=  OO=[
                 map[2][i+3].rockHP = 1;    map[4][i].rockHP = 1; }      //	]===OO=[
                                 									    //	]===OO=[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -474,7 +500,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i][3].rockHP = 1;    map[i + 4][0].state = -3;    map[i + 4][3].rockHP = 1; }   //	]OO==OO[
             map[0][5].state = -3;                                                                   //	]  ==  [
                                                                                                     //	]====  [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -488,7 +514,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i][5].state = -3;	map[i + 2][5].state = -3;	map[i + 4][4].rockHP = 1; }	//	]==OO==[
             map[0][1].state = -3;																//	] =OO= [
 												                                                //	]===== [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -502,7 +528,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
 			    map[1][i].state = -3;	    map[4][i + 2].state = -3;    map[i][5].state = -3; }    //	]=OO= =[
 		                    																        //	]= =OO=[
 															                                        //	]= =OO=[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
 		    numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -516,7 +542,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
 			    map[1][i + 2].state = -3;	map[4][i].state = -3;    map[4][i + 4].state = -3; }    //	]= =OO=[
 		                    																        //	]=OO= =[
 															                                        //	]=OO= =[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
 		    numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -538,7 +564,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[0][5].state = -3;   map[1][1].state = -3;
             map[5][0].state = -3;   map[4][4].state = -3;
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -556,7 +582,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             for( int i = 0; i < 3; i++ ) map[i+2][0].state = -3;    //  ]=O=O= [
                                                                     //  ]O===O [
                                                                     //  ]==    [
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	            // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -570,7 +596,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             for( int i = 0; i < 3; i++ ) map[0][i+3].state = -3;        //  ]==O=O=[
                                                                         //  ]=O===O[
                                                                         //  ]=     [
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	            // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -585,7 +611,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[3][3].rockHP = 1;                                   //  ]=== ==[
             map[0][3].state = -3;    map[3][5].state = -3;
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	            // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;              // 0    // 0-1  // 1-2
@@ -600,7 +626,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[3][3].rockHP = 1;                                   //  ]==O=O=[
             map[3][0].state = -3;    map[5][3].state = -3;          //  ]=== ==[
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	            // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;              // 0    // 0-1  // 1-2
@@ -614,7 +640,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             for( int i = 0; i < 5; i++ ) { map[5][i].state = -3; }                              // ]==O== [
             map[2][5].state = -3;                                                               // ]OO=OO [
                                                                                                 // ]===== [
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 10 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -629,7 +655,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[5][2].state = -3;                                                                   // ]=O==O=[
                                                                                                     // ]=O==O=[
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 10 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -644,7 +670,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[4][0].state = -3;    map[4][2].state = -3;    map[5][0].state = -3; // ]=O=O==[
                                                                                     // ]====  [
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -659,7 +685,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[1][2].state = -3;    map[2][2].state = -3;                              // ]=  O=O[
             map[0][5].state = -3;    map[4][4].state = -3;    map[5][0].state = -3;     // ]===== [
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 9 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	    // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 - 1 + lvlDiff;          // 0    // 0-1  // 1-2
@@ -677,7 +703,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                                                                 //	]=OOOO=[
                                                                 //	]=OOOO=[
                                                                 //	]======[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 16 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -691,7 +717,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                                                                 // ]OO==OO[
                                                                 // ]OO==OO[
                                                                 // ]======[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 16 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -705,7 +731,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                                                                 // ]=OOOO=[
                                                                 // ]======[
                                                                 // ]=OOOO=[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 16 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -719,7 +745,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                                                                 // ]O=OO=O[
                                                                 // ]O=OO=O[
                                                                 // ]======[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 16 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -733,7 +759,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[2][2].rockHP = 1;    map[3][2].rockHP = 1;              // ]O=OO=O[
             map[2][3].rockHP = 1;    map[3][3].rockHP = 1;              // ]=====O[
                                                                         // ]==OOO=[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 16 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -747,7 +773,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[3][i + 3].rockHP = 1;    map[4][i + 3].rockHP = 1;  // ]=OO===[
                 map[4][i].rockHP = 1;        map[5][i].rockHP = 1; }    // ]=OO=OO[
                                                                         // ]====OO[
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 16 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -762,7 +788,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[1][4].rockHP = 1;                                                   // ]=====O[
             map[0][4].state = -3;    map[0][5].state = -3;    map[1][5].state = -3; // ]=OOOOO[
 
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 15 + numRocks + gain;
             numCracked = rand() % 3 + 1 + lvlDiff * 2;	// 1-3	// 3-5	// 5-7
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -777,7 +803,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[4][1].rockHP = 1;                                                   // ]O=O=O [
             map[4][0].state = -3;    map[5][0].state = -3;    map[5][1].state = -3; // ]====  [
 
-            numRocks = 5 + level / 5 + lvlDiff * 2;
+            numRocks = 5 + level / 6 + lvlDiff * 2;
             numItems = 15 + numRocks + gain;
             numCracked = rand() % 3 + 1 + lvlDiff * 2;	// 1-3	// 3-5	// 5-7
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -795,7 +821,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[4][i + 1].rockHP = 1;		//	]===O=O[
                 map[5][i].rockHP = 1; }			//	]==O=O=[
                                                 //	]===O=O[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 5 + lvlDiff * 2;		// 0-4	// 2-6	// 4-8
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -814,7 +840,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             //	]=O=O=O[
             //	]======[
             //	]======[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 5 + lvlDiff * 2;		// 0-4	// 2-6	// 4-8
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -828,7 +854,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i+2][5-i].rockHP = 1; }                 // ]=O=O=O[
             map[0][5].state = -3;    map[5][0].state = -3;  // ]==O=O=[
                                                             // ]===O= [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 5 + 2 + lvlDiff * 2;	// 2-6	// 4-8	// 6-10
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -843,7 +869,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[4][0].state = -3;    map[5][0].state = -3;          // ]=O=O=O[
                                                                     // ]==O=O=[
                                                                     // ]====  [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 5 + lvlDiff * 2;		// 0-4	// 2-6	// 4-8
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -857,7 +883,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i][4 - i].rockHP = 1;    map[i + 3][1 - i].rockHP = 1; }    // ] ===O=[
             map[0][2].state = -3;    map[2][0].state = -3;                      // ]===O=O[
                                                                                 // ]== =O=[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 5 + lvlDiff * 2;		// 0-4	// 2-6	// 4-8
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -872,7 +898,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i+2][5].state = -3;      map[5][i+2].state = -3; }  // ]==O=O=[
                                                                         // ]==  =O[
 
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 10 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;	            // 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + ( lvlDiff == 2 ? 1 : 0 );     // 0-1  // 0-1  // 1-2
@@ -886,7 +912,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[0][3].state = -3;    map[3][0].state = -3;                  // ]==O=O=[
                                                                             // ]===O=O[
                                                                             // ]=== ==[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 11 + numRocks + gain;
             numCracked = rand() % 5 + lvlDiff * 2;		// 0-4	// 2-6	// 4-8
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -901,7 +927,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[1][1].state = -3;                                           //	]= ==O=[
             map[2][5].state = -3;    map[5][2].state = -3;                  //	]===O=O[
 
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 5 + 2 + lvlDiff * 2;	// 2-6	// 4-8	// 6-10
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -919,7 +945,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[2][yPos].rockHP = 1;		map[3][yPos].rockHP = 1; }			//	]==OO==[
                                                                                     //	]==OO =[
                                                                                     //	]=    =[
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 10 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -933,7 +959,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[2][i + 1].rockHP = 1;								//	]=OO=O=[
                 map[i][5].state = -3;	map[i + 1][0].state = -3; }  	//	]=OO=O=[
                                                                         //	]=     [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -947,7 +973,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[3][i + 1].rockHP = 1;								//	]=O=OO=[
                 map[i][5].state = -3;	map[i + 1][0].state = -3; }  	//	]=O=OO=[
                                                                         //	]=     [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -961,7 +987,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[0][2].state = -3;    map[2][0].state = -3;                                              //	] =OOOO[
                                                                                                         //	]====OO[
                                                                                                         //	]== ===[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -975,7 +1001,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             map[3][5].state = -3;    map[5][3].state = -3;                                          // ]==OO==[
                                                                                                     // ]===OO=[
                                                                                                     // ]===OO=[
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -989,7 +1015,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[4][i + 1].rockHP = 1; }                             // ]==OOO=[
             map[5][0].state = -3;                                       // ]==OOO=[
                                                                         // ]=     [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff * 2;		// 0-2	// 2-4	// 4-6
             numIce = rand() % 2 + lvlDiff;              // 0-1  // 1-2  // 2-3
@@ -1003,7 +1029,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
                 map[i][5].state = -3;    map[5][i].state = -3; }        // ]==OOO [
             map[4][1].rockHP = 1;                                       // ]===OO [
             map[0][4].state = -3;    map[4][0].state = -3;              // ]====  [
-            numRocks = 3 + level / 5 + lvlDiff * 2;
+            numRocks = 3 + level / 6 + lvlDiff * 2;
             numItems = 10 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	        // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;          // 0    // 0-1  // 1-2
@@ -1017,7 +1043,7 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
             for( int i = 0; i < 4; i++ ) {                          // ]==OOO=[
                 map[i][5].state = -3;    map[i+2][0].state = -3; }  // ] ==OOO[
             map[0][1].state = -3;   map[5][4].state = -3;           // ]==    [
-            numRocks = 4 + level / 5 + lvlDiff * 2;
+            numRocks = 4 + level / 6 + lvlDiff * 2;
             numItems = 12 + numRocks + gain;
             numCracked = rand() % 3 + lvlDiff;	        // 0-2	// 1-3	// 2-4
             numIce = rand() % 2 - 1 + lvlDiff;          // 0    // 0-1  // 1-2
@@ -1028,7 +1054,9 @@ void Board::initLevel( int level, int lvlDiff, int gain, int type, int subtype )
         break;
     }
 
-    int minItems = ( level < 50 ? 3 * itemWorth : 4 * itemWorth );
+    int minItems = 3 * itemWorth;
+    if( level >= 30 ) minItems += itemWorth;
+    if( level >= 60 ) minItems += itemWorth;
     if( numItems < minItems ) numItems = minItems;
 
     numTraps = rand() % 2 + lvlDiff + ( level >= 50 ? 1 : 0 );

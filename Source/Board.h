@@ -27,7 +27,6 @@ public:
 
     void clear();
     void reset();
-    void updatePrevEnergy( float elapsed );
 
     void generateTrainingLevel( int type = 1, bool reload = false );
     void generateBossLevel( int type = 0 );

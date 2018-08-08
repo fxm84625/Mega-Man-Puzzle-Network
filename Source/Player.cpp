@@ -122,7 +122,8 @@ string MegaMan::getAtkName() {
 int MegaMan::getAtkCost( int atkNum ) {
     int discount = ( onHolyPanel ? -25 : 0 );
     switch( atkNum ) {
-    default: case 1: return swordCost;
+    default:
+    case 1: return swordCost;
     case 2: return discount + longCost;
     case 3: return discount + wideCost;
     case 4: return discount + crossCost;
@@ -235,7 +236,8 @@ string ProtoMan::getAtkName() {
 int ProtoMan::getAtkCost( int atkNum ) {
     int discount = ( onHolyPanel ? -25 : 0 );
     switch( atkNum ) {
-    default: case 1: return swordCost;
+    default:
+    case 1: return swordCost;
     case 2: return discount + longCost;
     case 3: return discount + wideCost2;
     case 4: return discount + stepCost2;
@@ -329,7 +331,8 @@ string TomahawkMan::getAtkName() {
 int TomahawkMan::getAtkCost( int atkNum ) {
     int discount = ( onHolyPanel ? -25 : 0 );
     switch( atkNum ) {
-    default: case 1: return tomaCostA1;
+    default:
+    case 1: return discount + tomaCostA1;
     case 2: return discount + tomaCostB1;
     case 3: return discount + tomaCostA2;
     case 4: return discount + tomaCostB2;
@@ -416,7 +419,8 @@ string Colonel::getAtkName() {
 int Colonel::getAtkCost( int atkNum ) {
     int discount = ( onHolyPanel ? -25 : 0 );
     switch( atkNum ) {
-    default: case 1: return vDivideCost;
+    default:
+    case 1: return discount + vDivideCost;
     case 2: return discount + upDivideCost;
     case 3: return discount + downDivideCost;
     case 4: return discount + xDivideCost;
@@ -502,7 +506,8 @@ string SlashMan::getAtkName() {
 int SlashMan::getAtkCost( int atkNum ) {
     int discount = ( onHolyPanel ? -25 : 0 );
     switch( atkNum ) {
-    default: case 1: return longCost;
+    default:
+    case 1: return discount + longCost;
     case 2: return discount + wideCost;
     case 3: return discount + crossCost2;
     case 4: return discount + stepCrossCost;
@@ -598,7 +603,8 @@ string GutsMan::getAtkName() {
 int GutsMan::getAtkCost( int atkNum ) {
     int discount = ( onHolyPanel ? -25 : 0 );
     switch( atkNum ) {
-    default: case 1: return gutsPunchCost;
+    default:
+    case 1: return discount + gutsPunchCost;
     case 2: return discount + gutsHammerCost;
     case 3: return discount + gutsDashPunchCost;
     case 4: return discount + gutsShockwaveCost;

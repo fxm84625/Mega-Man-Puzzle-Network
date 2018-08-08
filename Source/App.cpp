@@ -1242,7 +1242,7 @@ void App::checkKeys() {
                     face( player1, player1->facing * -1 );
                 break;
             }
-            case SDL_SCANCODE_X: debugTest(); break;
+            // case SDL_SCANCODE_X: debugTest(); break;
             }
         }
     }
@@ -2119,7 +2119,7 @@ void App::drawPlayer(Player * const player) {
             if     ( player->animationDisplayAmt > player->currentSwordAtkTime - 0.03 ) picIndex = 0;
 			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.06 ) picIndex = 1;
 			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.12 ) picIndex = 2;
-			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.16 ) picIndex = 3;
+			else if( player->animationDisplayAmt > player->currentSwordAtkTime - 0.15 ) picIndex = 3;
             else                                                                        picIndex = 4;
         }
         // GutsMan's Hammer Attacks
@@ -3515,7 +3515,7 @@ void App::hitPanel( int xPos, int yPos, int dmg, bool fromNpc ) {
         Mix_PlayChannel( 1, hurtSound, 0 );
     }
     // Player attacks on NPCs
-    else {
+    else if( !fromNpc ) {
         for( int i = 0; i < npcList.size(); i++ ) {
             if( xPos == npcList[i]->x && yPos == npcList[i]->y ) {
                 npcList[i]->hp -= dmg;
@@ -3545,7 +3545,7 @@ bool App::isPanelValid(int xPos, int yPos, bool npc, bool forced) {
     if( board.map[xPos][yPos].state <= -2 ) return false;		// Players cannot walk onto a Hole
     if( board.map[xPos][yPos].rockHP > 2 ) return false;        // Players cannot walk into a Rock,
     if( !forced && board.map[xPos][yPos].rockHP > 0 ) return false;		// Players cannot walk into a Rock, Unless "forced"
-                                                                        // Forced only when the Player is GutsMan Dash Punching, and the rock at most 2 HP
+                                                                        // Forced is only when the Player is GutsMan Dash Punching, and the rock at most 2 HP
     if( xPos == player1->x && yPos == player1->y ) return false;                 // NPCs can't walk onto the Player's position
     for( int i = 0; i < npcList.size(); i++ ) {
         if( xPos == npcList[i]->x && yPos == npcList[i]->y ) return false; }     // Players can't walk onto NPC positions
@@ -3650,11 +3650,17 @@ void App::loadBossLevel( int type ) {
 }
 void App::loadLevel( int num ) {
     if( level == 1 ) player1->energy = player1->energyDisplayed = startingEnergy;
-    int cappedLvl = level;		if ( cappedLvl > 50 ) { cappedLvl = 50; }
+    int cappedLvl = level;		if( cappedLvl > 60 ) { cappedLvl = 60; }
 
     // Bounds used in determining difficulty - which is based on current level number
-    int bound1 = 90 - ( cappedLvl <= 10 ? 0 : cappedLvl * 2 );          // = Percent chance of Easy level
-    int bound2 = 100 - ( cappedLvl > 20 ? ( cappedLvl -20 ) * 2 : 0 );  // = 100% - Percent chance of Hard level
+    // bound1 = Percent chance of Easy level
+    int bound1 = cappedLvl <= 20
+        ? 90 - cappedLvl
+        : 70 - ( cappedLvl - 20 ) * 2;
+    // bound2 = 100% - Percent chance of Hard level
+    int bound2 = cappedLvl <= 20
+        ? 100
+        : 100 - ( cappedLvl - 20 ) * 2;
     // Level		Easy   Medium	Hard
     //   0          90%     10%      0%
     //   5          85%     15%      0%
@@ -3666,11 +3672,12 @@ void App::loadLevel( int num ) {
     //  35          40%     30%     30%
     //  40          30%     30%     40%
     //  55          20%     30%     50%
-    //  50+         10%		30%     60%
+    //  60+         10%		30%     60%
 
     if( num <= -1 ) num = rand() % 100;                 // Random number between 0 and 99 - used to determine difficulty
     int diff = 0;				                        // difficulty 0, 1, 2 = easy, medium, hard
-    if( num >= bound2 ) diff = 2;
+    if( level == 1 ) {}
+    else if( num >= bound2 ) diff = 2;
     else if( num >= bound1 ) diff = 1;
     lvlDiff = diff;
 
@@ -3693,9 +3700,14 @@ void App::loadLevel( int num ) {
 
             int xPos = -1, yPos = -1;
             for( int y = 5; y >= 1; y-- ) {
+                if( xPos != -1 && yPos != -1 ) break;
                 for( int x = 5; x >= 4; x-- ) {
                     if( x == 5 && y == 5 ) continue;
-                    if( isPanelValid( x, y ) ) { xPos = x; yPos = y; }
+                    if( isPanelValid( x, y ) ) {
+                        xPos = x;
+                        yPos = y;
+                        break;
+                    }
                 }
             }
             if ( xPos != -1 && yPos != -1 ) {
@@ -3715,7 +3727,10 @@ void App::loadLevel( int num ) {
                 boss->npc = true;
                 boss->hp = currentGameDiff + diff + 1;
                 boss->type = bossType;
-                boss->energy = abs( gain ) * 25;
+                int minEnergy = 200;
+                if( diff == 1 ) minEnergy = 300;
+                else if( diff == 2 ) minEnergy = 400;
+                boss->energy = max( abs( gain ) * 25, minEnergy );
                 npcList.push_back( boss );
                 Mix_PlayChannel( 6, bossAppearSound, 0 );
             }
@@ -3742,10 +3757,38 @@ void App::loadTutorialLevel( bool reload ) {
     if( level == -7 ) {
         int pX = player1->x, pY = player1->y;
         if( pX == -1 || pX == 6 ) return;
-        int panelType = board.map[pX][pY].state;
         board.map[pX][pY].reset();
-        for( int i = 0; i < 6; i++ ) board.map[pX][i].reset();
-        board.map[pX][pY].state = panelType;
+        if( pX != 0 ) {
+            for( int i = 0; i < 6; i++ ) board.map[pX][i].reset();
+        }
+
+        switch( rand() % 5 ) {
+        default: break;
+        case 2:
+            for( int x = 0; x < 6; x++ ) {
+                for( int y = 0; y < 6; y++ ) {
+                    board.map[x][y].state = 1;
+                }
+            }
+            break;
+        case 3:
+            for( int x = 0; x < 6; x++ ) {
+                for( int y = 0; y < 6; y++ ) {
+                    board.map[x][y].state = 2;
+                }
+            }
+            break;
+        case 4:
+            for( int x = 0; x < 6; x++ ) {
+                for( int y = 0; y < 6; y++ ) {
+                    board.map[x][y].state = 3;
+                }
+            }
+            break;
+        }
+
+        board.map[0][0].state = 0;
+        board.map[5][5].state = 0;
     }
 }
 void App::loadPrevNpc(int diff, int gain) {
@@ -3755,15 +3798,23 @@ void App::loadPrevNpc(int diff, int gain) {
 
         int xPos = -1, yPos = -1;
         for( int y = 5; y >= 1; y-- ) {
+            if( xPos != -1 && yPos != -1 ) break;
             for( int x = 5; x >= 4; x-- ) {
                 if( x == 5 && y == 5 ) continue;
-                if( isPanelValid( x, y ) ) { xPos = x; yPos = y; }
+                if( isPanelValid( x, y ) ) {
+                    xPos = x;
+                    yPos = y;
+                    break;
+                }
             }
         }
         if( xPos != -1 && yPos != -1 ) {
             npc->facing = -1;
-            if( diff != 0 ) npc->hp++;
-            npc->energy += max( abs( gain ) * 25, 200 );
+            int minEnergy = 200;
+            if( diff == 1 ) minEnergy = 300;
+            else if( diff == 2 ) minEnergy = 400;
+            npc->energy += abs( gain ) * 25;
+            npc->energy = max( npc->energy, minEnergy );
             npc->x = xPos;
             npc->y = yPos;
             npcList.push_back( npc );
@@ -3774,6 +3825,8 @@ void App::loadPrevNpc(int diff, int gain) {
 }
 
 void App::spawnRandomItem( int xPos, int yPos ) {
+    int itemToPut = 1;
+
     // Try to spawn an item in a random location within 1 panel of the given coordinates
     for( int i = 0; i < 30; i++ ) {
         int randX = rand() % 3 - 1 + xPos;
@@ -3783,7 +3836,7 @@ void App::spawnRandomItem( int xPos, int yPos ) {
         if( randY < 0 ) randY = 0;
         if( randY > 5 ) randY = 5;
         if( isPanelValid( randX, randY ) && board.map[randX][randY].item == 0 ) {
-            board.map[randX][randY].item = 1;
+            board.map[randX][randY].item = itemToPut;
             board.map[randX][randY].upgradeInd = itemUpgradeTime;
             return;
         }
@@ -3798,7 +3851,7 @@ void App::spawnRandomItem( int xPos, int yPos ) {
         if( randY < 0 ) randY = 0;
         if( randY > 5 ) randY = 5;
         if( isPanelValid( randX, randY ) && board.map[randX][randY].item == 0 ) {
-            board.map[randX][randY].item = 1;
+            board.map[randX][randY].item = itemToPut;
             board.map[randX][randY].upgradeInd = itemUpgradeTime;
             return;
         }
@@ -3813,7 +3866,7 @@ void App::spawnRandomItem( int xPos, int yPos ) {
         if( randY < 0 ) randY = 0;
         if( randY > 5 ) randY = 5;
         if( isPanelValid( randX, randY ) && board.map[randX][randY].item == 0 ) {
-            board.map[randX][randY].item = 1;
+            board.map[randX][randY].item = itemToPut;
             board.map[randX][randY].upgradeInd = itemUpgradeTime;
             return;
         }
@@ -3828,7 +3881,7 @@ void App::spawnRandomItem( int xPos, int yPos ) {
         if( randY < 0 ) randY = 0;
         if( randY > 5 ) randY = 5;
         if( isPanelValid( randX, randY ) && board.map[randX][randY].item == 0 ) {
-            board.map[randX][randY].item = 1;
+            board.map[randX][randY].item = itemToPut;
             board.map[randX][randY].upgradeInd = itemUpgradeTime;
             return;
         }
@@ -3875,32 +3928,32 @@ void App::aiAction( Player* const npc ) {
     case MEGAMAN: {
         minEnergy = 150;
         // Check Life Sword
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) <= 1 ) {
             if( attack( npc, 7 ) ) return;
         }
         // Check Step Sword
-        if( x + 3 * dir == pX && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && x + 3 * dir == pX && abs( y - pY ) <= 1 ) {
             if( attack( npc, 6 ) ) return;
         }
         // Check Spin Sword
-        if( abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
             if( attack( npc, 5 ) ) return;
         }
         // Check Cross Sword
-        if( ( x + 1 * dir == pX && y == pY )
-            || ( ( x + 2 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
+        if( rand() % 3 && ( x + 1 * dir == pX && y == pY )
+                          || ( ( x + 2 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
             if( attack( npc, 4 ) ) return;
         }
         // Check Wide Sword
-        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
             if( attack( npc, 3 ) ) return;
         }
         // Check Long Sword
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
             if( attack( npc, 2 ) ) return;
         }
         // Check Sword
-        if( x + 1 * dir == pX && y == pY ) {
+        if( rand() % 3 &&  x + 1 * dir == pX && y == pY ) {
             if( attack( npc, 1 ) ) return;
         }
         break;
@@ -3908,28 +3961,28 @@ void App::aiAction( Player* const npc ) {
     case PROTOMAN: {
         minEnergy = 150;
         // Check Proto Cross
-        if( ( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY )
-            || ( x + 2 * dir == pX && abs( y - pY ) <= 1 ) ) {
+        if( rand() % 3 && ( ( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY )
+                          || ( x + 2 * dir == pX && abs( y - pY ) <= 1 ) ) ) {
             if( attack( npc, 6 ) ) return;
         }
         // Check Hero Sword
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY ) {
             if( attack( npc, 5 ) ) return;
         }
         // Check Step Sword
-        if( x + 3 * dir == pX && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && x + 3 * dir == pX && abs( y - pY ) <= 1 ) {
             if( attack( npc, 4 ) ) return;
         }
         // Check Wide Sword
-        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
             if( attack( npc, 3 ) ) return;
         }
         // Check Long Sword
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
             if( attack( npc, 2 ) ) return;
         }
         // Check Sword
-        if( x + 1 * dir == pX && y == pY ) {
+        if( rand() % 3 && x + 1 * dir == pX && y == pY ) {
             if( attack( npc, 1 ) ) return;
         }
         break;
@@ -3937,16 +3990,16 @@ void App::aiAction( Player* const npc ) {
     case TOMAHAWKMAN: {
         minEnergy = 125;
         // Check Eagle Tomahawk Earthquake
-        if( y == pY && ( ( dir == -1 && pX < x ) || ( dir == 1 && pX > x ) ) ) {
+        if( rand() % 3 && y == pY && ( ( dir == -1 && pX < x ) || ( dir == 1 && pX > x ) ) ) {
             if( attack( npc, 5 ) ) return;
         }
         // Check Tomahawk Swing
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) <= 1 ) {
             if( attack( npc, 4 ) ) return;
             if( attack( npc, 3 ) ) return;
         }
         // Check Wide Swing
-        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
             if( attack( npc, 2 ) ) return;
             if( attack( npc, 1 ) ) return;
         }
@@ -3955,30 +4008,30 @@ void App::aiAction( Player* const npc ) {
     case COLONEL: {
         minEnergy = 125;
         // Check Z-Saber Neo Screen Divide
-        if( ( x + 1 * dir == pX && y == pY )
-            || ( ( x + 2 * dir == pX || x + 1 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
+        if( rand() % 3 && ( x + 1 * dir == pX && y == pY )
+                          || ( ( x + 2 * dir == pX || x + 1 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
             if( attack( npc, 5 ) ) return;
         }
         // Check Step Cross Divide
-        if( ( x + 3 * dir == pX && y == pY )
-            || ( ( x + 4 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) == 1 ) ) {
+        if( rand() % 3 && ( ( x + 3 * dir == pX && y == pY )
+                          || ( ( x + 4 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) == 1 ) ) ) {
             if( attack( npc, 4 ) ) return;
         }
-        // Check Screen Divide Up
-        if( ( x + 1 * dir == pX && y == pY )
-            || ( x == pX && y - 1 == pY )
-            || ( x + 2 * dir == pX && y + 1 == pY ) ) {
-            if( attack( npc, 2 ) ) return;
-        }
         // Check Screen Divide Down
-        if( ( x + 1 * dir == pX && y == pY )
-            || ( x == pX && y + 1 == pY )
-            || ( x + 2 * dir == pX && y - 1 == pY ) ) {
+        if( rand() % 3 && ( ( x + 1 * dir == pX && y == pY )
+                          || ( x == pX && y + 1 == pY )
+                          || ( x + 2 * dir == pX && y - 1 == pY ) ) ) {
+            if( attack( npc, 3 ) ) return;
+        }
+        // Check Screen Divide Up
+        if( rand() % 3 && ( ( x + 1 * dir == pX && y == pY )
+                          || ( x == pX && y - 1 == pY )
+                          || ( x + 2 * dir == pX && y + 1 == pY ) ) ) {
             if( attack( npc, 2 ) ) return;
         }
         // Check Arc Divide
-        if( ( x + 1 * dir == pX && y == pY )
-            || ( x == pX && abs( y - pY ) == 1 ) ) {
+        if( rand() % 3 && ( ( x + 1 * dir == pX && y == pY )
+                          || ( x == pX && abs( y - pY ) == 1 ) ) ) {
             if( attack( npc, 1 ) ) return;
         }
         break;
@@ -3986,25 +4039,25 @@ void App::aiAction( Player* const npc ) {
     case SLASHMAN: {
         minEnergy = 100;
         // Check Tornado Spin Slash
-        if( abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && abs( x - pX ) <= 1 && abs( y - pY ) <= 1 ) {
             if( attack( npc, 5 ) ) return;
         }
         // Check Step Cross
-        if( ( x + 3 * dir == pX && y == pY )
-            || ( ( x + 4 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) == 1 ) ) {
+        if( rand() % 3 && ( ( x + 3 * dir == pX && y == pY )
+                          || ( ( x + 4 * dir == pX || x + 2 * dir == pX ) && abs( y - pY ) == 1 ) ) ) {
             if( attack( npc, 4 ) ) return;
         }
         // Check Cross Slash
-        if( ( x + 1 * dir == pX && y == pY )
-            || ( ( x + 2 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) {
+        if( rand() % 3 && ( ( x + 1 * dir == pX && y == pY )
+                          || ( ( x + 2 * dir == pX || x == pX ) && abs( y - pY ) == 1 ) ) ) {
             if( attack( npc, 3 ) ) return;
         }
         // Check Wide Slash
-        if( x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && x + 1 * dir == pX && abs( y - pY ) <= 1 ) {
             if( attack( npc, 2 ) ) return;
         }
         // Check Long Slash
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX ) && y == pY ) {
             if( attack( npc, 1 ) ) return;
         }
         break;
@@ -4012,19 +4065,19 @@ void App::aiAction( Player* const npc ) {
     case GUTSMAN: {
         minEnergy = 125;
         // Check Guts Hammer Shockwave Slam
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && abs( y - pY ) <= 1 ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && abs( y - pY ) <= 1 ) {
             if( attack( npc, 5 ) ) return;
         }
         // Check Guts Hammer Shockwave
-        if( y == pY && ( ( dir == -1 && pX < x ) || ( dir == 1 && pX > x ) ) ) {
+        if( rand() % 3 && y == pY && ( ( dir == -1 && pX < x ) || ( dir == 1 && pX > x ) ) ) {
             if( attack( npc, 4 ) ) return;
         }
         // Check Guts Dash Punch
-        if( ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY ) {
+        if( rand() % 3 && ( x + 1 * dir == pX || x + 2 * dir == pX || x + 3 * dir == pX ) && y == pY ) {
             if( attack( npc, 3 ) ) return;
         }
         // Check Guts Hammer and Guts Punch
-        if( x + 1 * dir == pX && y == pY ) {
+        if( rand() % 3 && x + 1 * dir == pX && y == pY ) {
             if( attack( npc, 2 ) ) return;
             if( attack( npc, 1 ) ) return;
         }
@@ -4035,8 +4088,8 @@ void App::aiAction( Player* const npc ) {
     // -- Movement -- //
     // Attempt to run to the Next Level if out of Energy
     if( npc->energy < minEnergy ) {
-        if( x > y || ( x == y && randNum2 == 0 ) ) {
-            if     ( move( npc, 0 ) ) return;
+        if( x > y || ( x == y && randNum2 ) ) {
+            if( move( npc, 0 ) ) return;
             if( isPanelValid( x+1, y, true ) ) {
                 if( move( npc, 3 ) ) return;
             }
@@ -4115,27 +4168,52 @@ void App::aiAction( Player* const npc ) {
         // Up Left
         else if( pX < x && pY > y ) {
             if( move( npc, 0 ) ) return;
-            if( isPanelValid( x-1, y, true ) ) {
-                if( move( npc, 1 ) ) return;
+            if( randNum2 ) {
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
             }
-            if( isPanelValid( x+1, y, true ) ) {
-                if( move( npc, 3 ) ) return;
+            else {
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
             }
+            if( move( npc, 1 ) ) return;
         }
         // Left
         else if( pX < x && pY == y ) {
             if( move( npc, 1 ) ) return;
-            if( move( npc, 0 ) ) return;
-            if( move( npc, 2 ) ) return;
-            
+            if( randNum2 ) {
+                if( move( npc, 0 ) ) return;
+                if( move( npc, 2 ) ) return;
+            }
+            else {
+                if( move( npc, 2 ) ) return;
+                if( move( npc, 0 ) ) return;
+            }
         }
         // Down Left
         else if( pX < x && pY < y ) {
             if( move( npc, 2 ) ) return;
-            if( isPanelValid( x-1, y, true ) ) {
-                if( move( npc, 1 ) ) return;
+            if( randNum2 ) {
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+                if( move( npc, 0 ) ) return;
             }
-            if( move( npc, 0 ) ) return;
+            else {
+                if( move( npc, 0 ) ) return;
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+            }
+            if( move( npc, 1 ) ) return;
         }
         // Down
         else if( pX == x && pY < y ) {
@@ -4161,26 +4239,52 @@ void App::aiAction( Player* const npc ) {
         // Down Right
         else if( pX > x && pY < y ) {
             if( move( npc, 2 ) ) return;
-            if( isPanelValid( x+1, y, true ) ) {
-                if( move( npc, 3 ) ) return;
+            if( randNum2 ) {
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+                if( move( npc, 0 ) ) return;
             }
-            if( move( npc, 0 ) ) return;
+            else {
+                if( move( npc, 0 ) ) return;
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+            }
+            if( move( npc, 3 ) ) return;
         }
         // Right
         else if( pX > x && pY == y ) {
             if( move( npc, 3 ) ) return;
-            if( move( npc, 0 ) ) return;
-            if( move( npc, 2 ) ) return;
+            if( randNum2 ) {
+                if( move( npc, 0 ) ) return;
+                if( move( npc, 2 ) ) return;
+            }
+            else {
+                if( move( npc, 2 ) ) return;
+                if( move( npc, 0 ) ) return;
+            }
         }
         // Up Right
         else {
             if( move( npc, 0 ) ) return;
-            if( isPanelValid( x+1, y, true ) ) {
-                if( move( npc, 3 ) ) return;
+            if( randNum2 ) {
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
             }
-            if( isPanelValid( x-1, y, true ) ) {
-                if( move( npc, 1 ) ) return;
+            else {
+                if( isPanelValid( x-1, y, true ) ) {
+                    if( move( npc, 1 ) ) return;
+                }
+                if( isPanelValid( x+1, y, true ) ) {
+                    if( move( npc, 3 ) ) return;
+                }
             }
+            if( move( npc, 3 ) ) return;
         }
     }
 }

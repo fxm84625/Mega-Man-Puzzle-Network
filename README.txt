@@ -2,29 +2,21 @@
 Mega Man Puzzle Network
 -----
  	Inspired by Capcom's Mega Man Battle Network
+	All textures and sounds are property of Capcom
 -----
 	Controls:
 
-		W A S D			Movement
-		Arrow keys		Moving also changes facing direction
-					You can only face Left and Right
+		W A S D				Movement
+		Arrow keys			Moving also changes facing direction
+						You can only face Left and Right
 
-		1-7			Attack
-		Keypad 1-7
+		1-7, NumPad 1-7			Attack
 
-		Space / Shift		Turn around without moving
-
-		R			Restart to a New Game
+		Space, Shift			Turn around without moving
 		
-		Tab or F		Toggle Menu
+		Tab, F				Toggle Info Help Menu
 		
-		X			Enter Training Room
-		
-		C			Change Music track
-		
-		V			Toggle Music
-		
-		Esc			Quit
+		Esc, Backspace			Quit
 -----
 	Goal:
 		Get as far as you can. Your score is the level count.
